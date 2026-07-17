@@ -2,14 +2,20 @@
   "name": "shippingbinaries.com",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "node --watch src/dev.ts",
+    "start": "node src/dev.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.9",
     "hono": "^4.12.30"
   },
   "devDependencies": {
+    "@types/node": "^24.10.13",
     "typescript": "^6.0.0"
   }
 }

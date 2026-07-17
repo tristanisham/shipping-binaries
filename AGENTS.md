@@ -10,11 +10,7 @@ As the service grows, group related handlers under `src/routes/` and reusable lo
 
 - `npm install` installs the exact locked dependency tree.
 - `npm run dev` starts the Vite development server with HMR at `http://localhost:3000`.
-- `vc build` produces a local Vercel build and catches deployment integration errors.
 - `npx tsc --noEmit` type-checks the strict TypeScript project without writing `dist/` output.
-- `vc deploy` deploys the project; use it only when the target Vercel environment is understood.
-
-The Vercel CLI must be installed globally for build and deployment commands.
 
 ## Coding Style & Naming Conventions
 
@@ -22,7 +18,7 @@ Use TypeScript ES modules and preserve the existing style: two-space indentation
 
 ## Testing Guidelines
 
-No automated test framework or coverage threshold is configured yet. For every change, run `npx tsc --noEmit` and `vc build`, then exercise affected routes through `npm run dev`. If tests are added, place them beside their modules as `*.test.ts`, add a reproducible `npm test` script, and cover success responses plus validation and error paths.
+No automated test framework or coverage threshold is configured yet. For every change, run `npm run typecheck`, then exercise affected routes through `npm run dev`. If tests are added, place them beside their modules as `*.test.ts`, add a reproducible `npm test` script, and cover success responses plus validation and error paths.
 
 ## Commit & Pull Request Guidelines
 
