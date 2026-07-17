@@ -1,21 +1,15 @@
 {
-  "name": "hono",
+  "name": "shippingbinaries.com",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite"
+    "dev": "vercel dev",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "hono": "^4.12.30"
   },
   "devDependencies": {
-    "@hono/vite-dev-server": "^0.26.1",
-    "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "^26.1.1",
-    "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2",
-    "vite": "^8.1.5"
-  },
-  "allowScripts": {
-    "esbuild@0.28.1": true
+    "typescript": "^6.0.0"
   }
 }
