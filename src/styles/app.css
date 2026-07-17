@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Scan TSX/TS sources for class usage. */
+@source "../**/*.{ts,tsx}";

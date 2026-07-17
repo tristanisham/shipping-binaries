@@ -1,22 +1,11 @@
 import { Hono } from 'hono'
+import home from './routers/home.js'
+import blog from './routers/blog.js'
 
 const app = new Hono()
 
-app.get('/', (c) => {
-  return c.html(`<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shipping Binaries</title>
-  </head>
-  <body>
-    <main>
-      <h1>Shipping Binaries</h1>
-      <p>Hello from Hono.</p>
-    </main>
-  </body>
-</html>`)
-})
+// Routers live in ./routers and are mounted here. Rendering lives in ./views.
+app.route('/', home)
+app.route('/', blog)
 
 export default app
