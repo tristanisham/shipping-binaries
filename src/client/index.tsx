@@ -1,12 +1,12 @@
 import type { FC } from 'hono/jsx'
 import { render } from 'hono/jsx/dom'
-import { Counter } from '../views/components/Counter.js'
+import { HeaderWidget } from '../views/components/HeaderWidget.js'
 
 // Registry of components that can hydrate on the client. Keys must match the
 // `name` passed to <Island /> on the server. Props are deserialised from the
 // DOM, so components are stored under a permissive prop type here.
 const registry: Record<string, FC<any>> = {
-  Counter
+  HeaderWidget
 }
 
 // Module scripts are deferred, so the DOM is ready when this runs.

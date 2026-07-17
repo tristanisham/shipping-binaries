@@ -1,6 +1,11 @@
+import { existsSync } from 'node:fs'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import app from './index.js'
+
+// Load local secrets (e.g. OPENWEATHER_API_KEY) for development. On Vercel,
+// environment variables are provided by the platform.
+if (existsSync('.env')) process.loadEnvFile('.env')
 
 // Locally we serve the built assets ourselves. On Vercel the platform serves
 // everything under public/ statically, so this route is only used in dev.
