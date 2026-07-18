@@ -95,3 +95,24 @@ export function getPost(slug: string): Post | null {
   if (!found) return null
   return { ...found.meta, html: marked.parse(found.body) as string }
 }
+
+// Canonical permalink for a post: /yyyy/mm/dd/slug, derived from its date.
+// Returns null if the post has no (parseable) date.
+export function postPath(post: Pick<PostMeta, 'slug' | 'date'>): string | null {
+  const m = post.date.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!m) return null
+  return `/${m[1]}/${m[2]}/${m[3]}/${post.slug}`
+}
+
+// Look up a post by its dated permalink. The date in the URL must match the
+// post's frontmatter date, so each post has exactly one canonical URL.
+export function getPostByPath(
+  year: string,
+  month: string,
+  day: string,
+  slug: string
+): Post | null {
+  const post = getPost(slug)
+  if (!post) return null
+  return postPath(post) === `/${year}/${month}/${day}/${slug}` ? post : null
+}
