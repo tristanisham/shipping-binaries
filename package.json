@@ -3,16 +3,12 @@
   "type": "module",
   "dependencies": {
     "hono": "^4.12.31",
-    "lucide-react": "^1.25.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "lucide-react": "^1.25.0"
   },
   "devDependencies": {
     "@hono/node-server": "^2.0.10",
     "@tailwindcss/cli": "^4.3.3",
     "@types/node": "^26.1.1",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
     "concurrently": "^10.0.3",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.0",
@@ -29,7 +25,6 @@
     "dev:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --watch",
     "dev:server": "node --import=tsx --watch src/dev.ts",
     "start": "node --import=tsx src/dev.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "node --import=tsx --test tests/**/*.test.ts"
+    "typecheck": "tsc --noEmit"
   }
 }
