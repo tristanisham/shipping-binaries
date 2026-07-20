@@ -1,0 +1,10 @@
+{
+  "languages": {
+    "TSX": {
+      "language_servers": ["tailwindcss-language-server", "emmet-language-server", "..."]
+    },
+    "JavaScript": {
+      "language_servers": ["tailwindcss-language-server", "emmet-language-server", "..."]
+    }
+  }
+}

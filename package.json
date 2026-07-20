@@ -1,21 +1,30 @@
 {
-  "name": "shippingbinaries.com",
-  "private": true,
+  "name": "hono",
   "type": "module",
-  "engines": {
-    "node": ">=22.6"
-  },
-  "scripts": {
-    "dev": "node --watch src/dev.ts",
-    "start": "node src/dev.ts",
-    "typecheck": "tsc --noEmit"
-  },
   "dependencies": {
-    "@hono/node-server": "^1.19.9",
-    "hono": "^4.12.30"
+    "hono": "^4.12.31",
+    "lucide-react": "^1.25.0"
   },
   "devDependencies": {
-    "@types/node": "^24.10.13",
-    "typescript": "^6.0.0"
+    "@hono/node-server": "^2.0.10",
+    "@tailwindcss/cli": "^4.3.3",
+    "@types/node": "^26.1.1",
+    "concurrently": "^10.0.3",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "@parcel/watcher@2.5.1": true
+  },
+  "scripts": {
+    "build": "npm run build:css",
+    "build:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --minify",
+    "dev": "npm run build:css && concurrently --kill-others-on-fail \"npm:dev:server\" \"npm:dev:css\"",
+    "dev:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --watch",
+    "dev:server": "node --import=tsx --watch src/dev.ts",
+    "start": "node --import=tsx src/dev.ts",
+    "typecheck": "tsc --noEmit"
   }
 }

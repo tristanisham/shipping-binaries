@@ -1,18 +1,28 @@
-# Shipping Binaries
+Prerequisites:
 
-A minimal [Hono](https://hono.dev/) website for Vercel.
+- [Vercel CLI](https://vercel.com/docs/cli) installed globally
 
-## Development
+To develop locally:
 
-```sh
+```
 npm install
-npm run dev
+vc dev
 ```
 
-Open <http://localhost:3000>.
+```
+open http://localhost:3000
+```
 
-## Verification
+To build locally:
 
-```sh
-npm run typecheck
+```
+npm install
+vc build
+```
+
+To deploy:
+
+```
+npm install
+vc deploy
 ```
