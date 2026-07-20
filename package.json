@@ -7,12 +7,14 @@
   },
   "devDependencies": {
     "@hono/node-server": "^2.0.10",
+    "@hono/vite-dev-server": "^0.26.1",
     "@tailwindcss/cli": "^4.3.3",
     "@types/node": "^26.1.1",
     "concurrently": "^10.0.3",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^8.1.5"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
@@ -23,7 +25,7 @@
     "build:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --minify",
     "dev": "npm run build:css && concurrently --kill-others-on-fail \"npm:dev:server\" \"npm:dev:css\"",
     "dev:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --watch",
-    "dev:server": "node --import=tsx --watch src/dev.ts",
+    "dev:server": "vite",
     "start": "node --import=tsx src/dev.ts",
     "typecheck": "tsc --noEmit"
   }

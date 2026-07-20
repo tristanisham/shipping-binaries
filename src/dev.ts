@@ -4,7 +4,7 @@ import app from "./index.js";
 
 const port = Number(process.env.PORT ?? 3000);
 
-app.use("/styles.css", serveStatic({ path: "./public/styles.css" }));
+app.use("/*", serveStatic({ root: "./public" }));
 
 serve({
   fetch: app.fetch,

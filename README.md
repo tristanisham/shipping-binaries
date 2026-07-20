@@ -6,7 +6,7 @@ To develop locally:
 
 ```
 npm install
-vc dev
+npm run dev
 ```
 
 ```

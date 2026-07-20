@@ -37,7 +37,7 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         {meta?.canonical && <link rel="canonical" href={meta.canonical} />}
         <link rel="stylesheet" href="/styles.css" />
       </head>
-      <body>{children}</body>
+      <body class={'bg-amber-50'}>{children}</body>
     </html>
   );
 };

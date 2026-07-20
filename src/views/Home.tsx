@@ -1,6 +1,11 @@
 import { Hono } from "hono";
 import type { FC } from "hono/jsx";
 import { Layout, LayoutMeta } from "./layouts/MainLayout.js";
+import {
+  defaultHeaderNav,
+  Header,
+  setCurrentNavItem,
+} from "./components/header/Header.js";
 
 export const Home: FC = (_props) => {
   const meta: LayoutMeta = {
@@ -17,8 +22,10 @@ export const Home: FC = (_props) => {
 
   return (
     <Layout meta={meta}>
-      <main class={"bg-white h-full"}>
-        <p class={"text-green-500"}>Test!!!</p>
+      <main class={" h-full w-2/5 mx-auto container"}>
+        <Header
+          nav={setCurrentNavItem(defaultHeaderNav, "/")}
+        />
       </main>
     </Layout>
   );
