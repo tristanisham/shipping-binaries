@@ -1,15 +1,8 @@
 import type { FC } from "hono/jsx";
-
-export interface CommentData {
-  id: number;
-  author: string;
-  content: string;
-  createdAt: string;
-  replies?: readonly CommentData[];
-}
+import type { BlogComment } from "../../../models/comment.js";
 
 type CommentProps = {
-  comment: CommentData;
+  comment: BlogComment;
 };
 
 export const Comment: FC<CommentProps> = ({ comment }) => {
@@ -22,10 +15,10 @@ export const Comment: FC<CommentProps> = ({ comment }) => {
         </time>
       </header>
       <p class="mt-2 whitespace-pre-wrap">{comment.content}</p>
-      {comment.replies && comment.replies.length > 0 && (
+      {comment.children.length > 0 && (
         <div class="mt-4 space-y-4">
-          {comment.replies.map((reply) => (
-            <Comment comment={reply} />
+          {comment.children.map((child) => (
+            <Comment comment={child} />
           ))}
         </div>
       )}
