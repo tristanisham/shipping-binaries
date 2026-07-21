@@ -30,7 +30,7 @@ export const Header: FC<HeaderProps> = ({ nav }) => {
     <header class={"border-red-500 w-full"}>
       <nav class={"flex flex-row flex-wrap justify-between py-2"}>
         <div className="flex flex-col">
-          <div class="font-black-ops-one pb-4 text-6xl text-mist-600">
+          <div class="font-black-ops-one pb-4 text-4xl sm:text-6xl text-mist-600">
             Shipping Binaries
           </div>
           <div className="flex flex-row gap-4">

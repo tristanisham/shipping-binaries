@@ -22,7 +22,7 @@ export const Home: FC = (_props) => {
 
   return (
     <Layout meta={meta}>
-      <main class={" h-full w-2/5 mx-auto container"}>
+      <main class={"h-full w-full px-4 md:w-2/5 md:px-0 mx-auto container"}>
         <Header
           nav={setCurrentNavItem(defaultHeaderNav, "/")}
         />

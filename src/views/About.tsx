@@ -20,7 +20,7 @@ export const About: FC = () => {
 
   return (
     <Layout meta={meta}>
-      <main class="container mx-auto h-full w-2/5">
+      <main class="container mx-auto h-full w-full px-4 md:w-2/5 md:px-0">
         <Header
           nav={setCurrentNavItem(defaultHeaderNav, "/about")}
         />
