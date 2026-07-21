@@ -2,15 +2,14 @@
   "name": "hono",
   "type": "module",
   "dependencies": {
-    "hono": "^4.12.31",
-    "lucide-react": "^1.25.0"
+    "hono": "^4.12.31"
   },
   "devDependencies": {
     "@hono/node-server": "^2.0.10",
     "@hono/vite-dev-server": "^0.26.1",
     "@tailwindcss/cli": "^4.3.3",
     "@types/node": "^26.1.1",
-    "concurrently": "^10.0.3",
+    "concurrently": "^9.2.4",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.0",
     "typescript": "^5.9.3",
