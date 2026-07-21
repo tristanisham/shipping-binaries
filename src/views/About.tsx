@@ -20,10 +20,10 @@ export const About: FC = () => {
 
   return (
     <Layout meta={meta}>
+      <Header
+        nav={setCurrentNavItem(defaultHeaderNav, "/about")}
+      />
       <main class="container mx-auto h-full w-2/5">
-        <Header
-          nav={setCurrentNavItem(defaultHeaderNav, "/about")}
-        />
         <article class="py-8">
         
         </article>

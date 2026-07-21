@@ -14,8 +14,8 @@ export const Logout: FC = () => {
 
   return (
     <Layout meta={meta}>
+      <Header nav={setCurrentNavItem(defaultHeaderNav, "/logout")} />
       <main class="container mx-auto h-full w-2/5">
-        <Header nav={setCurrentNavItem(defaultHeaderNav, "/logout")} />
         <section class="mx-auto mt-16 max-w-md">
           <h1 class="text-3xl font-bold">Logged out.</h1>
         </section>
