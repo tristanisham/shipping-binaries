@@ -50,4 +50,4 @@ There is currently no automated test script. Exercise affected routes in the bro
 
 ## Deployment
 
-Run `npm run deploy` to deploy the Hono app, static assets, D1 binding, and `shippingbinaries.com` custom domain with Wrangler. Do not commit `dist/`, `.vercel/`, `.wrangler/`, dependency directories, or environment files.
+Run `npm run deploy` to deploy the Hono app, static assets, D1 binding, and `shippingbinaries.com` custom domain with Wrangler. Do not commit `dist/`, `.wrangler/`, dependency directories, or environment files.

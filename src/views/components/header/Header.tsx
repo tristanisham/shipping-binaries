@@ -28,8 +28,8 @@ type HeaderProps = {
 export const Header: FC<HeaderProps> = ({ nav }) => {
   return (
     <header class={""}>
-      <nav class={"flex w-full flex-col py-2"}>
-        <div class="mx-auto w-max">
+      <nav class={"flex w-full flex-col items-center py-2"}>
+        <div class="w-max">
           <div class="my-1 flex w-full items-center justify-between rounded-b-md bg-mist-600 dark:bg-amber-50">
             <div class="flex items-center">
               <button
