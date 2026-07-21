@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "shipping-binaries",
+  "main": "src/index.tsx",
+  "compatibility_date": "2026-07-21",
+  "routes": [
+    {
+      "pattern": "shippingbinaries.com",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./public"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "shipping-binaries",
+      "database_id": "92383e1c-8c42-47db-a2df-4df5f352a12d"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
