@@ -12,4 +12,40 @@
 
 @theme {
   --font-black-ops-one: "Black Ops One", sans-serif;
+
+  --color-onyx-50: #f3f4f1;
+  --color-onyx-100: #e7e9e2;
+  --color-onyx-200: #cfd2c6;
+  --color-onyx-300: #b7bca9;
+  --color-onyx-400: #9fa58d;
+  --color-onyx-500: #878f70;
+  --color-onyx-600: #6c725a;
+  --color-onyx-700: #515643;
+  --color-onyx-800: #36392d;
+  --color-onyx-900: #1b1d16;
+  --color-onyx-950: #131410;
+
+  --color-burgundy-50: #f9ebec;
+  --color-burgundy-100: #f3d8da;
+  --color-burgundy-200: #e8b0b4;
+  --color-burgundy-300: #dc898f;
+  --color-burgundy-400: #d06269;
+  --color-burgundy-500: #c43b44;
+  --color-burgundy-600: #9d2f36;
+  --color-burgundy-700: #762329;
+  --color-burgundy-800: #4f171b;
+  --color-burgundy-900: #270c0e;
+  --color-burgundy-950: #1b0809;
+
+  --color-chocolate-50: #fdf0e8;
+  --color-chocolate-100: #fbe1d0;
+  --color-chocolate-200: #f6c4a2;
+  --color-chocolate-300: #f2a673;
+  --color-chocolate-400: #ee8844;
+  --color-chocolate-500: #e96a16;
+  --color-chocolate-600: #bb5511;
+  --color-chocolate-700: #8c400d;
+  --color-chocolate-800: #5d2b09;
+  --color-chocolate-900: #2f1504;
+  --color-chocolate-950: #210f03;
 }

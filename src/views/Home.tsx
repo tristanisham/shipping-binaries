@@ -1,13 +1,18 @@
-import { Hono } from "hono";
 import type { FC } from "hono/jsx";
+import type { Post } from "../models/post.js";
 import { Layout, LayoutMeta } from "./layouts/MainLayout.js";
+import { PostList } from "./components/blog/PostList.js";
 import {
   defaultHeaderNav,
   Header,
   setCurrentNavItem,
 } from "./components/header/Header.js";
 
-export const Home: FC = (_props) => {
+type HomeProps = {
+  posts?: readonly Post[];
+};
+
+export const Home: FC<HomeProps> = ({ posts = [] }) => {
   const meta: LayoutMeta = {
     title: "Home | Shipping Binaries",
     description:
@@ -26,6 +31,7 @@ export const Home: FC = (_props) => {
         <Header
           nav={setCurrentNavItem(defaultHeaderNav, "/")}
         />
+        <PostList posts={posts} />
       </main>
     </Layout>
   );
