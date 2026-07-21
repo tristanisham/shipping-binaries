@@ -67,11 +67,11 @@ export const Header: FC<HeaderProps> = ({ nav }) => {
               </a>
             </div>
           </div>
-          <div class="relative">
-            <div class="font-black-ops-one pb-4 text-center text-8xl text-mist-600 @max-[40rem]:text-[10.2cqw] @max-[40rem]:whitespace-nowrap @min-[40rem]:@max-[55rem]:text-left dark:text-amber-50">
+          <div class="flex">
+            <div class="grow font-black-ops-one pb-4 text-center text-8xl text-mist-600 @max-[40rem]:text-[10.2cqw] @max-[40rem]:whitespace-nowrap @min-[40rem]:@max-[55rem]:text-left dark:text-amber-50">
               Shipping Binaries
             </div>
-            <div class="absolute inset-y-0 right-0 hidden flex-col items-end justify-around pb-4 text-xl @min-[40rem]:@max-[55rem]:flex">
+            <div class="hidden flex-col items-end gap-2 pb-4 text-xl @min-[40rem]:@max-[55rem]:flex">
               {nav.map((item) => (
                 <a
                   aria-current={item.current ? "page" : undefined}
