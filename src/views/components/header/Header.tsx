@@ -1,5 +1,4 @@
 import type { FC } from "hono/jsx";
-import { WeatherWidget } from "./WeatherWidget.js";
 
 export type HeaderNavItem = {
   label: string;
@@ -27,29 +26,47 @@ type HeaderProps = {
 
 export const Header: FC<HeaderProps> = ({ nav }) => {
   return (
-    <header class={"border-red-500 w-full"}>
-      <nav class={"flex flex-row flex-wrap justify-between py-2"}>
-        <div className="flex flex-col">
-          <div class="font-black-ops-one pb-4 text-6xl text-mist-600">
+    <header class={""}>
+      <nav class={"flex w-full flex-col py-2"}>
+        <div class="mx-auto w-fit">
+          <div class="flex w-full my-2 justify-end rounded-b-md bg-mist-600 dark:bg-amber-50">
+            <button
+              id="light-dark-toggle"
+              aria-label="Toggle light and dark theme"
+              class="m-4 cursor-pointer text-amber-50 dark:text-mist-600"
+              onclick={'const root = document.documentElement; const isDark = root.classList.toggle("dark"); localStorage.setItem("theme", isDark ? "dark" : "light");'}
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="size-5 fill-current"
+                viewBox="0 0 24 24"
+              >
+                <path d="M11 1h2v3h-2V1Zm0 19h2v3h-2v-3ZM1 11h3v2H1v-2Zm19 0h3v2h-3v-2ZM4.22 2.81l2.12 2.12-1.41 1.41-2.12-2.12 1.41-1.41Zm13.44 13.43 2.12 2.12-1.42 1.42-2.12-2.12 1.42-1.42ZM2.81 19.78l2.12-2.12 1.41 1.41-2.12 2.12-1.41-1.41ZM16.24 4.93l2.12-2.12 1.42 1.41-2.12 2.12-1.42-1.41ZM12 18a6 6 0 0 0 0-12v12Z" />
+              </svg>
+            </button>
+          </div>
+          <div class="font-black-ops-one pb-4 text-8xl text-mist-600 dark:text-amber-50">
             Shipping Binaries
           </div>
-          <div className="flex flex-row gap-4">
-            {nav.map((item) => (
-              <a
-                aria-current={item.current ? "page" : undefined}
-                class={
-                  item.current
-                    ? "font-bold text-mist-600 underline decoration-2 decoration-mist-600"
-                    : "hover:text-mist-600"
-                }
-                href={item.link}
-              >
-                {item.label}
-              </a>
-            ))}
+          <div class="flex w-full flex-row items-center justify-center">
+            <div class="flex flex-row gap-4 text-xl">
+              {nav.map((item) => (
+                <a
+                  aria-current={item.current ? "page" : undefined}
+                  class={
+                    item.current
+                      ? "font-bold text-mist-600 underline decoration-2 decoration-mist-600 dark:text-amber-50 dark:decoration-amber-50"
+                      : "hover:text-mist-600 dark:hover:text-amber-50"
+                  }
+                  href={item.link}
+                >
+                  {item.label}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
-        <WeatherWidget />
       </nav>
     </header>
   );

@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @font-face {
   font-family: "Black Ops One";
   src: url("/fonts/Black_Ops_One/BlackOpsOne-Regular.ttf") format("truetype");

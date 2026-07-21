@@ -35,9 +35,17 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         {meta?.author && <meta name="author" content={meta.author} />}
         {meta?.robots && <meta name="robots" content={meta.robots} />}
         {meta?.canonical && <link rel="canonical" href={meta.canonical} />}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try { const theme = localStorage.getItem("theme"); const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.classList.toggle("dark", theme === "dark" || (!theme && prefersDark)); } catch {}',
+          }}
+        />
         <link rel="stylesheet" href="/styles.css" />
       </head>
-      <body class={'bg-amber-50'}>{children}</body>
+      <body class="bg-amber-50 text-mist-600 dark:bg-mist-600 dark:text-amber-50">
+        {children}
+      </body>
     </html>
   );
 };
