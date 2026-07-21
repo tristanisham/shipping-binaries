@@ -16,6 +16,22 @@ type LayoutProps = {
   meta?: LayoutMeta;
 };
 
+// Runs before first paint so a saved theme doesn't flash, then wires the
+// header's #theme-toggle via delegation since the button renders later.
+const themeScript = `
+(function () {
+  var saved = localStorage.getItem("theme");
+  if (saved === "dark" || (!saved && matchMedia("(prefers-color-scheme: dark)").matches)) {
+    document.documentElement.classList.add("dark");
+  }
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("#theme-toggle")) return;
+    var dark = document.documentElement.classList.toggle("dark");
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  });
+})();
+`;
+
 export const Layout: FC<LayoutProps> = ({ children, meta }) => {
   return (
     <html>
@@ -39,8 +55,11 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         {meta?.robots && <meta name="robots" content={meta.robots} />}
         {meta?.canonical && <link rel="canonical" href={meta.canonical} />}
         <link rel="stylesheet" href="/styles.css" />
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body class={'bg-amber-50'}>{children}</body>
+      <body class={'bg-amber-50 dark:bg-mist-600 dark:text-amber-50'}>
+        {children}
+      </body>
     </html>
   );
 };
