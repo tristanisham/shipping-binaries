@@ -1,4 +1,5 @@
 import type { Child, FC } from "hono/jsx";
+import { Analytics } from "@vercel/analytics/next"
 
 export type LayoutMeta = {
   title?: string;
@@ -42,6 +43,7 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
           }}
         />
         <link rel="stylesheet" href="/styles.css" />
+        <Analytics/>
       </head>
       <body class="bg-amber-50 text-mist-600 dark:bg-mist-600 dark:text-amber-50">
         {children}
