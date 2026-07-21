@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "hono",
-  "buildCommand": "npm run build:css && tsc",
+  "buildCommand": "npm run build:css && npx tsc",
   "outputDirectory": "dist"
 }
