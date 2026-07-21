@@ -2,6 +2,7 @@
   "name": "hono",
   "type": "module",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "hono": "^4.12.31"
   },
   "devDependencies": {
@@ -27,6 +28,8 @@
     "dev:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --watch",
     "dev:server": "vite",
     "dev:worker": "wrangler dev --persist-to=${DATABASE_URL:-.wrangler/state}",
+    "db:migrate:local": "wrangler d1 migrations apply shipping-binaries --local --persist-to=${DATABASE_URL:-.wrangler/state}",
+    "db:migrate:remote": "wrangler d1 migrations apply shipping-binaries --remote",
     "deploy": "wrangler deploy",
     "start": "node --import=tsx src/dev.ts",
     "typecheck": "tsc --noEmit"
