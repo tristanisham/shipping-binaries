@@ -3,6 +3,7 @@
   "name": "shipping-binaries",
   "main": "src/index.tsx",
   "compatibility_date": "2026-07-21",
+  "workers_dev": false,
   "routes": [
     {
       "pattern": "shippingbinaries.com",

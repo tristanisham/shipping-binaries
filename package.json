@@ -22,6 +22,7 @@
     "@parcel/watcher@2.5.1": true
   },
   "scripts": {
+    "account:create": "node --env-file-if-exists=.env --import=tsx src/cli/create-owner.ts",
     "build": "npm run build:css",
     "build:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --minify",
     "dev": "npm run build:css && concurrently --kill-others-on-fail \"npm:dev:server\" \"npm:dev:css\"",
@@ -32,6 +33,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply shipping-binaries --remote",
     "deploy": "wrangler deploy",
     "start": "node --import=tsx src/dev.ts",
+    "types:worker": "wrangler types src/worker-configuration.d.ts",
     "typecheck": "tsc --noEmit"
   }
 }
