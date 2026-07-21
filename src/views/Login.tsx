@@ -20,8 +20,8 @@ export const Login: FC<LoginProps> = ({ error, login = "" }) => {
 
   return (
     <Layout meta={meta}>
+      <Header nav={setCurrentNavItem(defaultHeaderNav, "/login")} />
       <main class="container mx-auto h-full w-2/5">
-        <Header nav={setCurrentNavItem(defaultHeaderNav, "/login")} />
         <section class="mx-auto mt-16 max-w-md">
           <h1 class="mb-8 text-3xl font-bold">Log in</h1>
           <form action="/login" class="flex flex-col gap-5" method="post">

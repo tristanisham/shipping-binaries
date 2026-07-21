@@ -1,7 +1,3 @@
-Prerequisites:
-
-- [Vercel CLI](https://vercel.com/docs/cli) installed globally
-
 To develop locally:
 
 ```
@@ -17,12 +13,12 @@ To build locally:
 
 ```
 npm install
-vc build
+npm run build
 ```
 
 To deploy:
 
 ```
 npm install
-vc deploy
+npm run deploy
 ```

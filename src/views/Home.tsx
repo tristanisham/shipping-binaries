@@ -27,10 +27,10 @@ export const Home: FC<HomeProps> = ({ posts = [] }) => {
 
   return (
     <Layout meta={meta}>
+      <Header
+        nav={setCurrentNavItem(defaultHeaderNav, "/")}
+      />
       <main class={" h-full w-2/5 mx-auto container"}>
-        <Header
-          nav={setCurrentNavItem(defaultHeaderNav, "/")}
-        />
         <PostList posts={posts} />
       </main>
     </Layout>
