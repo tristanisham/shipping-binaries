@@ -29,7 +29,7 @@ export const Header: FC<HeaderProps> = ({ nav }) => {
     <header class={""}>
       <nav class={"flex w-full flex-col py-2"}>
         <div class="mx-auto w-fit">
-          <div class="flex w-full my-2 justify-end rounded-b-md bg-mist-600 dark:bg-amber-50">
+          <div class="flex w-full my-1 justify-end rounded-b-md bg-mist-600 dark:bg-amber-50">
             <button
               id="light-dark-toggle"
               aria-label="Toggle light and dark theme"
