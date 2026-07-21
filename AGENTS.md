@@ -8,6 +8,7 @@
 - `src/dev.ts` is the plain Node server entrypoint. `src/app.ts` re-exports the Hono app for deployment.
 - `src/styles.css` is the Tailwind v4 source. `public/styles.css` is generated output; change the source stylesheet or component utility classes, then rebuild it.
 - Static files belong under `public/` and are referenced from the site root, for example `/styles.css`.
+- `wrangler.jsonc` is the Cloudflare Workers deployment source of truth. It binds the production D1 database as `DB`, publishes `public/` as Workers static assets, and routes the apex domain to the Worker.
 
 ## Local workflow
 
@@ -19,6 +20,8 @@ npm run dev
 ```
 
 `npm run dev` builds CSS once, then runs Vite and the Tailwind watcher together. Vite defaults to `http://localhost:3000` and provides the normal live-reload workflow. `npm start` runs the standalone Node server and does not provide Vite live reload.
+
+Use `npm run dev:worker` when testing Cloudflare bindings locally. Set `DATABASE_URL` to a local Wrangler persistence directory; it defaults to `.wrangler/state` when unset. The production D1 database ID is committed in `wrangler.jsonc` because it is an identifier, not a secret.
 
 Before handing off changes, run:
 
@@ -47,4 +50,4 @@ There is currently no automated test script. Exercise affected routes in the bro
 
 ## Deployment
 
-`vercel.json` declares the Hono framework, runs CSS generation plus TypeScript compilation, and publishes `dist`. Keep deployment behavior aligned with that configuration and do not commit `dist/`, `.vercel/`, dependency directories, or environment files.
+Run `npm run deploy` to deploy the Hono app, static assets, D1 binding, and `shippingbinaries.com` custom domain with Wrangler. Do not commit `dist/`, `.vercel/`, `.wrangler/`, dependency directories, or environment files.

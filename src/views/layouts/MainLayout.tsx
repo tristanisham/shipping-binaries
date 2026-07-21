@@ -42,18 +42,6 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
           }}
         />
         <link rel="stylesheet" href="/styles.css" />
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };",
-          }}
-        />
-        <script
-          data-sdkn="@vercel/analytics"
-          data-sdkv="2.0.1"
-          defer
-          src="/_vercel/insights/script.js"
-        />
       </head>
       <body class="bg-amber-50 text-mist-600 dark:bg-mist-600 dark:text-amber-50">
         {children}

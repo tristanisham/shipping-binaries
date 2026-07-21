@@ -13,7 +13,8 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.0",
     "typescript": "^5.9.3",
-    "vite": "^8.1.5"
+    "vite": "^8.1.5",
+    "wrangler": "^4.112.0"
   },
   "allowScripts": {
     "esbuild@0.28.1": true,
@@ -25,6 +26,8 @@
     "dev": "npm run build:css && concurrently --kill-others-on-fail \"npm:dev:server\" \"npm:dev:css\"",
     "dev:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --watch",
     "dev:server": "vite",
+    "dev:worker": "wrangler dev --persist-to=${DATABASE_URL:-.wrangler/state}",
+    "deploy": "wrangler deploy",
     "start": "node --import=tsx src/dev.ts",
     "typecheck": "tsc --noEmit"
   }
