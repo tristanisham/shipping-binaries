@@ -37,7 +37,9 @@ There is currently no automated test script. Exercise affected routes in the bro
 - Import Hono JSX types such as `FC` and `Child` from `hono/jsx`.
 - Hono JSX uses HTML-style attributes in this codebase, including `class` and lowercase event attributes such as `onclick`.
 - Reuse `Layout` and `Header` rather than duplicating page structure. Keep route-specific metadata with its page view.
-- Follow the existing amber/mist light-dark palette and Tailwind utilities for UI changes. Avoid adding custom CSS when a clear utility already exists.
+- Preserve the site palette exactly: light mode uses `bg-amber-50` with `text-mist-600`; dark mode reverses that to `dark:bg-mist-600` with `dark:text-amber-50`.
+- Inverse-color UI such as the header control bar mirrors the page palette: `bg-mist-600 text-amber-50` in light mode and `dark:bg-amber-50 dark:text-mist-600` in dark mode.
+- Use Tailwind utilities for UI changes and do not edit or regenerate `public/styles.css`; the user's running Tailwind watcher owns that generated file.
 
 ## Reference
 
