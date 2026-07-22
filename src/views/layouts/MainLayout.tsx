@@ -23,7 +23,10 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
     <html>
       <head>
         {meta?.charset && <meta charset={meta.charset} />}
-        {meta?.viewport && <meta name="viewport" content={meta.viewport} />}
+        <meta
+          name="viewport"
+          content={meta?.viewport ?? "width=device-width, initial-scale=1"}
+        />
         {meta?.title && <title>{meta.title}</title>}
         {meta?.description && (
           <meta name="description" content={meta.description} />
