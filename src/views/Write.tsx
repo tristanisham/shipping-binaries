@@ -19,6 +19,12 @@ import {
 } from "./components/ui/Card.js";
 import { Input } from "./components/ui/Input.js";
 import { Textarea } from "./components/ui/Textarea.js";
+import { cn } from "./components/ui/utils.js";
+import {
+  panelDivider,
+  panelField,
+  panelOutlineButton,
+} from "./components/admin/panel.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type WriteProps = {
@@ -46,12 +52,9 @@ export const Write: FC<WriteProps> = ({ post }) => {
         {post ? <input name="id" type="hidden" value={String(post.id)} /> : null}
         <AdminNav current="/admin/write" />
 
-        <Card class="min-w-0 bg-linear-to-br from-onyx-50 via-chocolate-50/60 to-burgundy-50 dark:from-onyx-950 dark:via-onyx-900 dark:to-burgundy-950">
-          <CardHeader class="border-b border-burgundy-200 dark:border-burgundy-900">
-            <CardTitle
-              class="text-2xl text-burgundy-700 dark:text-burgundy-300"
-              id="post-editor-heading"
-            >
+        <Card class="min-w-0">
+          <CardHeader class={`border-b ${panelDivider}`}>
+            <CardTitle class="text-2xl" id="post-editor-heading">
               {post ? "Edit post" : "Post editor"}
             </CardTitle>
             <CardDescription>Write and format a post.</CardDescription>
@@ -62,12 +65,17 @@ export const Write: FC<WriteProps> = ({ post }) => {
           >
             <label class="flex flex-col gap-2 text-sm font-medium">
               Title
-              <Input name="title" placeholder="Post title" value={post?.title ?? ""} />
+              <Input
+                class={panelField}
+                name="title"
+                placeholder="Post title"
+                value={post?.title ?? ""}
+              />
             </label>
             <label class="flex flex-col gap-2 text-sm font-medium">
               Description
               <Textarea
-                class="resize-y"
+                class={cn("resize-y", panelField)}
                 name="description"
                 placeholder="A one-line summary"
                 rows={3}
@@ -84,8 +92,14 @@ export const Write: FC<WriteProps> = ({ post }) => {
               />
             </div>
           </CardContent>
-          <CardFooter class="justify-end gap-2 border-t border-burgundy-200 dark:border-burgundy-900">
-            <Button name="action" type="submit" value="draft" variant="outline">
+          <CardFooter class={`justify-end gap-2 border-t ${panelDivider}`}>
+            <Button
+              class={panelOutlineButton}
+              name="action"
+              type="submit"
+              value="draft"
+              variant="outline"
+            >
               Save draft
             </Button>
             <Button name="action" type="submit" value="publish">
@@ -98,7 +112,7 @@ export const Write: FC<WriteProps> = ({ post }) => {
           <h2 class="px-1 text-xl font-semibold text-burgundy-700 dark:text-burgundy-300">
             Tools
           </h2>
-          <Card class="gap-4 border-chocolate-500/50 bg-linear-to-br from-burgundy-900 to-burgundy-950 py-5 text-burgundy-50 dark:border-chocolate-400/50">
+          <Card class="gap-4 py-5">
             <CardHeader class="px-5">
               <CardTitle>Publishing</CardTitle>
             </CardHeader>
@@ -109,7 +123,7 @@ export const Write: FC<WriteProps> = ({ post }) => {
               </Badge>
             </CardContent>
           </Card>
-          <Card class="gap-4 border-burgundy-300/60 py-5 dark:border-burgundy-800">
+          <Card class="gap-4 py-5">
             <CardHeader class="px-5">
               <CardTitle>Metadata</CardTitle>
             </CardHeader>
@@ -117,6 +131,7 @@ export const Write: FC<WriteProps> = ({ post }) => {
               <label class="flex flex-col gap-2 text-sm font-medium">
                 Keywords
                 <Input
+                  class={panelField}
                   name="keywords"
                   placeholder="Hono, Cloudflare"
                   value={post ? formatKeywords(post.keywords) : ""}
@@ -124,7 +139,7 @@ export const Write: FC<WriteProps> = ({ post }) => {
               </label>
             </CardContent>
           </Card>
-          <Card class="gap-4 border-chocolate-300/70 py-5 dark:border-chocolate-800">
+          <Card class="gap-4 py-5">
             <CardHeader class="px-5">
               <CardTitle>Image</CardTitle>
             </CardHeader>
@@ -132,6 +147,7 @@ export const Write: FC<WriteProps> = ({ post }) => {
               <label class="flex flex-col gap-2 text-sm font-medium">
                 Image URL
                 <Input
+                  class={panelField}
                   name="image"
                   placeholder="https://"
                   type="url"

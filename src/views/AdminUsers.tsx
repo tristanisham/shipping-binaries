@@ -16,6 +16,12 @@ import {
   CardTitle,
 } from "./components/ui/Card.js";
 import { cn } from "./components/ui/utils.js";
+import {
+  panelDivider,
+  panelGhostButton,
+  panelMuted,
+  panelOutlineButton,
+} from "./components/admin/panel.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AdminUsersProps = {
@@ -38,10 +44,8 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
         <AdminNav current="/admin/users" />
 
         <Card class="min-w-0">
-          <CardHeader class="border-b border-onyx-200 dark:border-onyx-700">
-            <CardTitle class="text-2xl text-burgundy-700 dark:text-burgundy-300">
-              Users
-            </CardTitle>
+          <CardHeader class={`border-b ${panelDivider}`}>
+            <CardTitle class="text-2xl">Users</CardTitle>
             <CardDescription>
               {users.length} {users.length === 1 ? "user" : "users"}
             </CardDescription>
@@ -49,7 +53,7 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
           <CardContent>
             <div class="overflow-x-auto">
               <table class="w-full text-left text-sm">
-                <thead class="border-b border-onyx-200 text-xs uppercase text-onyx-500 dark:border-onyx-700 dark:text-onyx-400">
+                <thead class={`border-b text-xs uppercase ${panelDivider} ${panelMuted}`}>
                   <tr>
                     <th class="py-2 pr-4 font-medium">Username</th>
                     <th class="py-2 pr-4 font-medium">Email</th>
@@ -59,9 +63,16 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
                 </thead>
                 <tbody>
                   {users.map((user) => (
-                    <tr class="border-b border-onyx-100 last:border-0 dark:border-onyx-800">
-                      <td class="py-3 pr-4 font-medium">{user.username}</td>
-                      <td class="py-3 pr-4 text-onyx-600 dark:text-onyx-300">
+                    <tr class="border-b border-amber-50/10 last:border-0 dark:border-mist-600/10">
+                      <td class="py-3 pr-4 font-medium">
+                        {user.username}
+                        {user.label ? (
+                          <span class={`block text-xs font-normal ${panelMuted}`}>
+                            {user.label}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td class={`py-3 pr-4 ${panelMuted}`}>
                         {user.email}
                       </td>
                       <td class="py-3 pr-4">
@@ -74,6 +85,7 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
                           <a
                             class={cn(
                               buttonVariants({ size: "sm", variant: "outline" }),
+                              panelOutlineButton,
                             )}
                             href={`/admin/users/${user.id}/edit`}
                           >
@@ -88,7 +100,12 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
                               type="hidden"
                               value={user.active ? "0" : "1"}
                             />
-                            <Button size="sm" type="submit" variant="ghost">
+                            <Button
+                              class={panelGhostButton}
+                              size="sm"
+                              type="submit"
+                              variant="ghost"
+                            >
                               {user.active ? "Deactivate" : "Activate"}
                             </Button>
                           </form>

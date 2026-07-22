@@ -2,6 +2,7 @@ export interface User {
   id: number;
   email: string;
   username: string;
+  label: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -13,6 +14,7 @@ export interface UserRow {
   email: string;
   username: string;
   password_hash: string;
+  label: string | null;
   active: 0 | 1;
   created_at: string;
   updated_at: string;
@@ -34,6 +36,7 @@ export const userFromRow = (row: UserRow): User => ({
   id: row.id,
   email: row.email,
   username: row.username,
+  label: row.label,
   active: row.active === 1,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -45,7 +48,7 @@ export const findUserByLogin = async (
 ): Promise<UserRow | null> =>
   db
     .prepare(
-      `SELECT id, email, username, password_hash, active, created_at, updated_at
+      `SELECT id, email, username, password_hash, label, active, created_at, updated_at
        FROM users
        WHERE email = ?1 OR username = ?1
        LIMIT 1`,
@@ -58,7 +61,7 @@ export const getAllUsers = async (
 ): Promise<readonly User[]> => {
   const result = await db
     .prepare(
-      `SELECT id, email, username, password_hash, active, created_at, updated_at
+      `SELECT id, email, username, password_hash, label, active, created_at, updated_at
        FROM users
        ORDER BY id ASC`,
     )
@@ -73,7 +76,7 @@ export const getUserById = async (
 ): Promise<User | null> => {
   const row = await db
     .prepare(
-      `SELECT id, email, username, password_hash, active, created_at, updated_at
+      `SELECT id, email, username, password_hash, label, active, created_at, updated_at
        FROM users
        WHERE id = ?1
        LIMIT 1`,
@@ -87,15 +90,15 @@ export const getUserById = async (
 export const updateUser = async (
   db: D1Database,
   id: number,
-  input: { email: string; username: string },
+  input: { email: string; username: string; label: string | null },
 ): Promise<void> => {
   await db
     .prepare(
       `UPDATE users
-       SET email = ?2, username = ?3, updated_at = CURRENT_TIMESTAMP
+       SET email = ?2, username = ?3, label = ?4, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?1`,
     )
-    .bind(id, input.email, input.username)
+    .bind(id, input.email, input.username, input.label)
     .run();
 };
 

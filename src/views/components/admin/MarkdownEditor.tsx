@@ -1,5 +1,7 @@
 import type { FC } from "hono/jsx";
 import { Textarea } from "../ui/Textarea.js";
+import { cn } from "../ui/utils.js";
+import { panelField } from "./panel.js";
 
 type MarkdownEditorProps = {
   name: string;
@@ -17,7 +19,7 @@ const commonSvgProps = {
 } as const;
 
 const toolbarButtonClass =
-  "inline-flex size-8 cursor-pointer items-center justify-center rounded-md text-burgundy-700 transition-colors hover:bg-burgundy-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chocolate-500/40 disabled:cursor-not-allowed disabled:opacity-40 dark:text-burgundy-300 dark:hover:bg-burgundy-900/60";
+  "inline-flex size-8 cursor-pointer items-center justify-center rounded-md text-amber-50 transition-colors hover:bg-amber-50/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-50/40 disabled:cursor-not-allowed disabled:opacity-40 dark:text-mist-600 dark:hover:bg-mist-600/10 dark:focus-visible:ring-mist-600/40";
 
 const markdownEditorScript = `
 (() => {
@@ -34,7 +36,7 @@ const markdownEditorScript = `
   const renderInline = (value) =>
     escapeHtml(value)
       .replace(/\\[([^\\]]+)\\]\\((https?:[^)\\s\`]+)\\)/g, '<a href="$2" class="underline" rel="noreferrer">$1</a>')
-      .replace(/\`([^\`]+)\`/g, '<code class="rounded bg-onyx-500/15 px-1 py-0.5 text-[0.9em]">$1</code>')
+      .replace(/\`([^\`]+)\`/g, '<code class="rounded bg-amber-50/15 px-1 py-0.5 text-[0.9em] dark:bg-mist-600/15">$1</code>')
       .replace(/\\*\\*([^*]+)\\*\\*/g, "<strong>$1</strong>")
       .replace(/~~([^~]+)~~/g, "<del>$1</del>")
       .replace(/(^|[^*])\\*([^*\\n]+)\\*/g, "$1<em>$2</em>")
@@ -135,7 +137,7 @@ export const MarkdownEditor: FC<MarkdownEditorProps> = ({
   <div class="flex grow flex-col" data-md-editor>
     <div
       aria-label="Formatting"
-      class="flex items-center gap-1 rounded-t-md border border-b-0 border-onyx-300 bg-amber-50/70 px-2 py-1 dark:border-onyx-700 dark:bg-onyx-950/60"
+      class="flex items-center gap-1 rounded-t-md border border-b-0 border-amber-50/25 bg-amber-50/10 px-2 py-1 dark:border-mist-600/25 dark:bg-mist-600/10"
       role="toolbar"
     >
       <button
@@ -198,7 +200,7 @@ export const MarkdownEditor: FC<MarkdownEditorProps> = ({
       </div>
     </div>
     <Textarea
-      class="min-h-80 grow resize-y rounded-t-none"
+      class={cn("min-h-80 grow resize-y rounded-t-none", panelField)}
       data-md-input
       name={name}
       placeholder={placeholder}
@@ -206,7 +208,10 @@ export const MarkdownEditor: FC<MarkdownEditorProps> = ({
       {value ?? ""}
     </Textarea>
     <div
-      class="min-h-80 max-w-none grow space-y-3 overflow-auto rounded-b-md border border-t-0 border-onyx-300 bg-amber-50/70 px-3 py-2 leading-relaxed dark:border-onyx-700 dark:bg-onyx-950/60"
+      class={cn(
+        "min-h-80 max-w-none grow space-y-3 overflow-auto rounded-b-md border border-t-0 px-3 py-2 leading-relaxed",
+        panelField,
+      )}
       data-md-preview
       hidden
     />
