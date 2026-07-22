@@ -164,7 +164,11 @@ authRoute.get("/admin/write", async (c) => {
 authRoute.post("/admin/write", async (c) => {
   c.header("Cache-Control", "no-store");
   const body = await c.req.parseBody();
-  const action = typeof body.action === "string" ? body.action : "draft";
+  const action = typeof body.postAction === "string"
+    ? body.postAction
+    : typeof body.action === "string"
+    ? body.action
+    : "draft";
   const isAutosave = action === "autosave";
   const idRaw = typeof body.id === "string" ? body.id : "";
   const id = idRaw ? Number.parseInt(idRaw, 10) : Number.NaN;

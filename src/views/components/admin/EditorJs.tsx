@@ -67,9 +67,39 @@ const editorJsScript = `
       .replace(inlineCodePattern, "<code>$1</code>");
 
   const markdownToBlocks = (markdown) => {
-    const lines = markdown.replace(/\\r\\n/g, "\\n").split("\\n");
+    const usedFootnoteIds = new Set(
+      Array.from(
+        markdown.matchAll(/^\\[\\^([A-Za-z0-9_-]+)\\]:/gm),
+        (match) => match[1],
+      ),
+    );
+    const inlineFootnotes = [];
+    let inlineFootnoteNumber = 1;
+    const normalizedMarkdown = markdown.replace(
+      /\\^\\[([^\\]\\n]+)\\]/g,
+      (_match, text) => {
+        let id = "obsidian-inline-" + inlineFootnoteNumber;
+        while (usedFootnoteIds.has(id)) {
+          inlineFootnoteNumber += 1;
+          id = "obsidian-inline-" + inlineFootnoteNumber;
+        }
+        inlineFootnoteNumber += 1;
+        usedFootnoteIds.add(id);
+        inlineFootnotes.push({ id, text });
+        return "[^" + id + "]";
+      },
+    );
+    const lines = normalizedMarkdown
+      .replace(/\\r\\n/g, "\\n")
+      .split("\\n");
     const blocks = [];
-    const footnotes = [];
+    const footnotes = inlineFootnotes.map((footnote) => ({
+      type: "footnote",
+      data: {
+        id: footnote.id,
+        text: markdownInline(footnote.text),
+      },
+    }));
     let paragraph = [];
     let code = [];
     let inCode = false;
@@ -472,8 +502,13 @@ const editorJsScript = `
       try {
         await syncEditor();
         const formData = new FormData(form);
-        formData.set("action", "autosave");
-        const response = await fetch(form.action, {
+        formData.delete("action");
+        formData.set("postAction", "autosave");
+        const saveUrl = new URL(
+          form.getAttribute("action") || window.location.href,
+          window.location.href,
+        );
+        const response = await fetch(saveUrl, {
           body: formData,
           credentials: "same-origin",
           headers: { Accept: "application/json" },
@@ -831,6 +866,7 @@ export const EditorJs: FC<EditorJsProps> = ({
         </h2>
         <p class="mt-2 text-sm opacity-70">
           This replaces the current Editor.js body with converted blocks.
+          Google Drive and Obsidian footnotes are detected automatically.
         </p>
         <Textarea
           class={`mt-4 min-h-80 ${panelField}`}

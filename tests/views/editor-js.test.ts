@@ -33,6 +33,8 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(html, /data-editorjs-tool="delimiter"/);
   assert.match(html, /data-editorjs-tool="footnote"/);
   assert.match(html, /data-editorjs-link/);
+  assert.match(html, /bg-chocolate-500/);
+  assert.match(html, /Google Drive and Obsidian footnotes/);
   assert.doesNotMatch(html, /<span>Autosave<\/span>/);
   assert.doesNotMatch(html, /data-md-input/);
 
@@ -44,6 +46,8 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(inlineScript, /dispatchChange\(\)/);
   assert.match(inlineScript, /class FootnoteTool/);
   assert.match(inlineScript, /footnote: FootnoteTool/);
+  assert.match(inlineScript, /form\.getAttribute\("action"\)/);
+  assert.doesNotMatch(inlineScript, /fetch\(form\.action/);
 
   const browserWindow = {} as {
     markdownToEditorBlocks?: (markdown: string) => {
@@ -52,17 +56,35 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   };
   new Function("window", inlineScript)(browserWindow);
   const converted = browserWindow.markdownToEditorBlocks?.(
-    "## Heading[^source]\n\n- one\n- two\n\n```ts\nconst ok = true;\n```\n\n[^source]: Citation text",
+    "## Heading[^source]\n\nObsidian inline note ^[Inline *citation*.]\n\n- one\n- two\n\n```ts\nconst ok = true;\n```\n\n[^source]: Google Drive citation\n  continued line",
   );
   assert.deepEqual(converted?.blocks.map((block) => block.type), [
     "header",
+    "paragraph",
     "list",
     "code",
     "footnote",
+    "footnote",
   ]);
+  assert.deepEqual(converted?.blocks.at(-2), {
+    type: "footnote",
+    data: {
+      id: "obsidian-inline-1",
+      text: "Inline <i>citation</i>.",
+    },
+  });
   assert.deepEqual(converted?.blocks.at(-1), {
     type: "footnote",
-    data: { id: "source", text: "Citation text" },
+    data: {
+      id: "source",
+      text: "Google Drive citation<br>continued line",
+    },
+  });
+  assert.deepEqual(converted?.blocks[1], {
+    type: "paragraph",
+    data: {
+      text: "Obsidian inline note [^obsidian-inline-1]",
+    },
   });
 });
 
@@ -77,6 +99,8 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /initPostSlugField\(\$el\)/);
   assert.match(html, /data-slot="card-action"/);
   assert.match(html, /aria-label="Import Markdown"/);
+  assert.match(html, /name="postAction"/);
+  assert.doesNotMatch(html, /name="action"/);
 
   const slugScript = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
     .map((match) => match[1])

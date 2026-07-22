@@ -253,7 +253,7 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
           <CardFooter class={`justify-end gap-2 border-t ${panelDivider}`}>
             <Button
               class={panelOutlineButton}
-              name="action"
+              name="postAction"
               type="submit"
               value="draft"
               variant="outline"
@@ -261,7 +261,7 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
               Save draft
             </Button>
             <Button
-              name="action"
+              name="postAction"
               type="submit"
               value="publish"
               variant="secondary"

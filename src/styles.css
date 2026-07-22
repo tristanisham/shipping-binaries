@@ -61,4 +61,26 @@
   .editor-js .codex-editor__redactor {
     @apply pb-24;
   }
+
+  .editor-js a {
+    @apply text-burgundy-300 underline decoration-current underline-offset-2;
+  }
+
+  .editor-js a:visited,
+  .editor-js a:hover,
+  .editor-js a:focus-visible,
+  .editor-js a:active {
+    @apply text-burgundy-200;
+  }
+
+  .dark .editor-js a {
+    @apply text-burgundy-700;
+  }
+
+  .dark .editor-js a:visited,
+  .dark .editor-js a:hover,
+  .dark .editor-js a:focus-visible,
+  .dark .editor-js a:active {
+    @apply text-burgundy-600;
+  }
 }

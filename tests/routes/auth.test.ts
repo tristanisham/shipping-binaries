@@ -34,7 +34,7 @@ const autosave = (
     "/admin/write",
     {
       body: new URLSearchParams({
-        action: "autosave",
+        postAction: "autosave",
         body: "Body",
         currentDraft: "1",
         description: "Description",
