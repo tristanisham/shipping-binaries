@@ -8,6 +8,7 @@ import {
   getPostById,
   getPublishedPostBySlug,
   getPublishedPosts,
+  getPublishedPostsForUser,
   getUniquePostSlug,
   MAX_POST_SLUG_LENGTH,
   parseKeywords,
@@ -49,7 +50,11 @@ test("validatePostSlug accepts URL slugs and explains invalid values", () => {
 
 test("getUniquePostSlug suffixes collisions but preserves the current post", async () => {
   const db = createTestDb();
-  const userId = await seedUser(db, { email: "a@x.com", username: "alice" });
+  const userId = await seedUser(db, {
+    email: "a@x.com",
+    username: "alice",
+    label: "Alice Author",
+  });
   const id = await createPost(db, {
     userId,
     slug: "same-post",
@@ -86,6 +91,8 @@ test("createPost then getPostById round-trips fields", async () => {
   assert.equal(post.image, "https://img");
   assert.equal(post.draft, true);
   assert.deepEqual(post.keywords, ["a", "b"]);
+  assert.match(post.createdAt, /^\d{4}-\d{2}-\d{2}/);
+  assert.match(post.updatedAt, /^\d{4}-\d{2}-\d{2}/);
 });
 
 test("updatePost overwrites fields and draft state", async () => {
@@ -170,7 +177,11 @@ test("getAllPosts includes author username, newest id first", async () => {
 
 test("published post queries exclude drafts and resolve slugs", async () => {
   const db = createTestDb();
-  const userId = await seedUser(db, { email: "a@x.com", username: "alice" });
+  const userId = await seedUser(db, {
+    email: "a@x.com",
+    username: "alice",
+    label: "Alice Author",
+  });
   await createPost(db, {
     userId,
     slug: "public-post",
@@ -194,6 +205,12 @@ test("published post queries exclude drafts and resolve slugs", async () => {
 
   const posts = await getPublishedPosts(db);
   assert.deepEqual(posts.map((post) => post.slug), ["public-post"]);
+  assert.equal(posts[0].authorUsername, "alice");
+  assert.equal(posts[0].authorLabel, "Alice Author");
+  assert.deepEqual(
+    (await getPublishedPostsForUser(db, userId)).map((post) => post.slug),
+    ["public-post"],
+  );
   assert.equal(
     (await getPublishedPostBySlug(db, "public-post"))?.title,
     "Public",

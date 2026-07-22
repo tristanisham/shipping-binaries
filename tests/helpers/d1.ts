@@ -84,18 +84,20 @@ export const seedUser = async (
     username: string;
     passwordHash?: string;
     active?: 0 | 1;
+    label?: string | null;
   },
 ): Promise<number> => {
   const result = await db
     .prepare(
-      `INSERT INTO users (email, username, password_hash, active)
-       VALUES (?1, ?2, ?3, ?4)`,
+      `INSERT INTO users (email, username, password_hash, active, label)
+       VALUES (?1, ?2, ?3, ?4, ?5)`,
     )
     .bind(
       input.email,
       input.username,
       input.passwordHash ?? "hash",
       input.active ?? 1,
+      input.label ?? null,
     )
     .run();
 

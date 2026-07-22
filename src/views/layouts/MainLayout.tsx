@@ -52,7 +52,7 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         />
         <link rel="stylesheet" href="/styles.css" />
       </head>
-      <body class="bg-amber-50 text-mist-600 dark:bg-mist-600 dark:text-amber-50">
+      <body class="bg-amber-50 font-sans text-mist-600 dark:bg-mist-600 dark:text-amber-50">
         {children}
       </body>
     </html>

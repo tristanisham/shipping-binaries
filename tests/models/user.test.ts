@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   findUserByLogin,
   getAllUsers,
+  getPublicUserByUsername,
   getUserById,
   setUserActive,
   setUserPassword,
@@ -27,6 +28,22 @@ test("getUserById maps active to a boolean", async () => {
 test("getUserById returns null for a missing user", async () => {
   const db = createTestDb();
   assert.equal(await getUserById(db, 999), null);
+});
+
+test("getPublicUserByUsername returns only public profile fields", async () => {
+  const db = createTestDb();
+  const id = await seedUser(db, {
+    email: "alice@example.com",
+    username: "alice",
+    label: "Alice Author",
+  });
+
+  assert.deepEqual(await getPublicUserByUsername(db, "alice"), {
+    id,
+    label: "Alice Author",
+    username: "alice",
+  });
+  assert.equal(await getPublicUserByUsername(db, "missing"), null);
 });
 
 test("getAllUsers returns all users ordered by id ascending", async () => {

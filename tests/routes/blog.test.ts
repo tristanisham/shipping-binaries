@@ -9,6 +9,7 @@ test("published posts render at their slug and drafts stay private", async () =>
   const userId = await seedUser(db, {
     email: "owner@example.com",
     username: "owner",
+    label: "Site Owner",
   });
   await createPost(db, {
     userId,
@@ -60,6 +61,7 @@ test("home links published posts by slug", async () => {
   const userId = await seedUser(db, {
     email: "owner@example.com",
     username: "owner",
+    label: "Site Owner",
   });
   await createPost(db, {
     userId,
@@ -76,4 +78,63 @@ test("home links published posts by slug", async () => {
   const html = await response.text();
   assert.equal(response.status, 200);
   assert.match(html, /href="\/blog\/linked-post"/);
+});
+
+test("blog index lists published posts and excludes drafts", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, {
+    email: "owner@example.com",
+    username: "owner",
+    label: "Site Owner",
+  });
+  await createPost(db, {
+    userId,
+    slug: "listed-post",
+    title: "Listed post",
+    description: "Visible on the blog index",
+    keywords: [],
+    image: "",
+    body: "",
+    draft: false,
+  });
+  await createPost(db, {
+    userId,
+    slug: "unlisted-draft",
+    title: "Unlisted draft",
+    description: "",
+    keywords: [],
+    image: "",
+    body: "",
+    draft: true,
+  });
+
+  const response = await app.request("/blog", {}, { DB: db } as Env);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(html, /<title>Blog \| Shipping Binaries<\/title>/);
+  assert.match(html, /aria-current="page"[^>]*href="\/blog"/);
+  assert.match(html, /href="\/blog\/listed-post"/);
+  assert.match(html, /font-black-ops-one text-4xl sm:text-6xl/);
+  assert.match(html, /href="\/@owner"/);
+  assert.match(html, /Site Owner/);
+  assert.doesNotMatch(html, /Unlisted draft/);
+
+  const authorResponse = await app.request(
+    "/@owner",
+    {},
+    { DB: db } as Env,
+  );
+  const authorHtml = await authorResponse.text();
+  assert.equal(authorResponse.status, 200);
+  assert.match(authorHtml, /<h1[^>]*>Site Owner<\/h1>/);
+  assert.match(authorHtml, /@owner/);
+  assert.match(authorHtml, /href="\/blog\/listed-post"/);
+  assert.doesNotMatch(authorHtml, /Unlisted draft/);
+
+  const missingAuthorResponse = await app.request(
+    "/@missing",
+    {},
+    { DB: db } as Env,
+  );
+  assert.equal(missingAuthorResponse.status, 404);
 });

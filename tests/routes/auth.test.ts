@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import app from "../../src/index.js";
 import { getPostById, setPostDraft } from "../../src/models/post.js";
+import { findUserByLogin } from "../../src/models/user.js";
 import {
   createSession,
   SESSION_COOKIE_NAME,
@@ -153,4 +154,34 @@ test("autosave rejects a custom slug already used by another post", async () => 
     error: { slug: "That slug is already used by another post." },
     saved: false,
   });
+});
+
+test("inline user identity updates preserve active status", async () => {
+  const db = createTestDb();
+  const token = await createAdminSession(db);
+  const owner = await findUserByLogin(db, "owner");
+  assert.ok(owner);
+
+  const response = await app.request(
+    `/admin/users/${owner.id}`,
+    {
+      body: new URLSearchParams({
+        email: "updated@example.com",
+        label: "Site Owner",
+        username: "updated-owner",
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(response.status, 303);
+  const updated = await findUserByLogin(db, "updated-owner");
+  assert.equal(updated?.email, "updated@example.com");
+  assert.equal(updated?.label, "Site Owner");
+  assert.equal(updated?.active, 1);
 });

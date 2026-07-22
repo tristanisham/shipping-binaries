@@ -34,6 +34,14 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(html, /data-editorjs-tool="footnote"/);
   assert.match(html, /data-editorjs-link/);
   assert.match(html, /bg-chocolate-500/);
+  assert.match(
+    html,
+    /class="[^"]*capitalize !text-amber-50[^"]*"[^>]*data-markdown-convert/,
+  );
+  assert.match(
+    html,
+    /autosaveEnabled \? &#39;!bg-chocolate-500 !text-amber-50 hover:!bg-chocolate-400&#39; : &#39;!bg-transparent !text-amber-50 !shadow-none hover:!bg-amber-50\/10 dark:!text-mist-600 dark:hover:!bg-mist-600\/10&#39;/,
+  );
   assert.match(html, /Google Drive and Obsidian footnotes/);
   assert.doesNotMatch(html, /<span>Autosave<\/span>/);
   assert.doesNotMatch(html, /data-md-input/);
@@ -46,6 +54,16 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(inlineScript, /dispatchChange\(\)/);
   assert.match(inlineScript, /class FootnoteTool/);
   assert.match(inlineScript, /footnote: FootnoteTool/);
+  assert.match(inlineScript, /class InlineFootnoteTool/);
+  assert.match(inlineScript, /footnoteInline: InlineFootnoteTool/);
+  assert.match(inlineScript, /style="height:14px;width:14px"/);
+  assert.match(
+    inlineScript,
+    /static get shortcut\(\) \{\s+return "CTRL\+ALT\+I"/,
+  );
+  assert.match(inlineScript, /Footnote label/);
+  assert.match(inlineScript, /Footnote note/);
+  assert.match(inlineScript, /inlineToolbar: true/);
   assert.match(inlineScript, /form\.getAttribute\("action"\)/);
   assert.doesNotMatch(inlineScript, /fetch\(form\.action/);
 
@@ -100,11 +118,44 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /data-slot="card-action"/);
   assert.match(html, /aria-label="Import Markdown"/);
   assert.match(html, /name="postAction"/);
+  assert.match(
+    html,
+    /class="[^"]*capitalize !text-amber-50[^"]*"[^>]*name="postAction"[^>]*value="publish"/,
+  );
   assert.doesNotMatch(html, /name="action"/);
+  assert.doesNotMatch(html, /data-view-live-post/);
 
   const slugScript = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
     .map((match) => match[1])
     .find((script) => script.includes("window.initPostSlugField"));
   assert.ok(slugScript);
   assert.doesNotThrow(() => new Function(slugScript));
+});
+
+test("published post editor links to the live post before Markdown import", () => {
+  const html = renderToString(Write({
+    post: {
+      body: JSON.stringify({ blocks: [] }),
+      comments: [],
+      createdAt: "2026-07-22 12:00:00",
+      description: "Description",
+      draft: false,
+      id: 7,
+      image: "",
+      keywords: [],
+      slug: "live-post",
+      title: "Live post",
+      updatedAt: "2026-07-22 12:00:00",
+      userId: 1,
+    },
+  }));
+
+  assert.match(
+    html,
+    /data-view-live-post[^>]*href="\/blog\/live-post"[^>]*title="View live post"/,
+  );
+  assert.match(
+    html,
+    /data-view-live-post[\s\S]*aria-label="Import Markdown"/,
+  );
 });
