@@ -7,8 +7,10 @@ import {
   getSessionUser,
   SESSION_COOKIE_NAME,
 } from "../models/session.js";
+import { getPostsForUser } from "../models/post.js";
 import { findUserByLogin, type User } from "../models/user.js";
 import { Account } from "../views/Account.js";
+import { Dashboard } from "../views/Dashboard.js";
 import { Login } from "../views/Login.js";
 import { Logout } from "../views/Logout.js";
 
@@ -98,7 +100,14 @@ const requireSession: MiddlewareHandler<AuthEnv> = async (c, next) => {
 authRoute.use("/admin", requireSession);
 authRoute.use("/admin/*", requireSession);
 
-authRoute.get("/admin", (c) => {
+authRoute.get("/admin", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const posts = await getPostsForUser(c.env.DB, c.var.currentUser.id);
+
+  return c.html(<Dashboard posts={posts} />);
+});
+
+authRoute.get("/admin/account", (c) => {
   c.header("Cache-Control", "no-store");
   return c.html(<Account email={c.var.currentUser.email} />);
 });

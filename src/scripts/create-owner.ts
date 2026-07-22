@@ -1,19 +1,66 @@
 import { spawnSync } from "node:child_process";
+import { createInterface } from "node:readline/promises";
+import { Writable } from "node:stream";
 import { hashPassword } from "../auth/password.js";
 
-const email = process.env.OWNER_EMAIL?.trim();
-const username = process.env.OWNER_USERNAME?.trim();
-const password = process.env.OWNER_PASSWORD;
-const database = process.env.OWNER_DATABASE ?? "local";
+let email = process.env.OWNER_EMAIL?.trim();
+let username = process.env.OWNER_USERNAME?.trim();
+let password = process.env.OWNER_PASSWORD;
+const commandFlags = process.argv.slice(2);
+const supportedFlags = new Set(["--prod", "--remote"]);
+const unsupportedFlags = commandFlags.filter(
+  (flag) => !supportedFlags.has(flag),
+);
 
-if (!email || !username || !password) {
+if (unsupportedFlags.length > 0) {
   throw new Error(
-    "OWNER_EMAIL, OWNER_USERNAME, and OWNER_PASSWORD are required.",
+    `Unsupported account:create flag: ${unsupportedFlags.join(", ")}. ` +
+      "Use --prod or --remote for the production database.",
   );
 }
 
-if (database !== "local" && database !== "remote") {
-  throw new Error('OWNER_DATABASE must be either "local" or "remote".');
+const database = commandFlags.some((flag) => supportedFlags.has(flag))
+  ? "remote"
+  : "local";
+
+if ((!email || !username || !password) && process.stdin.isTTY) {
+  let outputMuted = false;
+  const terminalOutput = new Writable({
+    write(chunk, encoding, callback) {
+      if (!outputMuted) {
+        process.stdout.write(chunk, encoding);
+      }
+
+      callback();
+    },
+  });
+  const prompt = createInterface({
+    input: process.stdin,
+    output: terminalOutput,
+    terminal: true,
+  });
+
+  try {
+    email ||= (await prompt.question("Owner email: ")).trim();
+    username ||= (await prompt.question("Owner username: ")).trim();
+
+    if (!password) {
+      process.stdout.write("Owner password: ");
+      outputMuted = true;
+      password = await prompt.question("");
+      outputMuted = false;
+      process.stdout.write("\n");
+    }
+  } finally {
+    outputMuted = false;
+    prompt.close();
+  }
+}
+
+if (!email || !username || !password) {
+  throw new Error(
+    "An owner email, username, and password are required.",
+  );
 }
 
 const sqlValue = (value: string): string =>

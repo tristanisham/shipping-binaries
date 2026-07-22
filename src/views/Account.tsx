@@ -1,9 +1,9 @@
 import type { FC } from "hono/jsx";
 import {
   defaultHeaderNav,
-  Header,
   setCurrentNavItem,
 } from "./components/header/Header.js";
+import { HeaderSlim } from "./components/header/Slim.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AccountProps = {
@@ -18,9 +18,9 @@ export const Account: FC<AccountProps> = ({ email }) => {
 
   return (
     <Layout meta={meta}>
-      <Header
+      <HeaderSlim
         isAuthenticated
-        nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
+        nav={setCurrentNavItem(defaultHeaderNav, "/admin/account")}
       />
       <main class="container mx-auto h-full w-2/5">
         <section class="mx-auto mt-16 max-w-md">

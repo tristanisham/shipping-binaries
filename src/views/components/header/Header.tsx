@@ -1,4 +1,5 @@
 import type { FC } from "hono/jsx";
+import { UserMenu } from "./UserMenu.js";
 import { WeatherWidget } from "./WeatherWidget.js";
 
 export type HeaderNavItem = {
@@ -49,23 +50,9 @@ export const Header: FC<HeaderProps> = ({ isAuthenticated = false, nav }) => {
                   <path d="M11 1h2v3h-2V1Zm0 19h2v3h-2v-3ZM1 11h3v2H1v-2Zm19 0h3v2h-3v-2ZM4.22 2.81l2.12 2.12-1.41 1.41-2.12-2.12 1.41-1.41Zm13.44 13.43 2.12 2.12-1.42 1.42-2.12-2.12 1.42-1.42ZM2.81 19.78l2.12-2.12 1.41 1.41-2.12 2.12-1.41-1.41ZM16.24 4.93l2.12-2.12 1.42 1.41-2.12 2.12-1.42-1.41ZM12 18a6 6 0 0 0 0-12v12Z" />
                 </svg>
               </button>
-              <a
-                aria-label={isAuthenticated ? "Open account" : "Log in"}
-                class="m-4 cursor-pointer text-amber-50 dark:text-mist-600"
-                href={isAuthenticated ? "/admin" : "/login"}
-              >
-                <svg
-                  aria-hidden="true"
-                  class="size-5 fill-none stroke-current"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <circle cx="12" cy="8" r="5" />
-                  <path d="M20 21a8 8 0 0 0-16 0" />
-                </svg>
-              </a>
+              <div class="text-amber-50 dark:text-mist-600">
+                <UserMenu isAdmin={isAuthenticated} />
+              </div>
             </div>
           </div>
           <div class="flex">
