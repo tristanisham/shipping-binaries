@@ -2,7 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { FC, JSX } from "hono/jsx";
 import { cn } from "./utils.js";
 
-const buttonVariants = cva(
+export const buttonVariants = cva(
   "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium shadow-xs outline-none transition-all focus-visible:ring-[3px] focus-visible:ring-chocolate-500/30 disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:ring-chocolate-400/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {

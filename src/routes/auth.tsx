@@ -7,9 +7,10 @@ import {
   getSessionUser,
   SESSION_COOKIE_NAME,
 } from "../models/session.js";
-import { getPostsForUser } from "../models/post.js";
-import { findUserByLogin, type User } from "../models/user.js";
+import { getAllPosts } from "../models/post.js";
+import { findUserByLogin, getAllUsers, type User } from "../models/user.js";
 import { Account } from "../views/Account.js";
+import { AdminHome } from "../views/AdminHome.js";
 import { Dashboard } from "../views/Dashboard.js";
 import { Login } from "../views/Login.js";
 import { Logout } from "../views/Logout.js";
@@ -102,9 +103,12 @@ authRoute.use("/admin/*", requireSession);
 
 authRoute.get("/admin", async (c) => {
   c.header("Cache-Control", "no-store");
-  const posts = await getPostsForUser(c.env.DB, c.var.currentUser.id);
+  const [posts, users] = await Promise.all([
+    getAllPosts(c.env.DB),
+    getAllUsers(c.env.DB),
+  ]);
 
-  return c.html(<Dashboard posts={posts} />);
+  return c.html(<AdminHome posts={posts} userCount={users.length} />);
 });
 
 authRoute.get("/admin/account", (c) => {
