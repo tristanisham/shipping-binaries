@@ -1,5 +1,6 @@
 import type { FC } from "hono/jsx";
-import type { Post } from "../models/post.js";
+import { formatKeywords, type Post } from "../models/post.js";
+import { AdminNav } from "./components/admin/AdminNav.js";
 import {
   defaultHeaderNav,
   setCurrentNavItem,
@@ -19,15 +20,16 @@ import { Input } from "./components/ui/Input.js";
 import { Textarea } from "./components/ui/Textarea.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
-type DashboardProps = {
-  posts: readonly Post[];
+type WriteProps = {
+  post?: Post;
 };
 
-export const Dashboard: FC<DashboardProps> = ({ posts }) => {
+export const Write: FC<WriteProps> = ({ post }) => {
   const meta: LayoutMeta = {
-    title: "Dashboard | Shipping Binaries",
+    title: post ? "Edit post | Shipping Binaries" : "Write | Shipping Binaries",
     robots: "noindex",
   };
+  const isDraft = post ? post.draft : true;
 
   return (
     <Layout meta={meta}>
@@ -35,35 +37,13 @@ export const Dashboard: FC<DashboardProps> = ({ posts }) => {
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
       />
-      <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)] gap-4 px-4 py-6">
-        <Card class="min-w-0 self-start border-chocolate-500/50 bg-linear-to-b from-onyx-900 to-onyx-950 text-onyx-50 dark:border-chocolate-400/50">
-          <CardHeader class="border-b border-onyx-700">
-            <CardTitle class="text-xl text-chocolate-300">Content</CardTitle>
-            <CardDescription class="text-onyx-300">
-              {posts.length} {posts.length === 1 ? "post" : "posts"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {posts.length === 0 ? (
-              <div class="rounded-lg border border-dashed border-onyx-600 px-4 py-8 text-center text-sm text-onyx-300">
-                No posts yet.
-              </div>
-            ) : (
-              <ol class="flex flex-col gap-2">
-                {posts.map((post) => (
-                  <li class="rounded-lg border border-onyx-700 bg-onyx-900/70 p-3 transition-colors hover:border-chocolate-400">
-                    <div class="flex flex-col gap-2">
-                      <p class="truncate text-sm font-medium">{post.title}</p>
-                      <Badge variant={post.draft ? "draft" : "published"}>
-                        {post.draft ? "Draft" : "Published"}
-                      </Badge>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </CardContent>
-        </Card>
+      <form
+        action="/admin/write"
+        class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)] gap-4 px-4 py-6"
+        method="post"
+      >
+        {post ? <input name="id" type="hidden" value={String(post.id)} /> : null}
+        <AdminNav current="/admin/write" />
 
         <Card class="min-w-0 bg-linear-to-br from-onyx-50 via-chocolate-50/60 to-burgundy-50 dark:from-onyx-950 dark:via-onyx-900 dark:to-burgundy-950">
           <CardHeader class="border-b border-burgundy-200 dark:border-burgundy-900">
@@ -71,7 +51,7 @@ export const Dashboard: FC<DashboardProps> = ({ posts }) => {
               class="text-2xl text-burgundy-700 dark:text-burgundy-300"
               id="post-editor-heading"
             >
-              Post editor
+              {post ? "Edit post" : "Post editor"}
             </CardTitle>
             <CardDescription>Write and format a post.</CardDescription>
           </CardHeader>
@@ -81,7 +61,7 @@ export const Dashboard: FC<DashboardProps> = ({ posts }) => {
           >
             <label class="flex flex-col gap-2 text-sm font-medium">
               Title
-              <Input name="title" placeholder="Post title" />
+              <Input name="title" placeholder="Post title" value={post?.title ?? ""} />
             </label>
             <label class="flex flex-col gap-2 text-sm font-medium">
               Description
@@ -90,7 +70,9 @@ export const Dashboard: FC<DashboardProps> = ({ posts }) => {
                 name="description"
                 placeholder="A one-line summary"
                 rows={3}
-              />
+              >
+                {post?.description ?? ""}
+              </Textarea>
             </label>
             <label class="flex grow flex-col gap-2 text-sm font-medium">
               Body
@@ -98,12 +80,18 @@ export const Dashboard: FC<DashboardProps> = ({ posts }) => {
                 class="min-h-80 grow resize-y"
                 name="body"
                 placeholder="Start writing..."
-              />
+              >
+                {post?.body ?? ""}
+              </Textarea>
             </label>
           </CardContent>
           <CardFooter class="justify-end gap-2 border-t border-burgundy-200 dark:border-burgundy-900">
-            <Button variant="outline">Save draft</Button>
-            <Button>Publish</Button>
+            <Button name="action" type="submit" value="draft" variant="outline">
+              Save draft
+            </Button>
+            <Button name="action" type="submit" value="publish">
+              Publish
+            </Button>
           </CardFooter>
         </Card>
 
@@ -117,7 +105,9 @@ export const Dashboard: FC<DashboardProps> = ({ posts }) => {
             </CardHeader>
             <CardContent class="flex items-center justify-between px-5">
               <span class="text-sm">Status</span>
-              <Badge variant="draft">Draft</Badge>
+              <Badge variant={isDraft ? "draft" : "published"}>
+                {isDraft ? "Draft" : "Published"}
+              </Badge>
             </CardContent>
           </Card>
           <Card class="gap-4 border-burgundy-300/60 py-5 dark:border-burgundy-800">
@@ -127,7 +117,11 @@ export const Dashboard: FC<DashboardProps> = ({ posts }) => {
             <CardContent class="px-5">
               <label class="flex flex-col gap-2 text-sm font-medium">
                 Keywords
-                <Input name="keywords" placeholder="Hono, Cloudflare" />
+                <Input
+                  name="keywords"
+                  placeholder="Hono, Cloudflare"
+                  value={post ? formatKeywords(post.keywords) : ""}
+                />
               </label>
             </CardContent>
           </Card>
@@ -138,12 +132,17 @@ export const Dashboard: FC<DashboardProps> = ({ posts }) => {
             <CardContent class="px-5">
               <label class="flex flex-col gap-2 text-sm font-medium">
                 Image URL
-                <Input name="image" placeholder="https://" type="url" />
+                <Input
+                  name="image"
+                  placeholder="https://"
+                  type="url"
+                  value={post?.image ?? ""}
+                />
               </label>
             </CardContent>
           </Card>
         </aside>
-      </main>
+      </form>
     </Layout>
   );
 };

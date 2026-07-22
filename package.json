@@ -28,7 +28,7 @@
     "account:create": "node --env-file-if-exists=.env --import=tsx src/scripts/create-owner.ts",
     "build": "npm run build:css",
     "build:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --minify",
-    "dev": "npm run build:css && concurrently --kill-others-on-fail \"npm:dev:server\" \"npm:dev:css\"",
+    "dev": "npm run build:css && concurrently --kill-others-on-fail \"npm:dev:worker\" \"npm:dev:css\"",
     "dev:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --watch",
     "dev:server": "vite",
     "dev:worker": "wrangler dev --persist-to=${DATABASE_URL:-.wrangler/state}",
@@ -37,6 +37,7 @@
     "deploy": "wrangler deploy",
     "start": "node --import=tsx src/dev.ts",
     "types:worker": "wrangler types src/worker-configuration.d.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "NODE_OPTIONS=\"--import tsx\" node --test \"tests/**/*.test.ts\""
   }
 }
