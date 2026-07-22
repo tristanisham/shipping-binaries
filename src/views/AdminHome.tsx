@@ -1,0 +1,105 @@
+import type { FC } from "hono/jsx";
+import type { PostListItem } from "../models/post.js";
+import { AdminNav } from "./components/admin/AdminNav.js";
+import {
+  defaultHeaderNav,
+  setCurrentNavItem,
+} from "./components/header/Header.js";
+import { HeaderSlim } from "./components/header/Slim.js";
+import { Badge } from "./components/ui/Badge.js";
+import { buttonVariants } from "./components/ui/Button.js";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./components/ui/Card.js";
+import { cn } from "./components/ui/utils.js";
+import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
+
+type AdminHomeProps = {
+  posts: readonly PostListItem[];
+  userCount: number;
+};
+
+export const AdminHome: FC<AdminHomeProps> = ({ posts, userCount }) => {
+  const meta: LayoutMeta = {
+    title: "Admin | Shipping Binaries",
+    robots: "noindex",
+  };
+  const recent = posts.slice(0, 5);
+
+  return (
+    <Layout meta={meta}>
+      <HeaderSlim
+        isAuthenticated
+        nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
+      />
+      <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)] gap-4 px-4 py-6">
+        <AdminNav current="/admin" />
+
+        <Card class="min-w-0 bg-linear-to-br from-onyx-50 via-chocolate-50/60 to-burgundy-50 dark:from-onyx-950 dark:via-onyx-900 dark:to-burgundy-950">
+          <CardHeader class="border-b border-burgundy-200 dark:border-burgundy-900">
+            <CardTitle class="text-2xl text-burgundy-700 dark:text-burgundy-300">
+              Overview
+            </CardTitle>
+            <CardDescription>Recent activity across the site.</CardDescription>
+          </CardHeader>
+          <CardContent class="flex flex-col gap-4">
+            {recent.length === 0 ? (
+              <div class="rounded-lg border border-dashed border-burgundy-300 px-4 py-8 text-center text-sm dark:border-burgundy-800">
+                No posts yet.{" "}
+                <a class="underline" href="/admin/write">
+                  Write your first post
+                </a>
+                .
+              </div>
+            ) : (
+              <ol class="flex flex-col gap-2">
+                {recent.map((post) => (
+                  <li class="flex items-center justify-between gap-3 rounded-lg border border-burgundy-200 bg-amber-50/60 p-3 dark:border-burgundy-900 dark:bg-onyx-950/40">
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-medium">{post.title}</p>
+                      <p class="truncate text-xs text-onyx-600 dark:text-onyx-300">
+                        by {post.authorUsername}
+                      </p>
+                    </div>
+                    <Badge variant={post.draft ? "draft" : "published"}>
+                      {post.draft ? "Draft" : "Published"}
+                    </Badge>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </CardContent>
+        </Card>
+
+        <aside class="flex min-w-0 flex-col gap-4">
+          <h2 class="px-1 text-xl font-semibold text-burgundy-700 dark:text-burgundy-300">
+            Quick links
+          </h2>
+          <Card class="gap-4 border-chocolate-300/70 py-5 dark:border-chocolate-800">
+            <CardContent class="flex flex-col gap-3 px-5">
+              <a class={cn(buttonVariants(), "w-full")} href="/admin/write">
+                New post
+              </a>
+              <a
+                class={cn(buttonVariants({ variant: "outline" }), "w-full")}
+                href="/admin/posts"
+              >
+                Manage posts ({posts.length})
+              </a>
+              <a
+                class={cn(buttonVariants({ variant: "outline" }), "w-full")}
+                href="/admin/users"
+              >
+                Manage users ({userCount})
+              </a>
+            </CardContent>
+          </Card>
+        </aside>
+      </main>
+    </Layout>
+  );
+};

@@ -1,5 +1,5 @@
 import type { FC } from "hono/jsx";
-import type { Post } from "../../../models/post.js";
+import type { Post } from "../../../../models/post.js";
 
 type PostListProps = {
   posts: readonly Post[];
