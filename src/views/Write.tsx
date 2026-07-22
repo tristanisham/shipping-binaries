@@ -1,6 +1,7 @@
 import type { FC } from "hono/jsx";
 import { formatKeywords, type Post } from "../models/post.js";
 import { AdminNav } from "./components/admin/AdminNav.js";
+import { MarkdownEditor } from "./components/admin/MarkdownEditor.js";
 import {
   defaultHeaderNav,
   setCurrentNavItem,
@@ -74,16 +75,14 @@ export const Write: FC<WriteProps> = ({ post }) => {
                 {post?.description ?? ""}
               </Textarea>
             </label>
-            <label class="flex grow flex-col gap-2 text-sm font-medium">
-              Body
-              <Textarea
-                class="min-h-80 grow resize-y"
+            <div class="flex grow flex-col gap-2 text-sm font-medium">
+              <span>Body</span>
+              <MarkdownEditor
                 name="body"
                 placeholder="Start writing..."
-              >
-                {post?.body ?? ""}
-              </Textarea>
-            </label>
+                value={post?.body ?? ""}
+              />
+            </div>
           </CardContent>
           <CardFooter class="justify-end gap-2 border-t border-burgundy-200 dark:border-burgundy-900">
             <Button name="action" type="submit" value="draft" variant="outline">
