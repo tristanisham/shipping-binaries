@@ -1,7 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { Post } from "../models/post.js";
 import { Layout, LayoutMeta } from "./layouts/MainLayout.js";
-import { PostList } from "./components/blog/PostList.js";
+import { PostList } from "./components/blog/posts/SimpleList.js";
 import {
   defaultHeaderNav,
   Header,
