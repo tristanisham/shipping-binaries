@@ -13,6 +13,8 @@
 @theme {
   --font-black-ops-one: "Black Ops One", sans-serif;
 
+  --color-mist-600: oklch(45% 0.017 213.2);
+
   --color-onyx-50: #f3f4f1;
   --color-onyx-100: #e7e9e2;
   --color-onyx-200: #cfd2c6;

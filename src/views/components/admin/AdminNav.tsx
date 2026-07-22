@@ -5,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../ui/Card.js";
+import { panelDivider } from "./panel.js";
 
 export type AdminNavItem = {
   label: string;
@@ -24,9 +25,9 @@ type AdminNavProps = {
 };
 
 export const AdminNav: FC<AdminNavProps> = ({ current }) => (
-  <Card class="min-w-0 self-start border-chocolate-500/50 bg-linear-to-b from-onyx-900 to-onyx-950 text-onyx-50 dark:border-chocolate-400/50">
-    <CardHeader class="border-b border-onyx-700">
-      <CardTitle class="text-xl text-chocolate-300">Manage</CardTitle>
+  <Card class="min-w-0 self-start">
+    <CardHeader class={`border-b ${panelDivider}`}>
+      <CardTitle class="text-xl">Manage</CardTitle>
     </CardHeader>
     <CardContent>
       <nav aria-label="Admin">
@@ -39,13 +40,13 @@ export const AdminNav: FC<AdminNavProps> = ({ current }) => (
                   aria-current={isCurrent ? "page" : undefined}
                   class={
                     isCurrent
-                      ? "block rounded-lg border border-chocolate-400 bg-onyx-900/70 px-3 py-2"
-                      : "block rounded-lg border border-onyx-700 bg-onyx-900/70 px-3 py-2 transition-colors hover:border-chocolate-400"
+                      ? "block rounded-lg border border-amber-50/50 bg-amber-50/10 px-3 py-2 dark:border-mist-600/50 dark:bg-mist-600/10"
+                      : "block rounded-lg border border-amber-50/20 px-3 py-2 transition-colors hover:border-amber-50/50 hover:bg-amber-50/5 dark:border-mist-600/20 dark:hover:border-mist-600/50 dark:hover:bg-mist-600/5"
                   }
                   href={item.link}
                 >
                   <span class="block text-sm font-medium">{item.label}</span>
-                  <span class="block text-xs text-onyx-300">
+                  <span class="block text-xs text-amber-50/60 dark:text-mist-600/60">
                     {item.description}
                   </span>
                 </a>
