@@ -253,9 +253,12 @@ authRoute.post("/admin/users/:id", async (c) => {
   const email = typeof body.email === "string" ? body.email.trim() : "";
   const username =
     typeof body.username === "string" ? body.username.trim() : "";
+  const labelValue =
+    typeof body.label === "string" ? body.label.trim() : "";
+  const label = labelValue.length > 0 ? labelValue : null;
   const password = typeof body.password === "string" ? body.password : "";
 
-  await updateUser(c.env.DB, id, { email, username });
+  await updateUser(c.env.DB, id, { email, username, label });
   await setUserActive(c.env.DB, id, body.active === "1");
 
   if (password.length > 0) {

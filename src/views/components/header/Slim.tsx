@@ -25,7 +25,7 @@ export const HeaderSlim: FC<HeaderSlimProps> = ({
   return (
     <header>
       <nav class="flex w-full py-2">
-        <div class={`relative mx-auto my-1 flex items-center rounded-b-md bg-mist-600 text-amber-50 dark:bg-amber-50 dark:text-mist-600 ${widthClass}`}>
+        <div class={`relative mx-auto mt-3 mb-1 flex items-center rounded-b-md bg-mist-600 text-amber-50 dark:bg-amber-50 dark:text-mist-600 ${widthClass}`}>
           {showCheckerboard && (
             <div
               aria-hidden="true"
