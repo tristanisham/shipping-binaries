@@ -13,11 +13,13 @@ import {
   getPostById,
   parseKeywords,
   type Post,
+  setPostDraft,
   updatePost,
 } from "../models/post.js";
 import { findUserByLogin, getAllUsers, type User } from "../models/user.js";
 import { Account } from "../views/Account.js";
 import { AdminHome } from "../views/AdminHome.js";
+import { AdminPosts } from "../views/AdminPosts.js";
 import { Login } from "../views/Login.js";
 import { Logout } from "../views/Logout.js";
 import { Write } from "../views/Write.js";
@@ -162,6 +164,25 @@ authRoute.post("/admin/write", async (c) => {
   });
 
   return c.redirect(`/admin/write?id=${newId}`, 303);
+});
+
+authRoute.get("/admin/posts", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const posts = await getAllPosts(c.env.DB);
+
+  return c.html(<AdminPosts posts={posts} />);
+});
+
+authRoute.post("/admin/posts/:id/draft", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const id = Number.parseInt(c.req.param("id"), 10);
+
+  if (Number.isInteger(id)) {
+    const body = await c.req.parseBody();
+    await setPostDraft(c.env.DB, id, body.draft === "1");
+  }
+
+  return c.redirect("/admin/posts", 303);
 });
 
 authRoute.get("/admin/account", (c) => {
