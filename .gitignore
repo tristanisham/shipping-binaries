@@ -1,5 +1,4 @@
 # dev
-dev/
 .yarn/
 !.yarn/releases
 .vscode/*
@@ -31,3 +30,7 @@ lerna-debug.log*
 
 # build output
 dist/
+
+# Scrap
+dev/tests/
+dev/docs/superpowers/specs
