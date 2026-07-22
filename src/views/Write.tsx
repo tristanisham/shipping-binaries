@@ -155,6 +155,66 @@ window.initPostSlugField = (root) => {
 };
 `;
 
+const keywordsScript = `
+window.initKeywordsField = (root) => {
+  if (root.dataset.keywordsReady === "true") return;
+
+  const input = root.querySelector('input[name="keywords"]');
+  const cloud = root.querySelector("[data-keywords-cloud]");
+  if (!input || !cloud) return;
+
+  root.dataset.keywordsReady = "true";
+
+  const parse = (value) =>
+    value
+      .split(",")
+      .map((keyword) => keyword.trim())
+      .filter((keyword) => keyword.length > 0);
+
+  const render = () => {
+    const keywords = parse(input.value);
+    cloud.textContent = "";
+    cloud.hidden = keywords.length === 0;
+
+    keywords.forEach((keyword, index) => {
+      const tag = document.createElement("button");
+      tag.type = "button";
+      tag.dataset.index = String(index);
+      tag.setAttribute("aria-label", "Remove " + keyword);
+      tag.className =
+        "flex min-w-0 items-center justify-between gap-1 rounded-md border border-amber-50/25 bg-amber-50/10 px-2 py-1 text-left text-xs font-normal text-amber-50 transition-colors hover:border-burgundy-300 hover:bg-burgundy-500/20 dark:border-mist-600/25 dark:bg-mist-600/10 dark:text-mist-600 dark:hover:border-burgundy-600 dark:hover:bg-burgundy-500/20";
+
+      const label = document.createElement("span");
+      label.className = "truncate";
+      label.textContent = keyword;
+
+      const remove = document.createElement("span");
+      remove.setAttribute("aria-hidden", "true");
+      remove.className = "shrink-0 text-sm leading-none opacity-70";
+      remove.textContent = "\\u00D7";
+
+      tag.append(label, remove);
+      cloud.append(tag);
+    });
+  };
+
+  cloud.addEventListener("click", (event) => {
+    const tag = event.target.closest("button[data-index]");
+    if (!tag) return;
+    const index = Number(tag.dataset.index);
+    const keywords = parse(input.value);
+    if (index < 0 || index >= keywords.length) return;
+    keywords.splice(index, 1);
+    input.value = keywords.join(", ");
+    render();
+    input.focus();
+  });
+
+  input.addEventListener("input", render);
+  render();
+};
+`;
+
 export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
   const meta: LayoutMeta = {
     title: post ? "Edit post | Shipping Binaries" : "Write | Shipping Binaries",
@@ -333,15 +393,21 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
                   {slugError ?? ""}
                 </span>
               </div>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                Keywords
+              <div
+                class="flex flex-col gap-2 text-sm font-medium"
+                data-post-keywords
+                {...{ "x-init": "initKeywordsField($el)" }}
+              >
+                <label for="post-keywords">Keywords</label>
+                <div class="grid grid-cols-3 gap-1.5" data-keywords-cloud hidden />
                 <Input
                   class={panelField}
+                  id="post-keywords"
                   name="keywords"
                   placeholder="Hono, Cloudflare"
                   value={keywords}
                 />
-              </label>
+              </div>
             </div>
           </AdminToolSection>
           <AdminToolSection open title="Image">
@@ -358,6 +424,7 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
           </AdminToolSection>
         </AdminTools>
         <script dangerouslySetInnerHTML={{ __html: postSlugScript }} />
+        <script dangerouslySetInnerHTML={{ __html: keywordsScript }} />
       </form>
     </Layout>
   );
