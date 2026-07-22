@@ -43,14 +43,14 @@ test("PostBody links footnote references to safely rendered definitions", () => 
 
   assert.match(html, /href="#footnote-source"/);
   assert.match(html, /id="footnote-reference-source"/);
-  assert.match(html, /href="#footnote-source"[^>]*>1<\/a>/);
+  assert.match(html, /aria-label="Footnote source, note 1"/);
+  assert.match(html, /href="#footnote-source"[^>]*>\[source\]<\/a>/);
   assert.match(html, /id="footnote-source"/);
   assert.match(html, /role="note"/);
   assert.match(html, /id="footnotes-heading">Footnotes<\/h2>/);
   assert.match(html, /href="#footnote-reference-source"/);
   assert.match(html, /Back to footnote 1 reference/);
   assert.match(html, /<strong>Source<\/strong>/);
-  assert.doesNotMatch(html, />\[source\]</);
   assert.doesNotMatch(html, /<script>/);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 });
