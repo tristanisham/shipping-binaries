@@ -56,3 +56,17 @@ export const getRolesForUser = async (
 
   return result.results.map((row) => row.name);
 };
+
+export const assignRoleToUser = async (
+  db: D1Database,
+  userId: number,
+  roleName: string,
+): Promise<void> => {
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO user_roles (user_id, role_id)
+       SELECT ?1, id FROM roles WHERE name = ?2`,
+    )
+    .bind(userId, roleName)
+    .run();
+};

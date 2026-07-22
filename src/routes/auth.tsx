@@ -2,8 +2,20 @@ import { Hono, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import {
+  sendInvitationEmail,
+  sendPasswordResetEmail,
+} from "../email/auth.js";
+import {
+  claimAuthToken,
+  createAuthToken,
+  getValidAuthToken,
+  INVITE_TOKEN_TTL_MS,
+  PASSWORD_RESET_TOKEN_TTL_MS,
+} from "../models/authToken.js";
+import {
   createSession,
   destroySession,
+  destroySessionsForUser,
   getSessionUser,
   SESSION_COOKIE_NAME,
 } from "../models/session.js";
@@ -19,8 +31,11 @@ import {
   updatePost,
   validatePostSlug,
 } from "../models/post.js";
-import { ADMIN_ROLE } from "../models/role.js";
+import { ADMIN_ROLE, assignRoleToUser } from "../models/role.js";
 import {
+  activateUserWithPassword,
+  createUser,
+  findUserByEmail,
   findUserByLogin,
   getAllUsers,
   getUserById,
@@ -28,14 +43,18 @@ import {
   setUserPassword,
   updateUser,
   type User,
+  type UserSort,
+  type UserSortDirection,
 } from "../models/user.js";
 import { Account } from "../views/Account.js";
 import { AdminHome } from "../views/AdminHome.js";
 import { AdminPosts } from "../views/AdminPosts.js";
 import { AdminUserEdit } from "../views/AdminUserEdit.js";
 import { AdminUsers } from "../views/AdminUsers.js";
+import { ForgotPassword } from "../views/ForgotPassword.js";
 import { Login } from "../views/Login.js";
 import { Logout } from "../views/Logout.js";
+import { SetPassword } from "../views/SetPassword.js";
 import { Write, type WriteFormValues } from "../views/Write.js";
 
 type AuthEnv = {
@@ -48,13 +67,45 @@ type AuthEnv = {
 const INVALID_LOGIN_HASH =
   "$2b$10$5Ke5raq.wTNcQYIzdbmwu.jqOhEFvUpOFy08jNOAbk5ausJSJy5Py";
 const INVALID_LOGIN_MESSAGE = "Invalid email, username, or password.";
+const INVALID_PASSWORD_MESSAGE =
+  "Use matching passwords between 12 characters and 72 UTF-8 bytes.";
+
+const noStore: MiddlewareHandler<AuthEnv> = async (c, next) => {
+  await next();
+  c.header("Cache-Control", "no-store");
+};
+
+const getActionOrigin = (requestUrl: string): string => {
+  const url = new URL(requestUrl);
+  return url.hostname === "localhost" || url.hostname === "127.0.0.1"
+    ? url.origin
+    : "https://shippingbinaries.com";
+};
+
+const buildActionUrl = (
+  requestUrl: string,
+  path: string,
+  token: string,
+): string => {
+  const url = new URL(path, getActionOrigin(requestUrl));
+  url.searchParams.set("token", token);
+  return url.toString();
+};
+
+const validatePassword = (
+  password: string,
+  passwordConfirmation: string,
+): string | null =>
+  password.length >= 12 && password === passwordConfirmation
+    ? null
+    : INVALID_PASSWORD_MESSAGE;
 
 export const authRoute = new Hono<AuthEnv>();
 
-authRoute.use("/login", async (c, next) => {
-  await next();
-  c.header("Cache-Control", "no-store");
-});
+authRoute.use("/login", noStore);
+authRoute.use("/forgot-password", noStore);
+authRoute.use("/reset-password", noStore);
+authRoute.use("/invite", noStore);
 
 authRoute.get("/login", async (c) => {
   const token = getCookie(c, SESSION_COOKIE_NAME);
@@ -63,7 +114,10 @@ authRoute.get("/login", async (c) => {
     return c.redirect("/admin");
   }
 
-  return c.html(<Login />);
+  const notice = c.req.query("password") === "updated"
+    ? "Your password has been updated. You can log in now."
+    : undefined;
+  return c.html(<Login notice={notice} />);
 });
 
 authRoute.post("/login", async (c) => {
@@ -84,7 +138,7 @@ authRoute.post("/login", async (c) => {
     user?.password_hash ?? INVALID_LOGIN_HASH,
   );
 
-  if (!user || !passwordMatches) {
+  if (!user || !user.active || !passwordMatches) {
     return c.html(
       <Login error={INVALID_LOGIN_MESSAGE} login={login} />,
       401,
@@ -106,6 +160,159 @@ authRoute.post("/login", async (c) => {
   });
 
   return c.redirect("/admin", 303);
+});
+
+authRoute.get("/forgot-password", (c) => c.html(<ForgotPassword />));
+
+authRoute.post("/forgot-password", async (c) => {
+  const body = await c.req.parseBody();
+  const email = typeof body.email === "string" ? body.email.trim() : "";
+  const user = email ? await findUserByEmail(c.env.DB, email) : null;
+
+  if (user?.active === 1) {
+    const token = await createAuthToken(
+      c.env.DB,
+      user.id,
+      "password_reset",
+      PASSWORD_RESET_TOKEN_TTL_MS,
+    );
+    await sendPasswordResetEmail(c.env.EMAIL, {
+      actionUrl: buildActionUrl(c.req.url, "/reset-password", token),
+      displayName: user.label ?? user.username,
+      to: user.email,
+    });
+  }
+
+  return c.html(<ForgotPassword sent />);
+});
+
+authRoute.get("/reset-password", async (c) => {
+  const token = c.req.query("token") ?? "";
+  const valid = Boolean(
+    token && await getValidAuthToken(c.env.DB, token, "password_reset"),
+  );
+  return c.html(
+    <SetPassword mode="reset" token={token} valid={valid} />,
+    valid ? 200 : 400,
+  );
+});
+
+authRoute.post("/reset-password", async (c) => {
+  const body = await c.req.parseBody();
+  const token = typeof body.token === "string" ? body.token : "";
+  const password = typeof body.password === "string" ? body.password : "";
+  const passwordConfirmation = typeof body.passwordConfirmation === "string"
+    ? body.passwordConfirmation
+    : "";
+  const tokenRecord = token
+    ? await getValidAuthToken(c.env.DB, token, "password_reset")
+    : null;
+  const error = validatePassword(password, passwordConfirmation);
+
+  if (!tokenRecord) {
+    return c.html(
+      <SetPassword mode="reset" token={token} valid={false} />,
+      400,
+    );
+  }
+
+  if (error) {
+    return c.html(
+      <SetPassword error={error} mode="reset" token={token} valid />,
+      422,
+    );
+  }
+
+  let passwordHash: string;
+  try {
+    passwordHash = await hashPassword(password);
+  } catch {
+    return c.html(
+      <SetPassword
+        error={INVALID_PASSWORD_MESSAGE}
+        mode="reset"
+        token={token}
+        valid
+      />,
+      422,
+    );
+  }
+
+  const claimed = await claimAuthToken(c.env.DB, token, "password_reset");
+  if (!claimed) {
+    return c.html(
+      <SetPassword mode="reset" token={token} valid={false} />,
+      400,
+    );
+  }
+
+  await setUserPassword(c.env.DB, claimed.userId, passwordHash);
+  await destroySessionsForUser(c.env.DB, claimed.userId);
+  return c.redirect("/login?password=updated", 303);
+});
+
+authRoute.get("/invite", async (c) => {
+  const token = c.req.query("token") ?? "";
+  const valid = Boolean(
+    token && await getValidAuthToken(c.env.DB, token, "invite"),
+  );
+  return c.html(
+    <SetPassword mode="invite" token={token} valid={valid} />,
+    valid ? 200 : 400,
+  );
+});
+
+authRoute.post("/invite", async (c) => {
+  const body = await c.req.parseBody();
+  const token = typeof body.token === "string" ? body.token : "";
+  const password = typeof body.password === "string" ? body.password : "";
+  const passwordConfirmation = typeof body.passwordConfirmation === "string"
+    ? body.passwordConfirmation
+    : "";
+  const tokenRecord = token
+    ? await getValidAuthToken(c.env.DB, token, "invite")
+    : null;
+  const error = validatePassword(password, passwordConfirmation);
+
+  if (!tokenRecord) {
+    return c.html(
+      <SetPassword mode="invite" token={token} valid={false} />,
+      400,
+    );
+  }
+
+  if (error) {
+    return c.html(
+      <SetPassword error={error} mode="invite" token={token} valid />,
+      422,
+    );
+  }
+
+  let passwordHash: string;
+  try {
+    passwordHash = await hashPassword(password);
+  } catch {
+    return c.html(
+      <SetPassword
+        error={INVALID_PASSWORD_MESSAGE}
+        mode="invite"
+        token={token}
+        valid
+      />,
+      422,
+    );
+  }
+
+  const claimed = await claimAuthToken(c.env.DB, token, "invite");
+  if (!claimed) {
+    return c.html(
+      <SetPassword mode="invite" token={token} valid={false} />,
+      400,
+    );
+  }
+
+  await activateUserWithPassword(c.env.DB, claimed.userId, passwordHash);
+  return c.redirect("/login?password=updated", 303);
 });
 
 const requireSession: MiddlewareHandler<AuthEnv> = async (c, next) => {
@@ -280,9 +487,77 @@ authRoute.post("/admin/posts/:id/draft", async (c) => {
 
 authRoute.get("/admin/users", async (c) => {
   c.header("Cache-Control", "no-store");
-  const users = await getAllUsers(c.env.DB);
+  const requestedSort = c.req.query("sort");
+  const requestedDirection = c.req.query("direction");
+  const sorts = new Set<UserSort>(["email", "label", "status", "username"]);
+  const sort = requestedSort && sorts.has(requestedSort as UserSort)
+    ? requestedSort as UserSort
+    : undefined;
+  const direction: UserSortDirection = requestedDirection === "desc"
+    ? "desc"
+    : "asc";
+  const users = await getAllUsers(c.env.DB, { direction, sort });
 
-  return c.html(<AdminUsers users={users} />);
+  return c.html(
+    <AdminUsers direction={direction} sort={sort} users={users} />,
+  );
+});
+
+authRoute.post("/admin/users", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const body = await c.req.parseBody();
+  const email = typeof body.email === "string" ? body.email.trim() : "";
+  const username = typeof body.username === "string"
+    ? body.username.trim()
+    : "";
+  const labelValue = typeof body.label === "string" ? body.label.trim() : "";
+  if (email && username) {
+    const userId = await createUser(c.env.DB, {
+      active: false,
+      email,
+      label: labelValue || null,
+      passwordHash: await hashPassword(
+        `${crypto.randomUUID()}${crypto.randomUUID()}`,
+      ),
+      username,
+    });
+    await assignRoleToUser(c.env.DB, userId, ADMIN_ROLE);
+    const token = await createAuthToken(
+      c.env.DB,
+      userId,
+      "invite",
+      INVITE_TOKEN_TTL_MS,
+    );
+    await sendInvitationEmail(c.env.EMAIL, {
+      actionUrl: buildActionUrl(c.req.url, "/invite", token),
+      displayName: labelValue || username,
+      to: email,
+    });
+  }
+
+  return c.redirect("/admin/users", 303);
+});
+
+authRoute.post("/admin/users/:id/invite", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const id = Number.parseInt(c.req.param("id"), 10);
+  const user = Number.isInteger(id) ? await getUserById(c.env.DB, id) : null;
+
+  if (user && !user.active) {
+    const token = await createAuthToken(
+      c.env.DB,
+      user.id,
+      "invite",
+      INVITE_TOKEN_TTL_MS,
+    );
+    await sendInvitationEmail(c.env.EMAIL, {
+      actionUrl: buildActionUrl(c.req.url, "/invite", token),
+      displayName: user.label ?? user.username,
+      to: user.email,
+    });
+  }
+
+  return c.redirect("/admin/users", 303);
 });
 
 authRoute.post("/admin/users/:id/active", async (c) => {

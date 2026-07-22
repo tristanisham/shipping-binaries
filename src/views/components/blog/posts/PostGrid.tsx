@@ -18,10 +18,7 @@ const AuthorAndDate: FC<{ post: PostWithAuthor; inverse?: boolean }> = ({
       class="font-semibold hover:underline"
       href={`/@${encodeURIComponent(post.authorUsername)}`}
     >
-      {post.authorLabel ?? post.authorUsername}
-      <span class={inverse ? "ml-2 opacity-80" : "ml-2 opacity-60"}>
-        @{post.authorUsername}
-      </span>
+      {post.authorLabel ?? `@${post.authorUsername}`}
     </a>
     <span aria-hidden="true" class="opacity-50">•</span>
     <time

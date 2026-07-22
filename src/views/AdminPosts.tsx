@@ -133,8 +133,20 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
                                   panelOutlineButton,
                                 )}
                                 href={`/admin/write?id=${post.id}`}
+                                aria-label={`Edit ${post.title}`}
+                                title={`Edit ${post.title}`}
                               >
-                                Edit
+                                <svg
+                                  aria-hidden="true"
+                                  class="size-4 fill-none stroke-current"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M12 20h9" />
+                                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                </svg>
                               </a>
                               <form
                                 action={`/admin/posts/${post.id}/draft`}

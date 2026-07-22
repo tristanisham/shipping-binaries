@@ -34,16 +34,15 @@ export const parseRoleList = (roles: string | null | undefined): string[] =>
   roles ? roles.split(",") : [];
 
 export interface CreateUserInput {
+  active?: boolean;
   email: string;
+  label: string | null;
+  passwordHash: string;
   username: string;
-  password: string;
 }
 
-export interface CreateUserRow {
-  email: string;
-  username: string;
-  password_hash: string;
-}
+export type UserSort = "email" | "label" | "status" | "username";
+export type UserSortDirection = "asc" | "desc";
 
 export const userFromRow = (row: UserRow, roles: string[] = []): User => ({
   id: row.id,
@@ -70,9 +69,53 @@ export const findUserByLogin = async (
     .bind(login)
     .first<UserRow>();
 
+export const findUserByEmail = async (
+  db: D1Database,
+  email: string,
+): Promise<UserRow | null> =>
+  db
+    .prepare(
+      `SELECT id, email, username, password_hash, label, active, created_at, updated_at
+       FROM users
+       WHERE email = ?1
+       LIMIT 1`,
+    )
+    .bind(email)
+    .first<UserRow>();
+
+export const createUser = async (
+  db: D1Database,
+  input: CreateUserInput,
+): Promise<number> => {
+  const result = await db
+    .prepare(
+      `INSERT INTO users (email, username, password_hash, label, active)
+       VALUES (?1, ?2, ?3, ?4, ?5)`,
+    )
+    .bind(
+      input.email,
+      input.username,
+      input.passwordHash,
+      input.label,
+      input.active === false ? 0 : 1,
+    )
+    .run();
+
+  return result.meta.last_row_id;
+};
+
 export const getAllUsers = async (
   db: D1Database,
+  options: { direction?: UserSortDirection; sort?: UserSort } = {},
 ): Promise<readonly User[]> => {
+  const sortColumns: Record<UserSort, string> = {
+    email: "users.email",
+    label: "COALESCE(users.label, '')",
+    status: "users.active",
+    username: "users.username",
+  };
+  const sortColumn = options.sort ? sortColumns[options.sort] : "users.id";
+  const direction = options.direction === "desc" ? "DESC" : "ASC";
   const result = await db
     .prepare(
       `SELECT users.id, users.email, users.username, users.password_hash,
@@ -82,7 +125,7 @@ export const getAllUsers = async (
                JOIN roles ON roles.id = user_roles.role_id
                WHERE user_roles.user_id = users.id) AS roles
        FROM users
-       ORDER BY users.id ASC`,
+       ORDER BY ${sortColumn} ${direction}, users.id ASC`,
     )
     .all<UserWithRolesRow>();
 
@@ -171,6 +214,21 @@ export const setUserPassword = async (
     .prepare(
       `UPDATE users
        SET password_hash = ?2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?1`,
+    )
+    .bind(id, passwordHash)
+    .run();
+};
+
+export const activateUserWithPassword = async (
+  db: D1Database,
+  id: number,
+  passwordHash: string,
+): Promise<void> => {
+  await db
+    .prepare(
+      `UPDATE users
+       SET password_hash = ?2, active = 1, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?1`,
     )
     .bind(id, passwordHash)

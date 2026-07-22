@@ -24,6 +24,14 @@
       "database_id": "92383e1c-8c42-47db-a2df-4df5f352a12d"
     }
   ],
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": [
+        "noreply@shippingbinaries.com"
+      ]
+    }
+  ],
   "observability": {
     "enabled": true
   }

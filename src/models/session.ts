@@ -52,6 +52,13 @@ export const destroySession = async (
     .run();
 };
 
+export const destroySessionsForUser = async (
+  db: D1Database,
+  userId: number,
+): Promise<void> => {
+  await db.prepare("DELETE FROM sessions WHERE user_id = ?1").bind(userId).run();
+};
+
 interface SessionUserRow {
   id: number;
   email: string;
@@ -80,6 +87,7 @@ export const getSessionUser = async (
        FROM sessions
        JOIN users ON users.id = sessions.user_id
        WHERE sessions.token_hash = ?1 AND sessions.expires_at > ?2
+         AND users.active = 1
        LIMIT 1`,
     )
     .bind(tokenHash, new Date().toISOString())

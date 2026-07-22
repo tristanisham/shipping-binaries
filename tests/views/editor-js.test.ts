@@ -132,14 +132,14 @@ test("new post form generates and validates a customizable slug", () => {
   assert.doesNotThrow(() => new Function(slugScript));
 });
 
-test("published post editor links to the live post before Markdown import", () => {
+test("saved post editor links to the live post before Markdown import", () => {
   const html = renderToString(Write({
     post: {
       body: JSON.stringify({ blocks: [] }),
       comments: [],
       createdAt: "2026-07-22 12:00:00",
       description: "Description",
-      draft: false,
+      draft: true,
       id: 7,
       image: "",
       keywords: [],

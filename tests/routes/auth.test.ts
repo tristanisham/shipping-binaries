@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { hashPassword, verifyPassword } from "../../src/auth/password.js";
 import app from "../../src/index.js";
 import { getPostById, setPostDraft } from "../../src/models/post.js";
-import { findUserByLogin } from "../../src/models/user.js";
+import { findUserByLogin, getUserById } from "../../src/models/user.js";
 import {
   createSession,
+  getSessionUser,
   SESSION_COOKIE_NAME,
 } from "../../src/models/session.js";
 import { createTestDb, seedUser } from "../helpers/d1.js";
@@ -24,6 +26,36 @@ const createAdminSession = async (db: D1Database): Promise<string> => {
     .run();
 
   return createSession(db, userId);
+};
+
+type CapturedEmail = {
+  html?: string;
+  subject: string;
+  text?: string;
+  to: string | EmailAddress | (string | EmailAddress)[];
+};
+
+const createEmailCapture = (): {
+  binding: SendEmail;
+  messages: CapturedEmail[];
+} => {
+  const messages: CapturedEmail[] = [];
+  const binding = {
+    send: async (message: EmailMessage | EmailMessageBuilder) => {
+      if ("subject" in message && "to" in message) {
+        messages.push(message as CapturedEmail);
+      }
+      return { messageId: `test-${messages.length}` };
+    },
+  } as SendEmail;
+
+  return { binding, messages };
+};
+
+const tokenFromEmail = (message: CapturedEmail, path: string): string => {
+  const match = message.text?.match(new RegExp(`${path}\\?token=([a-f0-9]+)`));
+  assert.ok(match);
+  return match[1];
 };
 
 const autosave = (
@@ -184,4 +216,144 @@ test("inline user identity updates preserve active status", async () => {
   assert.equal(updated?.email, "updated@example.com");
   assert.equal(updated?.label, "Site Owner");
   assert.equal(updated?.active, 1);
+});
+
+test("admin can invite a user who activates their account", async () => {
+  const db = createTestDb();
+  const token = await createAdminSession(db);
+  const email = createEmailCapture();
+
+  const response = await app.request(
+    "/admin/users",
+    {
+      body: new URLSearchParams({
+        email: "writer@example.com",
+        label: "New Writer",
+        username: "writer",
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db, EMAIL: email.binding } as Env,
+  );
+
+  assert.equal(response.status, 303);
+  const writer = await findUserByLogin(db, "writer");
+  assert.equal(writer?.email, "writer@example.com");
+  assert.equal(writer?.label, "New Writer");
+  assert.equal(writer?.active, 0);
+  assert.deepEqual((await getUserById(db, writer?.id ?? 0))?.roles, ["admin"]);
+  assert.equal(email.messages.length, 1);
+  assert.equal(email.messages[0].to, "writer@example.com");
+  assert.match(email.messages[0].subject, /invited/i);
+
+  const inviteToken = tokenFromEmail(email.messages[0], "/invite");
+  const stored = await db.prepare(
+    "SELECT token_hash FROM auth_tokens WHERE user_id = ?1",
+  ).bind(writer?.id).first<{ token_hash: string }>();
+  assert.notEqual(stored?.token_hash, inviteToken);
+
+  const accept = await app.request(
+    "/invite",
+    {
+      body: new URLSearchParams({
+        password: "correct horse battery staple",
+        passwordConfirmation: "correct horse battery staple",
+        token: inviteToken,
+      }).toString(),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: "POST",
+    },
+    { DB: db, EMAIL: email.binding } as Env,
+  );
+
+  assert.equal(accept.status, 303);
+  assert.equal(accept.headers.get("Location"), "/login?password=updated");
+  const activated = await findUserByLogin(db, "writer");
+  assert.equal(activated?.active, 1);
+  assert.equal(
+    activated && await verifyPassword(
+      "correct horse battery staple",
+      activated.password_hash,
+    ),
+    true,
+  );
+
+  const reused = await app.request(
+    `/invite?token=${inviteToken}`,
+    {},
+    { DB: db, EMAIL: email.binding } as Env,
+  );
+  assert.equal(reused.status, 400);
+});
+
+test("password reset is generic, single-use, and revokes sessions", async () => {
+  const db = createTestDb();
+  const passwordHash = await hashPassword("old password phrase");
+  const userId = await seedUser(db, {
+    email: "writer@example.com",
+    passwordHash,
+    username: "writer",
+  });
+  const session = await createSession(db, userId);
+  const email = createEmailCapture();
+
+  const request = await app.request(
+    "/forgot-password",
+    {
+      body: new URLSearchParams({ email: "writer@example.com" }).toString(),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: "POST",
+    },
+    { DB: db, EMAIL: email.binding } as Env,
+  );
+  assert.equal(request.status, 200);
+  assert.match(await request.text(), /If an active account matches/);
+  assert.equal(email.messages.length, 1);
+
+  const unknown = await app.request(
+    "/forgot-password",
+    {
+      body: new URLSearchParams({ email: "missing@example.com" }).toString(),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: "POST",
+    },
+    { DB: db, EMAIL: email.binding } as Env,
+  );
+  assert.equal(unknown.status, 200);
+  assert.match(await unknown.text(), /If an active account matches/);
+  assert.equal(email.messages.length, 1);
+
+  const resetToken = tokenFromEmail(email.messages[0], "/reset-password");
+  const reset = await app.request(
+    "/reset-password",
+    {
+      body: new URLSearchParams({
+        password: "new password phrase",
+        passwordConfirmation: "new password phrase",
+        token: resetToken,
+      }).toString(),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: "POST",
+    },
+    { DB: db, EMAIL: email.binding } as Env,
+  );
+
+  assert.equal(reset.status, 303);
+  assert.equal(await getSessionUser(db, session), null);
+  const updated = await findUserByLogin(db, "writer");
+  assert.equal(
+    updated && await verifyPassword("new password phrase", updated.password_hash),
+    true,
+  );
+
+  const reused = await app.request(
+    `/reset-password?token=${resetToken}`,
+    {},
+    { DB: db, EMAIL: email.binding } as Env,
+  );
+  assert.equal(reused.status, 400);
 });

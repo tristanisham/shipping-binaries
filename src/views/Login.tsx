@@ -9,6 +9,7 @@ import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 type LoginProps = {
   error?: string;
   login?: string;
+  notice?: string;
 };
 
 const passwordToggleScript = `
@@ -27,7 +28,7 @@ const passwordToggleScript = `
 })();
 `;
 
-export const Login: FC<LoginProps> = ({ error, login = "" }) => {
+export const Login: FC<LoginProps> = ({ error, login = "", notice }) => {
   const meta: LayoutMeta = {
     title: "Log in | Shipping Binaries",
     description: "Log in to Shipping Binaries.",
@@ -40,6 +41,7 @@ export const Login: FC<LoginProps> = ({ error, login = "" }) => {
       <main class="container mx-auto h-full w-2/5">
         <section class="mx-auto mt-16 max-w-md">
           <h1 class="mb-8 text-3xl font-bold">Log in</h1>
+          {notice && <p class="mb-5 font-bold" role="status">{notice}</p>}
           <form action="/login" class="flex flex-col gap-5" method="post">
             <label class="flex flex-col gap-2 font-bold">
               Email or username
@@ -110,6 +112,9 @@ export const Login: FC<LoginProps> = ({ error, login = "" }) => {
             >
               Log in
             </button>
+            <a class="w-fit font-bold underline" href="/forgot-password">
+              Forgot password?
+            </a>
           </form>
         </section>
       </main>

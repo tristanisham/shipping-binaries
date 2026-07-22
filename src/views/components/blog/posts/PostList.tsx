@@ -43,10 +43,7 @@ export const PostList: FC<PostListProps> = ({
                         class="font-semibold hover:underline"
                         href={authorHref}
                       >
-                        {post.authorLabel ?? post.authorUsername}
-                        <span class="ml-2 opacity-60">
-                          @{post.authorUsername}
-                        </span>
+                        {post.authorLabel ?? `@${post.authorUsername}`}
                       </a>
                       <span aria-hidden="true" class="opacity-50">•</span>
                       <time class="opacity-70" datetime={post.createdAt}>

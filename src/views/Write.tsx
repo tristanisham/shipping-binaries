@@ -194,7 +194,7 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
             </CardTitle>
             <CardDescription>Write and format a post.</CardDescription>
             <CardAction class="flex items-center gap-2">
-              {post && !post.draft && post.slug
+              {post && post.slug
                 ? (
                   <a
                     aria-label="View live post"
