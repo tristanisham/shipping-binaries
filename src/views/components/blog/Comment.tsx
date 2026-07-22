@@ -17,9 +17,7 @@ export const Comment: FC<CommentProps> = ({ comment }) => {
       <p class="mt-2 whitespace-pre-wrap">{comment.content}</p>
       {comment.children.length > 0 && (
         <div class="mt-4 space-y-4">
-          {comment.children.map((child) => (
-            <Comment comment={child} />
-          ))}
+          {comment.children.map((child) => <Comment comment={child} />)}
         </div>
       )}
     </article>

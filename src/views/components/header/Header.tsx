@@ -63,11 +63,9 @@ export const Header: FC<HeaderProps> = ({ isAuthenticated = false, nav }) => {
               {nav.map((item) => (
                 <a
                   aria-current={item.current ? "page" : undefined}
-                  class={
-                    item.current
-                      ? "font-bold text-mist-600 underline decoration-2 decoration-mist-600 dark:text-amber-50 dark:decoration-amber-50"
-                      : "hover:text-mist-600 dark:hover:text-amber-50"
-                  }
+                  class={item.current
+                    ? "font-bold text-mist-600 underline decoration-2 decoration-mist-600 dark:text-amber-50 dark:decoration-amber-50"
+                    : "hover:text-mist-600 dark:hover:text-amber-50"}
                   href={item.link}
                 >
                   {item.label}
@@ -81,11 +79,9 @@ export const Header: FC<HeaderProps> = ({ isAuthenticated = false, nav }) => {
             {nav.map((item) => (
               <a
                 aria-current={item.current ? "page" : undefined}
-                class={
-                  item.current
-                    ? "font-bold text-mist-600 underline decoration-2 decoration-mist-600 dark:text-amber-50 dark:decoration-amber-50"
-                    : "hover:text-mist-600 dark:hover:text-amber-50"
-                }
+                class={item.current
+                  ? "font-bold text-mist-600 underline decoration-2 decoration-mist-600 dark:text-amber-50 dark:decoration-amber-50"
+                  : "hover:text-mist-600 dark:hover:text-amber-50"}
                 href={item.link}
               >
                 {item.label}

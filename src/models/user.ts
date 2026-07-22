@@ -73,13 +73,20 @@ export const getAllUsers = async (
 ): Promise<readonly User[]> => {
   const result = await db
     .prepare(
-      `SELECT id, email, username, password_hash, label, active, created_at, updated_at
+      `SELECT users.id, users.email, users.username, users.password_hash,
+              users.label, users.active, users.created_at, users.updated_at,
+              (SELECT GROUP_CONCAT(roles.name, ',')
+               FROM user_roles
+               JOIN roles ON roles.id = user_roles.role_id
+               WHERE user_roles.user_id = users.id) AS roles
        FROM users
        ORDER BY users.id ASC`,
     )
     .all<UserWithRolesRow>();
 
-  return result.results.map((row) => userFromRow(row, parseRoleList(row.roles)));
+  return result.results.map((row) =>
+    userFromRow(row, parseRoleList(row.roles))
+  );
 };
 
 export const getUserById = async (
@@ -88,7 +95,12 @@ export const getUserById = async (
 ): Promise<User | null> => {
   const row = await db
     .prepare(
-      `SELECT id, email, username, password_hash, label, active, created_at, updated_at
+      `SELECT users.id, users.email, users.username, users.password_hash,
+              users.label, users.active, users.created_at, users.updated_at,
+              (SELECT GROUP_CONCAT(roles.name, ',')
+               FROM user_roles
+               JOIN roles ON roles.id = user_roles.role_id
+               WHERE user_roles.user_id = users.id) AS roles
        FROM users
        WHERE users.id = ?1
        LIMIT 1`,

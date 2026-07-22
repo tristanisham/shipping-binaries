@@ -9,12 +9,15 @@ import {
 } from "../models/session.js";
 import {
   createPost,
+  formatSlug,
   getAllPosts,
   getPostById,
+  getUniquePostSlug,
   parseKeywords,
   type Post,
   setPostDraft,
   updatePost,
+  validatePostSlug,
 } from "../models/post.js";
 import { ADMIN_ROLE } from "../models/role.js";
 import {
@@ -33,7 +36,7 @@ import { AdminUserEdit } from "../views/AdminUserEdit.js";
 import { AdminUsers } from "../views/AdminUsers.js";
 import { Login } from "../views/Login.js";
 import { Logout } from "../views/Logout.js";
-import { Write } from "../views/Write.js";
+import { Write, type WriteFormValues } from "../views/Write.js";
 
 type AuthEnv = {
   Bindings: Env;
@@ -161,23 +164,84 @@ authRoute.get("/admin/write", async (c) => {
 authRoute.post("/admin/write", async (c) => {
   c.header("Cache-Control", "no-store");
   const body = await c.req.parseBody();
-
-  const input = {
-    title: typeof body.title === "string" ? body.title : "",
-    description: typeof body.description === "string" ? body.description : "",
-    keywords: parseKeywords(
-      typeof body.keywords === "string" ? body.keywords : "",
-    ),
-    image: typeof body.image === "string" ? body.image : "",
-    body: typeof body.body === "string" ? body.body : "",
-    draft: body.action !== "publish",
-  };
-
+  const action = typeof body.action === "string" ? body.action : "draft";
+  const isAutosave = action === "autosave";
   const idRaw = typeof body.id === "string" ? body.id : "";
   const id = idRaw ? Number.parseInt(idRaw, 10) : Number.NaN;
+  const title = typeof body.title === "string" ? body.title : "";
+  const requestedSlug = typeof body.slug === "string" ? body.slug : "";
+  const slugMode = body.slugMode === "auto" ? "auto" : "custom";
+  const description = typeof body.description === "string"
+    ? body.description
+    : "";
+  const keywords = typeof body.keywords === "string" ? body.keywords : "";
+  const image = typeof body.image === "string" ? body.image : "";
+  const postBody = typeof body.body === "string" ? body.body : "";
+  const draft = isAutosave
+    ? body.currentDraft === "1"
+    : action !== "publish";
+  const currentPostId = Number.isInteger(id) ? id : undefined;
+  let slug: string;
+  let slugError: string | null = null;
+
+  if (slugMode === "auto") {
+    const slugBase = formatSlug(title) || `draft-${crypto.randomUUID()}`;
+    slug = await getUniquePostSlug(c.env.DB, slugBase, currentPostId);
+  } else {
+    slug = requestedSlug;
+    slugError = validatePostSlug(slug);
+
+    if (!slugError) {
+      const uniqueSlug = await getUniquePostSlug(c.env.DB, slug, currentPostId);
+      if (uniqueSlug !== slug) {
+        slugError = "That slug is already used by another post.";
+      }
+    }
+  }
+
+  if (slugError) {
+    if (isAutosave) {
+      return c.json({ error: { slug: slugError }, saved: false }, 422);
+    }
+
+    const values: WriteFormValues = {
+      body: postBody,
+      description,
+      draft,
+      id: idRaw,
+      image,
+      keywords,
+      slug: requestedSlug,
+      slugMode,
+      title,
+    };
+    const post = currentPostId
+      ? (await getPostById(c.env.DB, currentPostId)) ?? undefined
+      : undefined;
+
+    return c.html(
+      <Write post={post} slugError={slugError} values={values} />,
+      422,
+    );
+  }
+
+  const input = {
+    slug,
+    title,
+    description,
+    keywords: parseKeywords(keywords),
+    image,
+    body: postBody,
+    draft,
+  };
 
   if (idRaw && Number.isInteger(id)) {
     await updatePost(c.env.DB, id, input);
+
+    if (isAutosave) {
+      return c.json({ id, saved: true, slug });
+    }
+
     return c.redirect(`/admin/write?id=${id}`, 303);
   }
 
@@ -185,6 +249,10 @@ authRoute.post("/admin/write", async (c) => {
     userId: c.var.currentUser.id,
     ...input,
   });
+
+  if (isAutosave) {
+    return c.json({ id: newId, saved: true, slug }, 201);
+  }
 
   return c.redirect(`/admin/write?id=${newId}`, 303);
 });
@@ -230,9 +298,7 @@ authRoute.post("/admin/users/:id/active", async (c) => {
 authRoute.get("/admin/users/:id/edit", async (c) => {
   c.header("Cache-Control", "no-store");
   const id = Number.parseInt(c.req.param("id"), 10);
-  const user = Number.isInteger(id)
-    ? await getUserById(c.env.DB, id)
-    : null;
+  const user = Number.isInteger(id) ? await getUserById(c.env.DB, id) : null;
 
   if (!user) {
     return c.notFound();
@@ -251,10 +317,10 @@ authRoute.post("/admin/users/:id", async (c) => {
 
   const body = await c.req.parseBody();
   const email = typeof body.email === "string" ? body.email.trim() : "";
-  const username =
-    typeof body.username === "string" ? body.username.trim() : "";
-  const labelValue =
-    typeof body.label === "string" ? body.label.trim() : "";
+  const username = typeof body.username === "string"
+    ? body.username.trim()
+    : "";
+  const labelValue = typeof body.label === "string" ? body.label.trim() : "";
   const label = labelValue.length > 0 ? labelValue : null;
   const password = typeof body.password === "string" ? body.password : "";
 

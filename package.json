@@ -28,6 +28,7 @@
     "account:create": "node --env-file-if-exists=.env --import=tsx src/scripts/create-owner.ts",
     "build": "npm run build:css",
     "build:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --minify",
+    "fmt": "deno fmt",
     "dev": "npm run build:css && concurrently --kill-others-on-fail \"npm:dev:worker\" \"npm:dev:css\"",
     "dev:css": "tailwindcss -i ./src/styles.css -o ./public/styles.css --watch",
     "dev:server": "vite",

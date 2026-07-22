@@ -9,12 +9,10 @@ export const buttonVariants = cva(
       variant: {
         default:
           "bg-burgundy-700 text-burgundy-50 hover:bg-burgundy-600 dark:bg-burgundy-500 dark:text-burgundy-950 dark:hover:bg-burgundy-400",
-        secondary:
-          "bg-chocolate-500 text-chocolate-950 hover:bg-chocolate-400",
+        secondary: "bg-chocolate-500 text-chocolate-950 hover:bg-chocolate-400",
         outline:
           "border border-burgundy-700 bg-transparent text-burgundy-800 hover:bg-burgundy-100 dark:border-burgundy-400 dark:text-burgundy-200 dark:hover:bg-burgundy-900/60",
-        ghost:
-          "shadow-none hover:bg-onyx-200/70 dark:hover:bg-onyx-800/70",
+        ghost: "shadow-none hover:bg-onyx-200/70 dark:hover:bg-onyx-800/70",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
@@ -30,8 +28,10 @@ export const buttonVariants = cva(
   },
 );
 
-type ButtonProps = Omit<JSX.IntrinsicElements["button"], "class"> &
-  VariantProps<typeof buttonVariants> & {
+type ButtonProps =
+  & Omit<JSX.IntrinsicElements["button"], "class">
+  & VariantProps<typeof buttonVariants>
+  & {
     class?: string;
   };
 

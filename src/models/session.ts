@@ -56,6 +56,7 @@ interface SessionUserRow {
   id: number;
   email: string;
   username: string;
+  label: string | null;
   active: 0 | 1;
   roles: string | null;
   created_at: string;
@@ -70,7 +71,7 @@ export const getSessionUser = async (
 
   const row = await db
     .prepare(
-      `SELECT users.id, users.email, users.username, users.active,
+      `SELECT users.id, users.email, users.username, users.label, users.active,
               users.created_at, users.updated_at,
               (SELECT GROUP_CONCAT(roles.name, ',')
                FROM user_roles
@@ -92,6 +93,7 @@ export const getSessionUser = async (
     id: row.id,
     email: row.email,
     username: row.username,
+    label: row.label,
     active: row.active === 1,
     roles: parseRoleList(row.roles),
     createdAt: row.created_at,

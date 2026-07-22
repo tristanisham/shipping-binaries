@@ -80,6 +80,17 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
                 </span>
               </label>
               <label class="flex flex-col gap-2 text-sm font-medium">
+                Name
+                <Input
+                  name="label"
+                  placeholder="Optional display name"
+                  value={user.label ?? ""}
+                />
+                <span class="text-xs font-normal text-onyx-500 dark:text-onyx-400">
+                  Optional full name shown alongside the username.
+                </span>
+              </label>
+              <label class="flex flex-col gap-2 text-sm font-medium">
                 New password
                 <Input
                   autocomplete="new-password"
@@ -100,7 +111,9 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
                 Active
               </label>
             </CardContent>
-            <CardFooter class={`justify-end gap-2 border-t pt-6 ${panelDivider}`}>
+            <CardFooter
+              class={`justify-end gap-2 border-t pt-6 ${panelDivider}`}
+            >
               <a
                 class={`text-sm underline ${panelMuted}`}
                 href="/admin/users"

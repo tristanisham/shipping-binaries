@@ -21,8 +21,10 @@ const badgeVariants = cva(
   },
 );
 
-type BadgeProps = Omit<JSX.IntrinsicElements["span"], "class"> &
-  VariantProps<typeof badgeVariants> & {
+type BadgeProps =
+  & Omit<JSX.IntrinsicElements["span"], "class">
+  & VariantProps<typeof badgeVariants>
+  & {
     class?: string;
   };
 

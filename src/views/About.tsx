@@ -30,7 +30,6 @@ export const About: FC<AboutProps> = ({ isAuthenticated = false }) => {
       />
       <main class="container mx-auto h-full w-2/5">
         <article class="py-8">
-        
         </article>
       </main>
     </Layout>

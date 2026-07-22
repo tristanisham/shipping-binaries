@@ -40,7 +40,7 @@ export const commentsFromRows = (
 ): readonly BlogComment[] => {
   const comments = new Map<number, MutableBlogComment>();
   const orderedRows = [...rows].sort((a, b) =>
-    a.created_at.localeCompare(b.created_at),
+    a.created_at.localeCompare(b.created_at)
   );
 
   for (const row of orderedRows) {

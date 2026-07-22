@@ -1,6 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { PostListItem } from "../models/post.js";
 import { AdminNav } from "./components/admin/AdminNav.js";
+import { AdminTools, AdminToolSection } from "./components/admin/AdminTools.js";
 import {
   defaultHeaderNav,
   setCurrentNavItem,
@@ -52,40 +53,54 @@ export const AdminHome: FC<AdminHomeProps> = ({ posts, userCount }) => {
             <CardDescription>Recent activity across the site.</CardDescription>
           </CardHeader>
           <CardContent class="flex flex-col gap-4">
-            {recent.length === 0 ? (
-              <div class={`rounded-lg px-4 py-8 text-center text-sm ${panelEmpty}`}>
-                No posts yet.{" "}
-                <a class="underline" href="/admin/write">
-                  Write your first post
-                </a>
-                .
-              </div>
-            ) : (
-              <ol class="flex flex-col gap-2">
-                {recent.map((post) => (
-                  <li class={`flex items-center justify-between gap-3 rounded-lg p-3 ${panelRow}`}>
-                    <div class="min-w-0">
-                      <p class="truncate text-sm font-medium">{post.title}</p>
-                      <p class={`truncate text-xs ${panelMuted}`}>
-                        by {post.authorUsername}
-                      </p>
-                    </div>
-                    <Badge variant={post.draft ? "draft" : "published"}>
-                      {post.draft ? "Draft" : "Published"}
-                    </Badge>
-                  </li>
-                ))}
-              </ol>
-            )}
+            {recent.length === 0
+              ? (
+                <div
+                  class={`rounded-lg px-4 py-8 text-center text-sm ${panelEmpty}`}
+                >
+                  No posts yet.{" "}
+                  <a class="underline" href="/admin/write">
+                    Write your first post
+                  </a>
+                  .
+                </div>
+              )
+              : (
+                <ol class="flex flex-col gap-2">
+                  {recent.map((post) => (
+                    <li
+                      class={`flex items-center justify-between gap-3 rounded-lg p-3 ${panelRow}`}
+                    >
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-medium">{post.title}</p>
+                        <p class={`truncate text-xs ${panelMuted}`}>
+                          by {post.authorUsername}
+                        </p>
+                      </div>
+                      <div class="flex shrink-0 items-center gap-2">
+                        <a
+                          class={cn(
+                            buttonVariants({ size: "sm", variant: "outline" }),
+                            panelOutlineButton,
+                          )}
+                          href={`/admin/write?id=${post.id}`}
+                        >
+                          Edit
+                        </a>
+                        <Badge variant={post.draft ? "draft" : "published"}>
+                          {post.draft ? "Draft" : "Published"}
+                        </Badge>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
           </CardContent>
         </Card>
 
-        <aside class="flex min-w-0 flex-col gap-4">
-          <h2 class="px-1 text-xl font-semibold text-burgundy-700 dark:text-burgundy-300">
-            Quick links
-          </h2>
-          <Card class="gap-4 py-5">
-            <CardContent class="flex flex-col gap-3 px-5">
+        <AdminTools title="Quick links">
+          <AdminToolSection open title="Posts">
+            <div class="flex flex-col gap-3">
               <a class={cn(buttonVariants(), "w-full")} href="/admin/write">
                 New post
               </a>
@@ -99,6 +114,10 @@ export const AdminHome: FC<AdminHomeProps> = ({ posts, userCount }) => {
               >
                 Manage posts ({posts.length})
               </a>
+            </div>
+          </AdminToolSection>
+          <AdminToolSection open title="Users">
+            <div class="flex flex-col gap-3">
               <a
                 class={cn(
                   buttonVariants({ variant: "outline" }),
@@ -109,9 +128,9 @@ export const AdminHome: FC<AdminHomeProps> = ({ posts, userCount }) => {
               >
                 Manage users ({userCount})
               </a>
-            </CardContent>
-          </Card>
-        </aside>
+            </div>
+          </AdminToolSection>
+        </AdminTools>
       </main>
     </Layout>
   );

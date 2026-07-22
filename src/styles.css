@@ -51,3 +51,14 @@
   --color-chocolate-900: #2f1504;
   --color-chocolate-950: #210f03;
 }
+
+@layer components {
+  .editor-js .ce-block__content,
+  .editor-js .ce-toolbar__content {
+    @apply max-w-none;
+  }
+
+  .editor-js .codex-editor__redactor {
+    @apply pb-24;
+  }
+}

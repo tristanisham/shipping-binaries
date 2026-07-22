@@ -7,14 +7,14 @@ type PostListProps = {
 
 export const PostList: FC<PostListProps> = ({ posts }) => {
   const newestFirst = [...posts].sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt),
+    b.createdAt.localeCompare(a.createdAt)
   );
 
   return (
     <section class="mt-16" aria-label="Blog posts">
       <ul class="grid grid-cols-3 items-start gap-6">
         {newestFirst.map((post) => {
-          const href = `/blog/${post.id}`;
+          const href = `/blog/${post.slug}`;
 
           return (
             <li>
@@ -43,7 +43,7 @@ export const PostList: FC<PostListProps> = ({ posts }) => {
                     class="cursor-pointer rounded-lg border border-mist-600/30 px-4 py-2 font-semibold transition-colors hover:bg-mist-600 hover:text-amber-50 dark:border-amber-50/30 dark:hover:bg-amber-50 dark:hover:text-mist-600"
                     data-share-title={post.title}
                     data-share-url={href}
-                    onclick={'const button = this; const url = new URL(button.dataset.shareUrl, window.location.origin).href; if (navigator.share) { void navigator.share({ title: button.dataset.shareTitle, url }); } else { void navigator.clipboard.writeText(url); }'}
+                    onclick={"const button = this; const url = new URL(button.dataset.shareUrl, window.location.origin).href; if (navigator.share) { void navigator.share({ title: button.dataset.shareTitle, url }); } else { void navigator.clipboard.writeText(url); }"}
                     type="button"
                   >
                     Share

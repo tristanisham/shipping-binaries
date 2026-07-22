@@ -1,45 +1,81 @@
 # Admin Management Pages Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> superpowers:subagent-driven-development (recommended) or
+> superpowers:executing-plans to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Move the post editor to `/admin/write`, turn `/admin` into a management landing page with a left nav column, and add `/admin/users` and `/admin/posts` management pages with quick actions and edit forms — backed by real post persistence and a test-driven model layer.
+**Goal:** Move the post editor to `/admin/write`, turn `/admin` into a
+management landing page with a left nav column, and add `/admin/users` and
+`/admin/posts` management pages with quick actions and edit forms — backed by
+real post persistence and a test-driven model layer.
 
-**Architecture:** Server-rendered Hono JSX pages behind the existing `requireSession` middleware. Data access lives in `src/models/*` (D1 prepared statements) and is unit-tested with Node's built-in test runner against an in-memory `node:sqlite` adapter that mimics the D1 API and applies the real migration files. Quick actions are plain `<form method="post">` submits that mutate and redirect (303) — no client JS. A shared `AdminNav` component provides the left column across admin pages.
+**Architecture:** Server-rendered Hono JSX pages behind the existing
+`requireSession` middleware. Data access lives in `src/models/*` (D1 prepared
+statements) and is unit-tested with Node's built-in test runner against an
+in-memory `node:sqlite` adapter that mimics the D1 API and applies the real
+migration files. Quick actions are plain `<form method="post">` submits that
+mutate and redirect (303) — no client JS. A shared `AdminNav` component provides
+the left column across admin pages.
 
-**Tech Stack:** Hono + Hono JSX (`hono/jsx`), TypeScript (strict, `module: NodeNext`), Tailwind v4, Cloudflare Workers + D1 (SQLite), bcryptjs. Tests: `node --test` (Node 24 native TS type-stripping) + `tsx` loader + `node:sqlite`.
+**Tech Stack:** Hono + Hono JSX (`hono/jsx`), TypeScript (strict,
+`module: NodeNext`), Tailwind v4, Cloudflare Workers + D1 (SQLite), bcryptjs.
+Tests: `node --test` (Node 24 native TS type-stripping) + `tsx` loader +
+`node:sqlite`.
 
 ## Global Constraints
 
-- **Testing:** Model-layer logic is test-driven with `node:test`. Tests live under `tests/` and run via `npm test` →
-  `NODE_OPTIONS="--import tsx" node --test "tests/**/*.test.ts"`. The `tsx` `--import` (via `NODE_OPTIONS`, so it propagates to the runner's per-file child processes) is required to resolve the repo's NodeNext `.js` import specifiers to their `.ts` sources. Views and routes (thin JSX/glue) are verified by `npm run typecheck` + `npm run build` + the manual browser checks in each task; route-level integration tests are a documented follow-up, not part of this plan.
-- **Tests are tracked.** Test files live under `tests/` and are committed alongside the code they cover (each model task commits its test file with the model change).
-- **`tsconfig.json` typechecks `src` only** (`include: ["src"]`). Test files under `tests/` are not typechecked by `tsc`; they run through `tsx` (types stripped). Do not add `tests/` to the tsconfig include.
+- **Testing:** Model-layer logic is test-driven with `node:test`. Tests live
+  under `tests/` and run via `npm test` →
+  `NODE_OPTIONS="--import tsx" node --test "tests/**/*.test.ts"`. The `tsx`
+  `--import` (via `NODE_OPTIONS`, so it propagates to the runner's per-file
+  child processes) is required to resolve the repo's NodeNext `.js` import
+  specifiers to their `.ts` sources. Views and routes (thin JSX/glue) are
+  verified by `npm run typecheck` + `npm run build` + the manual browser checks
+  in each task; route-level integration tests are a documented follow-up, not
+  part of this plan.
+- **Tests are tracked.** Test files live under `tests/` and are committed
+  alongside the code they cover (each model task commits its test file with the
+  model change).
+- **`tsconfig.json` typechecks `src` only** (`include: ["src"]`). Test files
+  under `tests/` are not typechecked by `tsc`; they run through `tsx` (types
+  stripped). Do not add `tests/` to the tsconfig include.
 - Strict TypeScript, two-space indentation.
-- Keep `.js` extensions on all relative imports, **including** imports of `.tsx` files (`module: "NodeNext"`).
-- JSX is Hono JSX (`jsxImportSource: "hono/jsx"`), not React: use `class`, lowercase handlers, import `FC`/`Child` from `hono/jsx`.
-- Preserve the site palette exactly. Light: `bg-amber-50 text-mist-600`; dark: `dark:bg-mist-600 dark:text-amber-50`. Inverse UI mirrors it.
-- Reuse `src/views/components/ui/*` primitives and `HeaderSlim`; never duplicate page structure unnecessarily.
+- Keep `.js` extensions on all relative imports, **including** imports of `.tsx`
+  files (`module: "NodeNext"`).
+- JSX is Hono JSX (`jsxImportSource: "hono/jsx"`), not React: use `class`,
+  lowercase handlers, import `FC`/`Child` from `hono/jsx`.
+- Preserve the site palette exactly. Light: `bg-amber-50 text-mist-600`; dark:
+  `dark:bg-mist-600 dark:text-amber-50`. Inverse UI mirrors it.
+- Reuse `src/views/components/ui/*` primitives and `HeaderSlim`; never duplicate
+  page structure unnecessarily.
 - Never hand-edit or regenerate `public/styles.css` — it is generated output.
 - All `/admin*` responses set `Cache-Control: no-store`.
 - Redirects after mutations use status `303`.
-- D1 bindings use `?1`-style positional parameters. Models follow the `*Row` (snake_case) + domain (camelCase) + `xFromRow`/`xToRow` convention.
+- D1 bindings use `?1`-style positional parameters. Models follow the `*Row`
+  (snake_case) + domain (camelCase) + `xFromRow`/`xToRow` convention.
 
 ---
 
 ## Task 0: Migration + test harness
 
-Adds the `active` and `body` columns and stands up the `node:sqlite`-backed D1 test harness so Tasks 1–2 can be test-driven.
+Adds the `active` and `body` columns and stands up the `node:sqlite`-backed D1
+test harness so Tasks 1–2 can be test-driven.
 
 **Files:**
+
 - Create: `migrations/0004_admin_management.sql`
 - Modify: `package.json` (add `test` script)
 - Create: `tests/helpers/d1.ts`
 - Create: `tests/helpers/harness.test.ts` (smoke test)
 
 **Interfaces:**
+
 - Produces:
-  - `createTestDb(): D1Database` — fresh in-memory DB with all migrations applied.
-  - `seedUser(db, input: { email: string; username: string; passwordHash?: string; active?: 0 | 1 }): Promise<number>` — inserts a user, returns its id.
+  - `createTestDb(): D1Database` — fresh in-memory DB with all migrations
+    applied.
+  - `seedUser(db, input: { email: string; username: string; passwordHash?: string; active?: 0 | 1 }): Promise<number>`
+    — inserts a user, returns its id.
 
 - [ ] **Step 1: Write the migration**
 
@@ -208,13 +244,13 @@ test("createTestDb applies migrations incl. active + body columns", async () => 
 
 - [ ] **Step 5: Apply the migration locally**
 
-Run: `npm run db:migrate:local`
-Expected: wrangler reports migration `0004_admin_management.sql` applied, no errors.
+Run: `npm run db:migrate:local` Expected: wrangler reports migration
+`0004_admin_management.sql` applied, no errors.
 
 - [ ] **Step 6: Run the harness smoke test**
 
-Run: `npm test`
-Expected: PASS (`pass 1 fail 0`). This proves the harness applies migrations and the adapter's `bind`/`first`/`all`/`run` behave like D1.
+Run: `npm test` Expected: PASS (`pass 1 fail 0`). This proves the harness
+applies migrations and the adapter's `bind`/`first`/`all`/`run` behave like D1.
 
 - [ ] **Step 7: Commit**
 
@@ -230,10 +266,12 @@ git commit -m "chore(admin): add migration and node:test D1 harness"
 Adds `active` and the user queries the management pages need, driven by tests.
 
 **Files:**
+
 - Create: `tests/models/user.test.ts`
 - Modify: `src/models/user.ts`
 
 **Interfaces:**
+
 - Consumes: `createTestDb`, `seedUser` (Task 0).
 - Produces:
   - `User` gains `active: boolean`.
@@ -335,8 +373,9 @@ test("findUserByLogin matches email or username", async () => {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npm test`
-Expected: FAIL — `user.test.ts` errors on load because `getAllUsers`/`getUserById`/`updateUser`/`setUserActive`/`setUserPassword` are not exported yet.
+Run: `npm test` Expected: FAIL — `user.test.ts` errors on load because
+`getAllUsers`/`getUserById`/`updateUser`/`setUserActive`/`setUserPassword` are
+not exported yet.
 
 - [ ] **Step 3: Implement the user model**
 
@@ -477,13 +516,11 @@ export const setUserPassword = async (
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npm test`
-Expected: PASS (all user + harness tests green).
+Run: `npm test` Expected: PASS (all user + harness tests green).
 
 - [ ] **Step 5: Typecheck**
 
-Run: `npm run typecheck`
-Expected: PASS.
+Run: `npm run typecheck` Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -496,22 +533,29 @@ git commit -m "feat(admin): add user.active and admin user queries"
 
 ## Task 2: Post model (TDD)
 
-Adds `body`, keyword helpers, all-posts listing, and create/update/draft mutations, driven by tests.
+Adds `body`, keyword helpers, all-posts listing, and create/update/draft
+mutations, driven by tests.
 
 **Files:**
+
 - Create: `tests/models/post.test.ts`
 - Modify: `src/models/post.ts`
 
 **Interfaces:**
+
 - Consumes: `createTestDb`, `seedUser` (Task 0); `body` column (Task 0).
 - Produces:
   - `Post` gains `body: string`.
-  - `PostListItem` interface: `{ id: number; userId: number; authorUsername: string; draft: boolean; title: string; description: string; createdAt: string; updatedAt: string }`
+  - `PostListItem` interface:
+    `{ id: number; userId: number; authorUsername: string; draft: boolean; title: string; description: string; createdAt: string; updatedAt: string }`
   - `parseKeywords(input: string): string[]`
   - `formatKeywords(keywords: readonly string[]): string`
   - `getAllPosts(db: D1Database): Promise<readonly PostListItem[]>`
-  - `createPost(db: D1Database, input: CreatePostInput): Promise<number>` where `CreatePostInput = { userId: number; title: string; description: string; keywords: string[]; image: string; body: string; draft: boolean }`
-  - `updatePost(db: D1Database, id: number, input: UpdatePostInput): Promise<void>` where `UpdatePostInput = { title: string; description: string; keywords: string[]; image: string; body: string; draft: boolean }`
+  - `createPost(db: D1Database, input: CreatePostInput): Promise<number>` where
+    `CreatePostInput = { userId: number; title: string; description: string; keywords: string[]; image: string; body: string; draft: boolean }`
+  - `updatePost(db: D1Database, id: number, input: UpdatePostInput): Promise<void>`
+    where
+    `UpdatePostInput = { title: string; description: string; keywords: string[]; image: string; body: string; draft: boolean }`
   - `setPostDraft(db: D1Database, id: number, draft: boolean): Promise<void>`
   - Existing `getPostById` / `getPostsForUser` now return `body`.
 
@@ -644,12 +688,16 @@ test("getAllPosts includes author username, newest id first", async () => {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npm test`
-Expected: FAIL — `post.test.ts` errors on load because `parseKeywords`/`formatKeywords`/`getAllPosts`/`createPost`/`updatePost`/`setPostDraft` are not exported yet.
+Run: `npm test` Expected: FAIL — `post.test.ts` errors on load because
+`parseKeywords`/`formatKeywords`/`getAllPosts`/`createPost`/`updatePost`/`setPostDraft`
+are not exported yet.
 
 - [ ] **Step 3: Add `body` to interfaces and mappers**
 
-In `src/models/post.ts`, add `body: string;` to `Post` (after `image`) and `body: string;` to `PostRow` (after `image`). In `postFromRow`, add `body: row.body,` (after `image: row.image,`). In `postToRow`, add `body: post.body,` (after `image: post.image,`).
+In `src/models/post.ts`, add `body: string;` to `Post` (after `image`) and
+`body: string;` to `PostRow` (after `image`). In `postFromRow`, add
+`body: row.body,` (after `image: row.image,`). In `postToRow`, add
+`body: post.body,` (after `image: post.image,`).
 
 Result for reference:
 
@@ -684,7 +732,10 @@ export interface PostRow {
 
 - [ ] **Step 4: Add `body` to the two existing SELECT column lists**
 
-In `getPostById` and `getPostsForUser`, change `... image, created_at, updated_at` to `... image, body, created_at, updated_at`. Both `SELECT` lists must include `body`.
+In `getPostById` and `getPostsForUser`, change
+`... image, created_at, updated_at` to
+`... image, body, created_at, updated_at`. Both `SELECT` lists must include
+`body`.
 
 - [ ] **Step 5: Append the keyword helpers and new queries**
 
@@ -831,13 +882,11 @@ export const setPostDraft = async (
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `npm test`
-Expected: PASS (all post + user + harness tests green).
+Run: `npm test` Expected: PASS (all post + user + harness tests green).
 
 - [ ] **Step 7: Typecheck**
 
-Run: `npm run typecheck`
-Expected: PASS.
+Run: `npm run typecheck` Expected: PASS.
 
 - [ ] **Step 8: Commit**
 
@@ -850,21 +899,28 @@ git commit -m "feat(admin): add post body, listing, and create/update/draft quer
 
 ## Task 3: Shared AdminNav + AdminHome landing page
 
-Introduces the shared left-nav column and rewires `/admin` to a landing page. Also exports `buttonVariants` so anchors can be styled as buttons (avoiding invalid `<a><button></a>` nesting).
+Introduces the shared left-nav column and rewires `/admin` to a landing page.
+Also exports `buttonVariants` so anchors can be styled as buttons (avoiding
+invalid `<a><button></a>` nesting).
 
 **Files:**
+
 - Modify: `src/views/components/ui/Button.tsx` (export `buttonVariants`)
 - Create: `src/views/components/admin/AdminNav.tsx`
 - Create: `src/views/AdminHome.tsx`
 - Modify: `src/routes/auth.tsx` (rewire `GET /admin`)
 
 **Interfaces:**
+
 - Consumes: `getAllPosts`, `getAllUsers` (Tasks 1–2); `PostListItem`.
-- Produces: `buttonVariants` (from `ui/Button.tsx`); `AdminNav: FC<{ current: string }>`; `AdminHome: FC<{ posts: readonly PostListItem[]; userCount: number }>`.
+- Produces: `buttonVariants` (from `ui/Button.tsx`);
+  `AdminNav: FC<{ current: string }>`;
+  `AdminHome: FC<{ posts: readonly PostListItem[]; userCount: number }>`.
 
 - [ ] **Step 1: Export `buttonVariants`**
 
-In `src/views/components/ui/Button.tsx`, change `const buttonVariants = cva(` to `export const buttonVariants = cva(`. No other changes.
+In `src/views/components/ui/Button.tsx`, change `const buttonVariants = cva(` to
+`export const buttonVariants = cva(`. No other changes.
 
 - [ ] **Step 2: Create the AdminNav component**
 
@@ -872,12 +928,7 @@ Create `src/views/components/admin/AdminNav.tsx`:
 
 ```tsx
 import type { FC } from "hono/jsx";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../ui/Card.js";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card.js";
 
 export type AdminNavItem = {
   label: string;
@@ -910,11 +961,9 @@ export const AdminNav: FC<AdminNavProps> = ({ current }) => (
               <li>
                 <a
                   aria-current={isCurrent ? "page" : undefined}
-                  class={
-                    isCurrent
-                      ? "block rounded-lg border border-chocolate-400 bg-onyx-900/70 px-3 py-2"
-                      : "block rounded-lg border border-onyx-700 bg-onyx-900/70 px-3 py-2 transition-colors hover:border-chocolate-400"
-                  }
+                  class={isCurrent
+                    ? "block rounded-lg border border-chocolate-400 bg-onyx-900/70 px-3 py-2"
+                    : "block rounded-lg border border-onyx-700 bg-onyx-900/70 px-3 py-2 transition-colors hover:border-chocolate-400"}
                   href={item.link}
                 >
                   <span class="block text-sm font-medium">{item.label}</span>
@@ -986,31 +1035,33 @@ export const AdminHome: FC<AdminHomeProps> = ({ posts, userCount }) => {
             <CardDescription>Recent activity across the site.</CardDescription>
           </CardHeader>
           <CardContent class="flex flex-col gap-4">
-            {recent.length === 0 ? (
-              <div class="rounded-lg border border-dashed border-burgundy-300 px-4 py-8 text-center text-sm dark:border-burgundy-800">
-                No posts yet.{" "}
-                <a class="underline" href="/admin/write">
-                  Write your first post
-                </a>
-                .
-              </div>
-            ) : (
-              <ol class="flex flex-col gap-2">
-                {recent.map((post) => (
-                  <li class="flex items-center justify-between gap-3 rounded-lg border border-burgundy-200 bg-amber-50/60 p-3 dark:border-burgundy-900 dark:bg-onyx-950/40">
-                    <div class="min-w-0">
-                      <p class="truncate text-sm font-medium">{post.title}</p>
-                      <p class="truncate text-xs text-onyx-600 dark:text-onyx-300">
-                        by {post.authorUsername}
-                      </p>
-                    </div>
-                    <Badge variant={post.draft ? "draft" : "published"}>
-                      {post.draft ? "Draft" : "Published"}
-                    </Badge>
-                  </li>
-                ))}
-              </ol>
-            )}
+            {recent.length === 0
+              ? (
+                <div class="rounded-lg border border-dashed border-burgundy-300 px-4 py-8 text-center text-sm dark:border-burgundy-800">
+                  No posts yet.{" "}
+                  <a class="underline" href="/admin/write">
+                    Write your first post
+                  </a>
+                  .
+                </div>
+              )
+              : (
+                <ol class="flex flex-col gap-2">
+                  {recent.map((post) => (
+                    <li class="flex items-center justify-between gap-3 rounded-lg border border-burgundy-200 bg-amber-50/60 p-3 dark:border-burgundy-900 dark:bg-onyx-950/40">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-medium">{post.title}</p>
+                        <p class="truncate text-xs text-onyx-600 dark:text-onyx-300">
+                          by {post.authorUsername}
+                        </p>
+                      </div>
+                      <Badge variant={post.draft ? "draft" : "published"}>
+                        {post.draft ? "Draft" : "Published"}
+                      </Badge>
+                    </li>
+                  ))}
+                </ol>
+              )}
           </CardContent>
         </Card>
 
@@ -1066,7 +1117,8 @@ Add the view import near the other view imports:
 import { AdminHome } from "../views/AdminHome.js";
 ```
 
-Replace the existing `GET /admin` handler (the block rendering `<Dashboard posts={posts} />`) with:
+Replace the existing `GET /admin` handler (the block rendering
+`<Dashboard posts={posts} />`) with:
 
 ```ts
 authRoute.get("/admin", async (c) => {
@@ -1080,16 +1132,20 @@ authRoute.get("/admin", async (c) => {
 });
 ```
 
-Leave the `import { Dashboard } from "../views/Dashboard.js";` line for now — Task 4 removes it along with the file. (tsconfig has no `noUnusedLocals`, so the lingering import does not fail typecheck.)
+Leave the `import { Dashboard } from "../views/Dashboard.js";` line for now —
+Task 4 removes it along with the file. (tsconfig has no `noUnusedLocals`, so the
+lingering import does not fail typecheck.)
 
 - [ ] **Step 5: Typecheck, build, tests**
 
-Run: `npm run typecheck && npm run build && npm test`
-Expected: all PASS.
+Run: `npm run typecheck && npm run build && npm test` Expected: all PASS.
 
 - [ ] **Step 6: Manual browser check**
 
-Run `npm run dev:worker`, log in at `/login`, visit `http://localhost:8787/admin`. Expected: 20/60/20 layout, left "Manage" nav (Overview/Posts/Users/Write), middle Overview panel, right Quick links. Palette matches the rest of the site in light and dark mode.
+Run `npm run dev:worker`, log in at `/login`, visit
+`http://localhost:8787/admin`. Expected: 20/60/20 layout, left "Manage" nav
+(Overview/Posts/Users/Write), middle Overview panel, right Quick links. Palette
+matches the rest of the site in light and dark mode.
 
 - [ ] **Step 7: Commit**
 
@@ -1102,16 +1158,22 @@ git commit -m "feat(admin): add shared AdminNav and /admin landing page"
 
 ## Task 4: Write view + write routes (create/edit persistence)
 
-Moves the editor to `/admin/write`, wires create/update, and deletes `Dashboard.tsx`.
+Moves the editor to `/admin/write`, wires create/update, and deletes
+`Dashboard.tsx`.
 
 **Files:**
+
 - Create: `src/views/Write.tsx`
 - Delete: `src/views/Dashboard.tsx`
-- Modify: `src/routes/auth.tsx` (add `GET`/`POST /admin/write`, drop `Dashboard` import)
+- Modify: `src/routes/auth.tsx` (add `GET`/`POST /admin/write`, drop `Dashboard`
+  import)
 
 **Interfaces:**
-- Consumes: `getPostById`, `createPost`, `updatePost`, `parseKeywords`, `formatKeywords`, `type Post`; `c.var.currentUser.id`.
-- Produces: `Write: FC<{ post?: Post }>`; routes `GET /admin/write`, `POST /admin/write`.
+
+- Consumes: `getPostById`, `createPost`, `updatePost`, `parseKeywords`,
+  `formatKeywords`, `type Post`; `c.var.currentUser.id`.
+- Produces: `Write: FC<{ post?: Post }>`; routes `GET /admin/write`,
+  `POST /admin/write`.
 
 - [ ] **Step 1: Create the Write view**
 
@@ -1162,7 +1224,9 @@ export const Write: FC<WriteProps> = ({ post }) => {
         class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)] gap-4 px-4 py-6"
         method="post"
       >
-        {post ? <input name="id" type="hidden" value={String(post.id)} /> : null}
+        {post
+          ? <input name="id" type="hidden" value={String(post.id)} />
+          : null}
         <AdminNav current="/admin/write" />
 
         <Card class="min-w-0 bg-linear-to-br from-onyx-50 via-chocolate-50/60 to-burgundy-50 dark:from-onyx-950 dark:via-onyx-900 dark:to-burgundy-950">
@@ -1181,7 +1245,11 @@ export const Write: FC<WriteProps> = ({ post }) => {
           >
             <label class="flex flex-col gap-2 text-sm font-medium">
               Title
-              <Input name="title" placeholder="Post title" value={post?.title ?? ""} />
+              <Input
+                name="title"
+                placeholder="Post title"
+                value={post?.title ?? ""}
+              />
             </label>
             <label class="flex flex-col gap-2 text-sm font-medium">
               Description
@@ -1278,7 +1346,8 @@ In `src/routes/auth.tsx`:
 
 Remove the `import { Dashboard } from "../views/Dashboard.js";` line.
 
-Replace the `import { getAllPosts } from "../models/post.js";` line (from Task 3) with:
+Replace the `import { getAllPosts } from "../models/post.js";` line (from
+Task 3) with:
 
 ```ts
 import {
@@ -1349,14 +1418,17 @@ authRoute.post("/admin/write", async (c) => {
 
 - [ ] **Step 4: Typecheck, build, tests**
 
-Run: `npm run typecheck && npm run build && npm test`
-Expected: all PASS. No remaining references to `Dashboard`.
+Run: `npm run typecheck && npm run build && npm test` Expected: all PASS. No
+remaining references to `Dashboard`.
 
 - [ ] **Step 5: Manual browser check**
 
 With `npm run dev:worker` running:
-1. Visit `/admin/write`, fill fields, click **Publish** → redirect to `/admin/write?id=<n>`, Status badge **Published**, fields prefilled.
-2. Edit a field, click **Save draft** → reload with Status **Draft** and edited content persisted.
+
+1. Visit `/admin/write`, fill fields, click **Publish** → redirect to
+   `/admin/write?id=<n>`, Status badge **Published**, fields prefilled.
+2. Edit a field, click **Save draft** → reload with Status **Draft** and edited
+   content persisted.
 3. Confirm keywords round-trip (`Hono, Cloudflare` → JSON → comma-joined).
 
 - [ ] **Step 6: Commit**
@@ -1373,12 +1445,16 @@ git commit -m "feat(admin): move editor to /admin/write with post persistence"
 Lists all posts with draft-toggle and edit link.
 
 **Files:**
+
 - Create: `src/views/AdminPosts.tsx`
-- Modify: `src/routes/auth.tsx` (add `GET /admin/posts`, `POST /admin/posts/:id/draft`)
+- Modify: `src/routes/auth.tsx` (add `GET /admin/posts`,
+  `POST /admin/posts/:id/draft`)
 
 **Interfaces:**
+
 - Consumes: `getAllPosts`, `setPostDraft`, `PostListItem`.
-- Produces: `AdminPosts: FC<{ posts: readonly PostListItem[] }>`; routes `GET /admin/posts`, `POST /admin/posts/:id/draft`.
+- Produces: `AdminPosts: FC<{ posts: readonly PostListItem[] }>`; routes
+  `GET /admin/posts`, `POST /admin/posts/:id/draft`.
 
 - [ ] **Step 1: Create the AdminPosts view**
 
@@ -1434,74 +1510,79 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {posts.length === 0 ? (
-              <div class="rounded-lg border border-dashed border-onyx-300 px-4 py-8 text-center text-sm dark:border-onyx-700">
-                No posts yet.{" "}
-                <a class="underline" href="/admin/write">
-                  Write one
-                </a>
-                .
-              </div>
-            ) : (
-              <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                  <thead class="border-b border-onyx-200 text-xs uppercase text-onyx-500 dark:border-onyx-700 dark:text-onyx-400">
-                    <tr>
-                      <th class="py-2 pr-4 font-medium">Title</th>
-                      <th class="py-2 pr-4 font-medium">Author</th>
-                      <th class="py-2 pr-4 font-medium">Status</th>
-                      <th class="py-2 pr-4 font-medium">Updated</th>
-                      <th class="py-2 pr-4 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {posts.map((post) => (
-                      <tr class="border-b border-onyx-100 last:border-0 dark:border-onyx-800">
-                        <td class="max-w-xs truncate py-3 pr-4 font-medium">
-                          {post.title}
-                        </td>
-                        <td class="py-3 pr-4 text-onyx-600 dark:text-onyx-300">
-                          {post.authorUsername}
-                        </td>
-                        <td class="py-3 pr-4">
-                          <Badge variant={post.draft ? "draft" : "published"}>
-                            {post.draft ? "Draft" : "Published"}
-                          </Badge>
-                        </td>
-                        <td class="py-3 pr-4 text-onyx-600 dark:text-onyx-300">
-                          {post.updatedAt}
-                        </td>
-                        <td class="py-3 pr-4">
-                          <div class="flex items-center gap-2">
-                            <a
-                              class={cn(
-                                buttonVariants({ size: "sm", variant: "outline" }),
-                              )}
-                              href={`/admin/write?id=${post.id}`}
-                            >
-                              Edit
-                            </a>
-                            <form
-                              action={`/admin/posts/${post.id}/draft`}
-                              method="post"
-                            >
-                              <input
-                                name="draft"
-                                type="hidden"
-                                value={post.draft ? "0" : "1"}
-                              />
-                              <Button size="sm" type="submit" variant="ghost">
-                                {post.draft ? "Publish" : "Unpublish"}
-                              </Button>
-                            </form>
-                          </div>
-                        </td>
+            {posts.length === 0
+              ? (
+                <div class="rounded-lg border border-dashed border-onyx-300 px-4 py-8 text-center text-sm dark:border-onyx-700">
+                  No posts yet.{" "}
+                  <a class="underline" href="/admin/write">
+                    Write one
+                  </a>
+                  .
+                </div>
+              )
+              : (
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-sm">
+                    <thead class="border-b border-onyx-200 text-xs uppercase text-onyx-500 dark:border-onyx-700 dark:text-onyx-400">
+                      <tr>
+                        <th class="py-2 pr-4 font-medium">Title</th>
+                        <th class="py-2 pr-4 font-medium">Author</th>
+                        <th class="py-2 pr-4 font-medium">Status</th>
+                        <th class="py-2 pr-4 font-medium">Updated</th>
+                        <th class="py-2 pr-4 font-medium">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody>
+                      {posts.map((post) => (
+                        <tr class="border-b border-onyx-100 last:border-0 dark:border-onyx-800">
+                          <td class="max-w-xs truncate py-3 pr-4 font-medium">
+                            {post.title}
+                          </td>
+                          <td class="py-3 pr-4 text-onyx-600 dark:text-onyx-300">
+                            {post.authorUsername}
+                          </td>
+                          <td class="py-3 pr-4">
+                            <Badge variant={post.draft ? "draft" : "published"}>
+                              {post.draft ? "Draft" : "Published"}
+                            </Badge>
+                          </td>
+                          <td class="py-3 pr-4 text-onyx-600 dark:text-onyx-300">
+                            {post.updatedAt}
+                          </td>
+                          <td class="py-3 pr-4">
+                            <div class="flex items-center gap-2">
+                              <a
+                                class={cn(
+                                  buttonVariants({
+                                    size: "sm",
+                                    variant: "outline",
+                                  }),
+                                )}
+                                href={`/admin/write?id=${post.id}`}
+                              >
+                                Edit
+                              </a>
+                              <form
+                                action={`/admin/posts/${post.id}/draft`}
+                                method="post"
+                              >
+                                <input
+                                  name="draft"
+                                  type="hidden"
+                                  value={post.draft ? "0" : "1"}
+                                />
+                                <Button size="sm" type="submit" variant="ghost">
+                                  {post.draft ? "Publish" : "Unpublish"}
+                                </Button>
+                              </form>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
           </CardContent>
         </Card>
       </main>
@@ -1557,12 +1638,14 @@ authRoute.post("/admin/posts/:id/draft", async (c) => {
 
 - [ ] **Step 3: Typecheck, build, tests**
 
-Run: `npm run typecheck && npm run build && npm test`
-Expected: all PASS.
+Run: `npm run typecheck && npm run build && npm test` Expected: all PASS.
 
 - [ ] **Step 4: Manual browser check**
 
-With `npm run dev:worker` running, visit `/admin/posts`. Expected: table of all posts (all authors), each with a Status badge, an **Edit** button linking to `/admin/write?id=<n>`, and a **Publish/Unpublish** button that toggles draft and returns to the list with the badge updated.
+With `npm run dev:worker` running, visit `/admin/posts`. Expected: table of all
+posts (all authors), each with a Status badge, an **Edit** button linking to
+`/admin/write?id=<n>`, and a **Publish/Unpublish** button that toggles draft and
+returns to the list with the badge updated.
 
 - [ ] **Step 5: Commit**
 
@@ -1575,16 +1658,23 @@ git commit -m "feat(admin): add /admin/posts management page with draft toggle"
 
 ## Task 6: Users management page + edit form
 
-Lists all users with an active toggle and an edit form (email, username, password reset, active).
+Lists all users with an active toggle and an edit form (email, username,
+password reset, active).
 
 **Files:**
+
 - Create: `src/views/AdminUsers.tsx`
 - Create: `src/views/AdminUserEdit.tsx`
 - Modify: `src/routes/auth.tsx` (add users routes)
 
 **Interfaces:**
-- Consumes: `getAllUsers`, `getUserById`, `updateUser`, `setUserActive`, `setUserPassword`, `type User`; `hashPassword`.
-- Produces: `AdminUsers: FC<{ users: readonly User[] }>`, `AdminUserEdit: FC<{ user: User }>`; routes `GET /admin/users`, `POST /admin/users/:id/active`, `GET /admin/users/:id/edit`, `POST /admin/users/:id`.
+
+- Consumes: `getAllUsers`, `getUserById`, `updateUser`, `setUserActive`,
+  `setUserPassword`, `type User`; `hashPassword`.
+- Produces: `AdminUsers: FC<{ users: readonly User[] }>`,
+  `AdminUserEdit: FC<{ user: User }>`; routes `GET /admin/users`,
+  `POST /admin/users/:id/active`, `GET /admin/users/:id/edit`,
+  `POST /admin/users/:id`.
 
 - [ ] **Step 1: Create the AdminUsers view**
 
@@ -1666,7 +1756,10 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
                         <div class="flex items-center gap-2">
                           <a
                             class={cn(
-                              buttonVariants({ size: "sm", variant: "outline" }),
+                              buttonVariants({
+                                size: "sm",
+                                variant: "outline",
+                              }),
                             )}
                             href={`/admin/users/${user.id}/edit`}
                           >
@@ -1804,7 +1897,9 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
 
 In `src/routes/auth.tsx`:
 
-Replace `import { findUserByLogin, getAllUsers, type User } from "../models/user.js";` (from Task 3) with:
+Replace
+`import { findUserByLogin, getAllUsers, type User } from "../models/user.js";`
+(from Task 3) with:
 
 ```ts
 import {
@@ -1831,7 +1926,8 @@ import { AdminUserEdit } from "../views/AdminUserEdit.js";
 import { AdminUsers } from "../views/AdminUsers.js";
 ```
 
-Add these handlers after the posts handlers (register `:id/active` and `:id/edit` before the bare `:id` POST):
+Add these handlers after the posts handlers (register `:id/active` and
+`:id/edit` before the bare `:id` POST):
 
 ```ts
 authRoute.get("/admin/users", async (c) => {
@@ -1856,9 +1952,7 @@ authRoute.post("/admin/users/:id/active", async (c) => {
 authRoute.get("/admin/users/:id/edit", async (c) => {
   c.header("Cache-Control", "no-store");
   const id = Number.parseInt(c.req.param("id"), 10);
-  const user = Number.isInteger(id)
-    ? await getUserById(c.env.DB, id)
-    : null;
+  const user = Number.isInteger(id) ? await getUserById(c.env.DB, id) : null;
 
   if (!user) {
     return c.notFound();
@@ -1877,8 +1971,9 @@ authRoute.post("/admin/users/:id", async (c) => {
 
   const body = await c.req.parseBody();
   const email = typeof body.email === "string" ? body.email.trim() : "";
-  const username =
-    typeof body.username === "string" ? body.username.trim() : "";
+  const username = typeof body.username === "string"
+    ? body.username.trim()
+    : "";
   const password = typeof body.password === "string" ? body.password : "";
 
   await updateUser(c.env.DB, id, { email, username });
@@ -1894,20 +1989,24 @@ authRoute.post("/admin/users/:id", async (c) => {
 
 - [ ] **Step 4: Typecheck, build, tests**
 
-Run: `npm run typecheck && npm run build && npm test`
-Expected: all PASS.
+Run: `npm run typecheck && npm run build && npm test` Expected: all PASS.
 
 - [ ] **Step 5: `git diff --check`**
 
-Run: `git diff --check`
-Expected: no whitespace errors.
+Run: `git diff --check` Expected: no whitespace errors.
 
 - [ ] **Step 6: Manual browser check**
 
 With `npm run dev:worker` running:
-1. `/admin/users` lists all users with an **Active/Deactivated** badge, an **Edit** link, and a **Deactivate/Activate** toggle. Toggle a user and confirm the badge flips.
-2. `/admin/users/<id>/edit` prefills email, username, and the Active checkbox (password blank). Change the email and save → back on the list with the new email. Toggle Active via the checkbox and confirm it persists.
-3. Set a new password, save, log out, and log in with the new password to confirm the reset works.
+
+1. `/admin/users` lists all users with an **Active/Deactivated** badge, an
+   **Edit** link, and a **Deactivate/Activate** toggle. Toggle a user and
+   confirm the badge flips.
+2. `/admin/users/<id>/edit` prefills email, username, and the Active checkbox
+   (password blank). Change the email and save → back on the list with the new
+   email. Toggle Active via the checkbox and confirm it persists.
+3. Set a new password, save, log out, and log in with the new password to
+   confirm the reset works.
 
 - [ ] **Step 7: Commit**
 
@@ -1930,15 +2029,23 @@ git diff --check
 ```
 
 Then exercise, with `npm run dev:worker`:
+
 1. `/admin` → management nav + overview.
 2. `/admin/write` → create (Save draft and Publish), reload via `?id=`.
 3. `/admin/posts` → list all posts, toggle draft, Edit opens editor.
-4. `/admin/users` → list users, deactivate/reactivate, edit details incl. password reset.
+4. `/admin/users` → list users, deactivate/reactivate, edit details incl.
+   password reset.
 
 ## Notes / out of scope
 
-- Login is **not** blocked for deactivated users in this plan (avoids locking out the sole owner); `findUserByLogin` still authenticates regardless of `active`. Enforcing `active` at login is a deliberate follow-up.
-- Route/view integration tests (driving `app.request()` with a seeded session + the D1 harness) are a viable follow-up but out of scope; this plan test-drives the model layer only.
-- No comment moderation, no public rendering of post `body`, no user creation/deletion from the UI (still `npm run account:create`).
-- The production D1 migration (`npm run db:migrate:remote`) is a deploy-time step, run when shipping — not part of task implementation.
+- Login is **not** blocked for deactivated users in this plan (avoids locking
+  out the sole owner); `findUserByLogin` still authenticates regardless of
+  `active`. Enforcing `active` at login is a deliberate follow-up.
+- Route/view integration tests (driving `app.request()` with a seeded session +
+  the D1 harness) are a viable follow-up but out of scope; this plan test-drives
+  the model layer only.
+- No comment moderation, no public rendering of post `body`, no user
+  creation/deletion from the UI (still `npm run account:create`).
+- The production D1 migration (`npm run db:migrate:remote`) is a deploy-time
+  step, run when shipping — not part of task implementation.
 - Test files under `tests/` are committed alongside the code they cover.

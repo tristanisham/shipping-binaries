@@ -83,8 +83,7 @@ if (!email || !username || !password) {
   );
 }
 
-const sqlValue = (value: string): string =>
-  `'${value.replaceAll("'", "''")}'`;
+const sqlValue = (value: string): string => `'${value.replaceAll("'", "''")}'`;
 const passwordHash = await hashPassword(password);
 
 const executeSql = (sql: string) => {
@@ -153,5 +152,7 @@ if (upsert.status !== 0) {
     );
   }
 } else {
-  console.log(`Owner ${username} (${email}) saved to the ${database} D1 database.`);
+  console.log(
+    `Owner ${username} (${email}) saved to the ${database} D1 database.`,
+  );
 }

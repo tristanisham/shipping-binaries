@@ -36,12 +36,15 @@ weatherRoute.get("/api/weather", async (c) => {
       throw new Error("NWS response did not include a temperature");
     }
 
-    c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=900");
+    c.header(
+      "Cache-Control",
+      "public, max-age=300, stale-while-revalidate=900",
+    );
 
     return c.json({
       icon: observation.properties?.icon ?? "",
-      shortForecast:
-        observation.properties?.textDescription ?? "Current conditions",
+      shortForecast: observation.properties?.textDescription ??
+        "Current conditions",
       temperatureF: Math.round((temperatureC * 9) / 5 + 32),
     });
   } catch {

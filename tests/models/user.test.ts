@@ -40,13 +40,18 @@ test("getAllUsers returns all users ordered by id ascending", async () => {
   );
 });
 
-test("updateUser changes email and username", async () => {
+test("updateUser changes email, username, and label", async () => {
   const db = createTestDb();
   const id = await seedUser(db, { email: "old@x.com", username: "old" });
-  await updateUser(db, id, { email: "new@x.com", username: "new" });
+  await updateUser(db, id, {
+    email: "new@x.com",
+    username: "new",
+    label: "Editor",
+  });
   const user = await getUserById(db, id);
   assert.equal(user?.email, "new@x.com");
   assert.equal(user?.username, "new");
+  assert.equal(user?.label, "Editor");
 });
 
 test("setUserActive toggles the active flag", async () => {

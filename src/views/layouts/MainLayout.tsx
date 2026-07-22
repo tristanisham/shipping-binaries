@@ -37,6 +37,10 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         {meta?.canonical && <link rel="canonical" href={meta.canonical} />}
         <link rel="icon" type="image/png" href="/favicon.png" />
         <script
+          defer
+          src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.12/dist/cdn.min.js"
+        />
+        <script
           dangerouslySetInnerHTML={{
             __html:
               'try { const theme = localStorage.getItem("theme"); const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.classList.toggle("dark", theme === "dark" || (!theme && prefersDark)); } catch {}',

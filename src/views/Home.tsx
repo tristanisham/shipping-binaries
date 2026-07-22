@@ -13,7 +13,9 @@ type HomeProps = {
   posts?: readonly Post[];
 };
 
-export const Home: FC<HomeProps> = ({ isAuthenticated = false, posts = [] }) => {
+export const Home: FC<HomeProps> = (
+  { isAuthenticated = false, posts = [] },
+) => {
   const meta: LayoutMeta = {
     title: "Home | Shipping Binaries",
     description:

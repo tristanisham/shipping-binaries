@@ -1,6 +1,7 @@
 # dev
 .yarn/
 !.yarn/releases
+.superpowers/
 .vscode/*
 !.vscode/launch.json
 !.vscode/*.code-snippets
@@ -13,7 +14,10 @@ node_modules/
 
 # env
 .env
-.env.production
+.env.*
+!.env.example
+.dev.vars*
+!.dev.vars.example
 
 # logs
 logs/

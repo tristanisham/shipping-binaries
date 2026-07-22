@@ -53,7 +53,9 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
           <CardContent>
             <div class="overflow-x-auto">
               <table class="w-full text-left text-sm">
-                <thead class={`border-b text-xs uppercase ${panelDivider} ${panelMuted}`}>
+                <thead
+                  class={`border-b text-xs uppercase ${panelDivider} ${panelMuted}`}
+                >
                   <tr>
                     <th class="py-2 pr-4 font-medium">Username</th>
                     <th class="py-2 pr-4 font-medium">Email</th>
@@ -66,11 +68,15 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
                     <tr class="border-b border-amber-50/10 last:border-0 dark:border-mist-600/10">
                       <td class="py-3 pr-4 font-medium">
                         {user.username}
-                        {user.label ? (
-                          <span class={`block text-xs font-normal ${panelMuted}`}>
-                            {user.label}
-                          </span>
-                        ) : null}
+                        {user.label
+                          ? (
+                            <span
+                              class={`block text-xs font-normal ${panelMuted}`}
+                            >
+                              {user.label}
+                            </span>
+                          )
+                          : null}
                       </td>
                       <td class={`py-3 pr-4 ${panelMuted}`}>
                         {user.email}
@@ -84,7 +90,10 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
                         <div class="flex items-center gap-2">
                           <a
                             class={cn(
-                              buttonVariants({ size: "sm", variant: "outline" }),
+                              buttonVariants({
+                                size: "sm",
+                                variant: "outline",
+                              }),
                               panelOutlineButton,
                             )}
                             href={`/admin/users/${user.id}/edit`}
