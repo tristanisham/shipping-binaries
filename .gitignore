@@ -32,5 +32,4 @@ lerna-debug.log*
 dist/
 
 # Scrap
-dev/tests/
 dev/docs/superpowers/specs
