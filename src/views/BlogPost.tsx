@@ -1,16 +1,17 @@
 import type { FC } from "hono/jsx";
+import type { ViewerProps } from "../auth/viewer.js";
 import type { Post } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
 import { PostBody } from "./components/blog/PostBody.js";
 import { defaultHeaderNav, Header } from "./components/header/Header.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
-type BlogPostProps = {
-  isAuthenticated?: boolean;
+type BlogPostProps = ViewerProps & {
   post: Post;
 };
 
 export const BlogPost: FC<BlogPostProps> = ({
+  isAdmin = false,
   isAuthenticated = false,
   post,
 }) => {
@@ -22,7 +23,11 @@ export const BlogPost: FC<BlogPostProps> = ({
 
   return (
     <Layout meta={meta}>
-      <Header isAuthenticated={isAuthenticated} nav={defaultHeaderNav} />
+      <Header
+        isAdmin={isAdmin}
+        isAuthenticated={isAuthenticated}
+        nav={defaultHeaderNav}
+      />
       <main class="container mx-auto max-w-3xl px-4 py-12">
         <article>
           <header class="mb-8">

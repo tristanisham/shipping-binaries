@@ -7,9 +7,13 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
+        primary:
+          "bg-amber-50 text-mist-600 hover:bg-chocolate-500 hover:text-amber-50 active:bg-chocolate-500 active:text-amber-50 dark:bg-mist-600 dark:text-amber-50 dark:hover:bg-chocolate-500 dark:hover:text-amber-50 dark:active:bg-chocolate-500 dark:active:text-amber-50",
         default:
           "bg-burgundy-700 text-burgundy-50 hover:bg-burgundy-600 dark:bg-burgundy-500 dark:text-burgundy-950 dark:hover:bg-burgundy-400",
         secondary: "bg-chocolate-500 text-chocolate-950 hover:bg-chocolate-400",
+        tertiary: "bg-chocolate-500 text-amber-50 hover:bg-chocolate-400",
+        danger: "bg-burgundy-500 text-amber-50 hover:bg-burgundy-400",
         outline:
           "border border-burgundy-700 bg-transparent text-burgundy-800 hover:bg-burgundy-100 dark:border-burgundy-400 dark:text-burgundy-200 dark:hover:bg-burgundy-900/60",
         ghost: "shadow-none hover:bg-onyx-200/70 dark:hover:bg-onyx-800/70",

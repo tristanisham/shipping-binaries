@@ -27,6 +27,17 @@ export const paginate = <T,>(
   };
 };
 
+export const paginateNewest = <T extends { createdAt: string }>(
+  items: readonly T[],
+  requestedPage: number,
+  pageSize: number,
+) =>
+  paginate(
+    [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    requestedPage,
+    pageSize,
+  );
+
 const pageHref = (basePath: string, page: number): string =>
   page === 1 ? basePath : `${basePath}?page=${page}`;
 
@@ -81,6 +92,13 @@ export const Pagination: FC<PaginationProps> = ({
   );
 };
 
+const publishDateFormatter = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  month: "long",
+  timeZone: "America/New_York",
+  year: "numeric",
+});
+
 export const formatPublishDate = (value: string): string => {
   const isoValue = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
     ? `${value.replace(" ", "T")}Z`
@@ -88,10 +106,5 @@ export const formatPublishDate = (value: string): string => {
   const date = new Date(isoValue);
   if (Number.isNaN(date.getTime())) return value;
 
-  return new Intl.DateTimeFormat("en-US", {
-    day: "numeric",
-    month: "long",
-    timeZone: "America/New_York",
-    year: "numeric",
-  }).format(date);
+  return publishDateFormatter.format(date);
 };

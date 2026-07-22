@@ -19,7 +19,6 @@ import { cn } from "./components/ui/utils.js";
 import {
   panelDivider,
   panelEmpty,
-  panelGhostButton,
   panelMuted,
   panelOutlineButton,
 } from "./components/admin/panel.js";
@@ -61,6 +60,7 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
   return (
     <Layout meta={meta}>
       <HeaderSlim
+        isAdmin
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
       />
@@ -98,7 +98,7 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
                         <th class="py-2 pr-4 font-medium">Author</th>
                         <th class="py-2 pr-4 font-medium">Status</th>
                         <th class="py-2 pr-4 font-medium">Updated</th>
-                        <th class="py-2 pr-4 font-medium">Actions</th>
+                        <th class="py-2 font-medium text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -122,8 +122,8 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
                               {formatUpdatedAt(post.updatedAt)}
                             </time>
                           </td>
-                          <td class="py-3 pr-4">
-                            <div class="flex items-center gap-2">
+                          <td class="py-3 text-right">
+                            <div class="flex items-center justify-end gap-2">
                               <a
                                 class={cn(
                                   buttonVariants({
@@ -158,12 +158,48 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
                                   value={post.draft ? "0" : "1"}
                                 />
                                 <Button
-                                  class={panelGhostButton}
+                                  aria-label={post.draft
+                                    ? `Publish ${post.title}`
+                                    : `Unpublish ${post.title}`}
                                   size="sm"
+                                  title={post.draft
+                                    ? `Publish ${post.title}`
+                                    : `Unpublish ${post.title}`}
                                   type="submit"
-                                  variant="ghost"
+                                  variant="primary"
                                 >
-                                  {post.draft ? "Publish" : "Unpublish"}
+                                  {post.draft
+                                    ? (
+                                      <svg
+                                        aria-hidden="true"
+                                        class="size-4 fill-none stroke-current"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="m15 6 2 2 4-4" />
+                                        <path d="M2 12h20A10 10 0 1 1 12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 4-10" />
+                                      </svg>
+                                    )
+                                    : (
+                                      <svg
+                                        aria-hidden="true"
+                                        class="size-4 fill-none stroke-current"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M10.114 4.462A14.5 14.5 0 0 1 12 2a10 10 0 0 1 9.313 13.643" />
+                                        <path d="M15.557 15.556A14.5 14.5 0 0 1 12 22 10 10 0 0 1 4.929 4.929" />
+                                        <path d="M15.892 10.234A14.5 14.5 0 0 0 12 2a10 10 0 0 0-3.643.687" />
+                                        <path d="M17.656 12H22" />
+                                        <path d="M19.071 19.071A10 10 0 0 1 12 22 14.5 14.5 0 0 1 8.44 8.45" />
+                                        <path d="M2 12h10" />
+                                        <path d="m2 2 20 20" />
+                                      </svg>
+                                    )}
                                 </Button>
                               </form>
                             </div>

@@ -4,12 +4,18 @@ import type {
   UserSort,
   UserSortDirection,
 } from "../models/user.js";
+import { ADMIN_ROLE, type Role } from "../models/role.js";
 import { AdminNav } from "./components/admin/AdminNav.js";
 import {
   defaultHeaderNav,
   setCurrentNavItem,
 } from "./components/header/Header.js";
 import { HeaderSlim } from "./components/header/Slim.js";
+import {
+  SaveCheckIcon,
+  SaveIcon,
+  SaveXIcon,
+} from "./components/icons/SaveIcon.js";
 import { Badge } from "./components/ui/Badge.js";
 import { Button } from "./components/ui/Button.js";
 import {
@@ -30,10 +36,69 @@ import {
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AdminUsersProps = {
+  currentUserId: number;
   direction?: UserSortDirection;
+  roles: readonly Role[];
   sort?: UserSort;
   users: readonly User[];
 };
+
+const saveUserInline = `
+  saveState = "saving";
+  window.clearTimeout(resetTimer);
+  fetch($event.target.action, {
+    method: "POST",
+    body: new FormData($event.target),
+    headers: { Accept: "application/json" }
+  })
+    .then((response) => {
+      if (!response.ok) throw new Error("Save failed");
+      saveState = "saved";
+    })
+    .catch(() => { saveState = "error"; })
+    .finally(() => {
+      resetTimer = window.setTimeout(() => { saveState = "idle"; }, 1600);
+    });
+`;
+
+type RolePickerProps = {
+  form: string;
+  lockAdmin?: boolean;
+  roles: readonly Role[];
+  selectedRoles?: readonly string[];
+};
+
+const RolePicker: FC<RolePickerProps> = ({
+  form,
+  lockAdmin = false,
+  roles,
+  selectedRoles = [],
+}) => (
+  <div class="flex flex-wrap gap-x-3 gap-y-2">
+    {roles.map((role) => {
+      const checked = selectedRoles.includes(role.name);
+      const locked = lockAdmin && role.name === ADMIN_ROLE;
+
+      return (
+        <label class="inline-flex items-center gap-1.5 whitespace-nowrap">
+          {locked && (
+            <input form={form} name="roleIds" type="hidden" value={role.id} />
+          )}
+          <input
+            checked={checked}
+            class="size-4 accent-chocolate-500"
+            disabled={locked}
+            form={form}
+            name="roleIds"
+            type="checkbox"
+            value={role.id}
+          />
+          <span>{role.name}</span>
+        </label>
+      );
+    })}
+  </div>
+);
 
 type SortableHeaderProps = {
   class?: string;
@@ -74,7 +139,9 @@ const SortableHeader: FC<SortableHeaderProps> = ({
 };
 
 export const AdminUsers: FC<AdminUsersProps> = ({
+  currentUserId,
   direction = "asc",
+  roles,
   sort,
   users,
 }) => {
@@ -87,6 +154,7 @@ export const AdminUsers: FC<AdminUsersProps> = ({
   return (
     <Layout meta={meta}>
       <HeaderSlim
+        isAdmin
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
       />
@@ -141,33 +209,34 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                 >
                   <tr>
                     <SortableHeader
-                      class="w-1/5"
+                      class="w-[15%]"
                       currentDirection={direction}
                       currentSort={sort}
                       label="Label"
                       sort="label"
                     />
                     <SortableHeader
-                      class="w-1/5"
+                      class="w-[15%]"
                       currentDirection={direction}
                       currentSort={sort}
                       label="Username"
                       sort="username"
                     />
                     <SortableHeader
-                      class="w-1/4"
+                      class="w-1/5"
                       currentDirection={direction}
                       currentSort={sort}
                       label="Email"
                       sort="email"
                     />
                     <SortableHeader
-                      class="w-[10%]"
+                      class="w-[9%]"
                       currentDirection={direction}
                       currentSort={sort}
                       label="Status"
                       sort="status"
                     />
+                    <th class="w-1/5 py-2 pr-4 font-medium">Roles</th>
                     <th class="py-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
@@ -213,6 +282,9 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                     <td class="py-3 pr-4">
                       <Badge variant="draft">Invitation</Badge>
                     </td>
+                    <td class="py-3 pr-4">
+                      <RolePicker form="new-user-form" roles={roles} />
+                    </td>
                     <td class="py-3 text-right">
                       <div class="flex items-center justify-end gap-2">
                         <Button
@@ -249,12 +321,19 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                     </td>
                   </tr>
                   {users.map((user) => (
-                    <tr class="border-b border-amber-50/10 last:border-0 dark:border-mist-600/10">
+                    <tr
+                      class="border-b border-amber-50/10 last:border-0 dark:border-mist-600/10"
+                      {...{
+                        "x-data":
+                          "{ saveState: 'idle', resetTimer: undefined }",
+                      }}
+                    >
                       <td class="py-3 pr-4">
                         <form
                           action={`/admin/users/${user.id}`}
                           id={`user-${user.id}-identity`}
                           method="post"
+                          {...{ "x-on:submit.prevent": saveUserInline }}
                         >
                           <Input
                             aria-label={`Label for ${user.username}`}
@@ -291,29 +370,64 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                           {user.active ? "Active" : "Deactivated"}
                         </Badge>
                       </td>
+                      <td class="py-3 pr-4">
+                        <RolePicker
+                          form={`user-${user.id}-identity`}
+                          lockAdmin={user.id === currentUserId}
+                          roles={roles}
+                          selectedRoles={user.roles}
+                        />
+                      </td>
                       <td class="py-3 text-right">
                         <div class="flex items-center justify-end gap-2">
                           <Button
                             aria-label={`Save ${user.username}`}
-                            class="capitalize !text-amber-50"
+                            class="capitalize hover:!text-amber-50"
                             form={`user-${user.id}-identity`}
                             size="sm"
                             title={`Save ${user.username}`}
                             type="submit"
                             variant="secondary"
+                            {...{
+                              "x-bind:aria-busy":
+                                "(saveState === 'saving').toString()",
+                              "x-bind:aria-label":
+                                `saveState === 'saved' ? 'Saved ${user.username}' : saveState === 'error' ? 'Could not save ${user.username}' : 'Save ${user.username}'`,
+                              "x-bind:class":
+                                "saveState !== 'idle' ? '!text-amber-50' : ''",
+                              "x-bind:data-variant":
+                                "saveState === 'idle' ? 'secondary' : 'tertiary'",
+                              "x-bind:disabled": "saveState === 'saving'",
+                              "x-bind:title":
+                                `saveState === 'saved' ? 'Saved ${user.username}' : saveState === 'error' ? 'Could not save ${user.username}' : 'Save ${user.username}'`,
+                            }}
                           >
-                            <svg
-                              aria-hidden="true"
-                              class="size-4 fill-none stroke-current"
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              viewBox="0 0 24 24"
+                            <span
+                              class="contents"
+                              data-save-icon="save"
+                              {...{
+                                "x-show":
+                                  "saveState === 'idle' || saveState === 'saving'",
+                              }}
                             >
-                              <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
-                              <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
-                              <path d="M7 3v4a1 1 0 0 0 1 1h7" />
-                            </svg>
+                              <SaveIcon />
+                            </span>
+                            <span
+                              class="contents"
+                              data-save-icon="check"
+                              style="display: none"
+                              {...{ "x-show": "saveState === 'saved'" }}
+                            >
+                              <SaveCheckIcon />
+                            </span>
+                            <span
+                              class="contents"
+                              data-save-icon="error"
+                              style="display: none"
+                              {...{ "x-show": "saveState === 'error'" }}
+                            >
+                              <SaveXIcon />
+                            </span>
                           </Button>
                           {!user.active && (
                             <form
@@ -352,12 +466,35 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                               value={user.active ? "0" : "1"}
                             />
                             <Button
-                              class={panelOutlineButton}
+                              aria-label={user.active
+                                ? `Deactivate ${user.username}`
+                                : `Activate ${user.username}`}
+                              class={user.active ? undefined : panelOutlineButton}
                               size="sm"
+                              title={user.active
+                                ? `Deactivate ${user.username}`
+                                : `Activate ${user.username}`}
                               type="submit"
-                              variant="outline"
+                              variant={user.active ? "danger" : "outline"}
                             >
-                              {user.active ? "Deactivate" : "Activate"}
+                              {user.active
+                                ? (
+                                  <svg
+                                    aria-hidden="true"
+                                    class="size-4 fill-none stroke-current"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M12 2a8 8 0 0 0-5 14.2V20h10v-3.8A8 8 0 0 0 12 2Z" />
+                                    <circle cx="9" cy="10" r="1" />
+                                    <circle cx="15" cy="10" r="1" />
+                                    <path d="m10 14 2-1 2 1" />
+                                    <path d="M9 20v2M12 20v2M15 20v2" />
+                                  </svg>
+                                )
+                                : "Activate"}
                             </Button>
                           </form>
                         </div>

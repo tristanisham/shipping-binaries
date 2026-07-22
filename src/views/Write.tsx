@@ -236,6 +236,7 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
   return (
     <Layout meta={meta}>
       <HeaderSlim
+        isAdmin
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
       />

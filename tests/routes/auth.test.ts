@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { hashPassword, verifyPassword } from "../../src/auth/password.js";
 import app from "../../src/index.js";
 import { getPostById, setPostDraft } from "../../src/models/post.js";
+import { ADMIN_ROLE, getRoleByName } from "../../src/models/role.js";
 import { findUserByLogin, getUserById } from "../../src/models/user.js";
 import {
   createSession,
@@ -218,10 +219,301 @@ test("inline user identity updates preserve active status", async () => {
   assert.equal(updated?.active, 1);
 });
 
+test("inline user saves return JSON success and failure states", async () => {
+  const db = createTestDb();
+  const token = await createAdminSession(db);
+  const owner = await findUserByLogin(db, "owner");
+  assert.ok(owner);
+
+  const success = await app.request(
+    `/admin/users/${owner.id}`,
+    {
+      body: new URLSearchParams({
+        email: owner.email,
+        label: "Owner",
+        username: owner.username,
+      }).toString(),
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(success.status, 200);
+  assert.deepEqual(await success.json(), { saved: true });
+
+  await seedUser(db, {
+    email: "taken@example.com",
+    username: "taken",
+  });
+  const failure = await app.request(
+    `/admin/users/${owner.id}`,
+    {
+      body: new URLSearchParams({
+        email: "taken@example.com",
+        label: "Owner",
+        username: owner.username,
+      }).toString(),
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(failure.status, 409);
+  assert.deepEqual(await failure.json(), { saved: false });
+});
+
+test("admins manage roles and assign them from the users view", async () => {
+  const db = createTestDb();
+  const token = await createAdminSession(db);
+
+  const created = await app.request(
+    "/admin/roles",
+    {
+      body: new URLSearchParams({ name: "writer" }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(created.status, 303);
+
+  const writerRole = await getRoleByName(db, "writer");
+  assert.ok(writerRole);
+  const userId = await seedUser(db, {
+    email: "writer@example.com",
+    username: "writer",
+  });
+  const assigned = await app.request(
+    `/admin/users/${userId}`,
+    {
+      body: new URLSearchParams({
+        email: "writer@example.com",
+        label: "Writer",
+        roleIds: String(writerRole.id),
+        username: "writer",
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(assigned.status, 303);
+  assert.deepEqual((await getUserById(db, userId))?.roles, ["writer"]);
+
+  const page = await app.request(
+    "/admin/roles",
+    { headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` } },
+    { DB: db } as Env,
+  );
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /value="writer"/);
+
+  const adminRole = await getRoleByName(db, ADMIN_ROLE);
+  assert.ok(adminRole);
+  const protectedDelete = await app.request(
+    `/admin/roles/${adminRole.id}/delete`,
+    {
+      headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(protectedDelete.status, 400);
+});
+
+test("non-admin users can access account but not admin management", async () => {
+  const db = createTestDb();
+  const passwordHash = await hashPassword("correct horse battery staple");
+  const userId = await seedUser(db, {
+    email: "member@example.com",
+    passwordHash,
+    username: "member",
+  });
+  const token = await createSession(db, userId);
+  const headers = { Cookie: `${SESSION_COOKIE_NAME}=${token}` };
+
+  const account = await app.request(
+    "/admin/account",
+    { headers },
+    { DB: db } as Env,
+  );
+  assert.equal(account.status, 200);
+  const accountHtml = await account.text();
+  assert.match(accountHtml, /member@example\.com/);
+  assert.match(accountHtml, /aria-label="Open account"/);
+  assert.doesNotMatch(accountHtml, /role="menu"/);
+
+  const dashboard = await app.request(
+    "/admin",
+    { headers },
+    { DB: db } as Env,
+  );
+  assert.equal(dashboard.status, 403);
+
+  const posts = await app.request(
+    "/admin/posts",
+    { headers },
+    { DB: db } as Env,
+  );
+  assert.equal(posts.status, 403);
+
+  const login = await app.request(
+    "/login",
+    {
+      body: new URLSearchParams({
+        login: "member",
+        password: "correct horse battery staple",
+      }).toString(),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(login.status, 303);
+  assert.equal(login.headers.get("Location"), "/admin/account");
+});
+
+test("account update verifies the current password and forces sign-in", async () => {
+  const db = createTestDb();
+  const passwordHash = await hashPassword("Old-password!1");
+  const userId = await seedUser(db, {
+    email: "member@example.com",
+    passwordHash,
+    username: "member",
+  });
+  const token = await createSession(db, userId);
+
+  const response = await app.request(
+    "/admin/account",
+    {
+      body: new URLSearchParams({
+        currentPassword: "Old-password!1",
+        email: "updated@example.com",
+        newPassword: "New-password!2",
+        newPasswordConfirmation: "New-password!2",
+        username: "updated-member",
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("Location"), "/login?password=updated");
+  assert.match(response.headers.get("Set-Cookie") ?? "", /shipping_session=;/);
+  assert.equal(await getSessionUser(db, token), null);
+
+  const updated = await findUserByLogin(db, "updated-member");
+  assert.equal(updated?.email, "updated@example.com");
+  assert.equal(
+    updated && await verifyPassword("New-password!2", updated.password_hash),
+    true,
+  );
+  assert.equal(
+    updated && await verifyPassword("Old-password!1", updated.password_hash),
+    false,
+  );
+});
+
+test("account update rejects invalid credentials without leaking passwords", async () => {
+  const db = createTestDb();
+  const passwordHash = await hashPassword("Old-password!1");
+  const userId = await seedUser(db, {
+    email: "member@example.com",
+    passwordHash,
+    username: "member",
+  });
+  const token = await createSession(db, userId);
+  const submittedCurrentPassword = "Wrong-password!1";
+  const submittedNewPassword = "New-password!2";
+
+  const response = await app.request(
+    "/admin/account",
+    {
+      body: new URLSearchParams({
+        currentPassword: submittedCurrentPassword,
+        email: "changed@example.com",
+        newPassword: submittedNewPassword,
+        newPasswordConfirmation: submittedNewPassword,
+        username: "changed-member",
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(response.status, 422);
+  const html = await response.text();
+  assert.match(html, /Current password is incorrect\./);
+  assert.doesNotMatch(html, new RegExp(submittedCurrentPassword));
+  assert.doesNotMatch(html, new RegExp(submittedNewPassword));
+  assert.ok(await getSessionUser(db, token));
+  assert.ok(await findUserByLogin(db, "member"));
+  assert.equal(await findUserByLogin(db, "changed-member"), null);
+});
+
+test("account update enforces password rules on the server", async () => {
+  const db = createTestDb();
+  const passwordHash = await hashPassword("Old-password!1");
+  const userId = await seedUser(db, {
+    email: "member@example.com",
+    passwordHash,
+    username: "member",
+  });
+  const token = await createSession(db, userId);
+
+  const response = await app.request(
+    "/admin/account",
+    {
+      body: new URLSearchParams({
+        currentPassword: "Old-password!1",
+        email: "member@example.com",
+        newPassword: "NoSpecial123",
+        newPasswordConfirmation: "NoSpecial123",
+        username: "member",
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(response.status, 422);
+  assert.match(await response.text(), /Include at least one special character\./);
+  assert.ok(await getSessionUser(db, token));
+});
+
 test("admin can invite a user who activates their account", async () => {
   const db = createTestDb();
   const token = await createAdminSession(db);
   const email = createEmailCapture();
+  const adminRole = await getRoleByName(db, ADMIN_ROLE);
+  assert.ok(adminRole);
 
   const response = await app.request(
     "/admin/users",
@@ -229,6 +521,7 @@ test("admin can invite a user who activates their account", async () => {
       body: new URLSearchParams({
         email: "writer@example.com",
         label: "New Writer",
+        roleIds: String(adminRole.id),
         username: "writer",
       }).toString(),
       headers: {

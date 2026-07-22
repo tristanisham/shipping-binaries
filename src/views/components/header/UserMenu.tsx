@@ -1,6 +1,8 @@
 import type { FC } from "hono/jsx";
 
 type UserMenuProps = {
+  compact?: boolean;
+  isAuthenticated?: boolean;
   isAdmin?: boolean;
 };
 
@@ -9,14 +11,31 @@ const adminNav = [
   { label: "Account", link: "/admin/account" },
 ];
 
-export const UserMenu: FC<UserMenuProps> = ({ isAdmin = false }) => {
+export const UserMenu: FC<UserMenuProps> = ({
+  compact = false,
+  isAuthenticated = false,
+  isAdmin = false,
+}) => {
+  const href = isAdmin
+    ? "/admin"
+    : isAuthenticated
+    ? "/admin/account"
+    : "/login";
+  const label = isAdmin
+    ? "Open admin dashboard"
+    : isAuthenticated
+    ? "Open account"
+    : "Log in";
+
   return (
     <div class="group relative flex items-center">
       <a
         aria-haspopup={isAdmin ? "menu" : undefined}
-        aria-label={isAdmin ? "Open admin dashboard" : "Log in"}
-        class="m-4 inline-flex cursor-pointer"
-        href={isAdmin ? "/admin" : "/login"}
+        aria-label={label}
+        class={compact
+          ? "inline-flex cursor-pointer"
+          : "m-4 inline-flex cursor-pointer"}
+        href={href}
       >
         <svg
           aria-hidden="true"

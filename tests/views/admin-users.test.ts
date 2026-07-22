@@ -5,7 +5,14 @@ import { AdminUsers } from "../../src/views/AdminUsers.js";
 
 test("users table edits identity fields in place across the full width", () => {
   const html = renderToString(AdminUsers({
+    currentUserId: 1,
     direction: "asc",
+    roles: [{
+      createdAt: "2026-07-22 12:00:00",
+      id: 1,
+      name: "admin",
+      updatedAt: "2026-07-22 12:00:00",
+    }],
     sort: "username",
     users: [{
       active: true,
@@ -37,10 +44,20 @@ test("users table edits identity fields in place across the full width", () => {
   assert.match(html, /name="label"[^>]*value="Site Owner"/);
   assert.match(html, /form="user-1-identity"[^>]*name="username"/);
   assert.match(html, /form="user-1-identity"[^>]*name="email"/);
+  assert.match(html, /form="user-1-identity"[^>]*name="roleIds"/);
+  assert.match(html, />admin<\/span>/);
   assert.match(html, /text-amber-50 dark:text-mist-600/);
-  assert.match(html, /capitalize !text-amber-50/);
+  assert.match(html, /capitalize hover:!text-amber-50/);
   assert.match(html, /aria-label="Save owner"/);
+  assert.match(html, /x-on:submit\.prevent=/);
+  assert.match(html, /x-bind:data-variant=/);
+  assert.match(html, /data-save-icon="save"/);
+  assert.match(html, /data-save-icon="check"/);
+  assert.match(html, /data-save-icon="error"/);
   assert.match(html, /<path d="M17 21v-7a1 1 0 0 0-1-1H8/);
   assert.doesNotMatch(html, />Save<\/button>/);
   assert.match(html, /justify-end gap-2/);
+  assert.match(html, /aria-label="Deactivate owner"/);
+  assert.match(html, /bg-burgundy-500 text-amber-50/);
+  assert.doesNotMatch(html, />Deactivate<\/button>/);
 });

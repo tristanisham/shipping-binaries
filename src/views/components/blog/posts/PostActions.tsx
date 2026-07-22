@@ -1,4 +1,5 @@
 import type { FC } from "hono/jsx";
+import { buttonVariants } from "../../ui/Button.js";
 
 type PostActionsProps = {
   commentCount: number;
@@ -9,6 +10,15 @@ type PostActionsProps = {
 
 const sharePost =
   "var url=new URL(this.dataset.sharePath,window.location.origin).href; if(navigator.share){navigator.share({title:this.dataset.shareTitle,url:url}).catch(function(){})}else if(navigator.clipboard){navigator.clipboard.writeText(url).then(function(){this.title='Link copied'}.bind(this))}";
+
+const commentCountFormatter = new Intl.NumberFormat("en-US", {
+  compactDisplay: "short",
+  maximumFractionDigits: 1,
+  notation: "compact",
+});
+
+export const formatCommentCount = (count: number): string =>
+  commentCountFormatter.format(Math.max(0, Math.floor(count))).toLowerCase();
 
 export const PostActions: FC<PostActionsProps> = ({
   commentCount,
@@ -50,7 +60,7 @@ export const PostActions: FC<PostActionsProps> = ({
       </button>
       <a
         aria-label={`${commentCount} ${commentCount === 1 ? "comment" : "comments"} on ${title}`}
-        class={buttonClass}
+        class={`${buttonClass} min-w-8 !w-auto gap-1.5 px-2`}
         href={`${href}#comments`}
         title={`${commentCount} ${commentCount === 1 ? "comment" : "comments"}`}
       >
@@ -66,10 +76,13 @@ export const PostActions: FC<PostActionsProps> = ({
           <path d="M8 8h8" />
           <path d="M8 12h6" />
         </svg>
+        <span class="text-xs tabular-nums">
+          {formatCommentCount(commentCount)}
+        </span>
       </a>
       <a
         aria-label={`Read ${title}`}
-        class={buttonClass}
+        class={buttonVariants({ size: "sm", variant: "tertiary" })}
         href={href}
         title="Read"
       >
@@ -89,6 +102,7 @@ export const PostActions: FC<PostActionsProps> = ({
           <path d="M16 8h2" />
           <path d="M16 12h2" />
         </svg>
+        <span>Read</span>
       </a>
     </div>
   );

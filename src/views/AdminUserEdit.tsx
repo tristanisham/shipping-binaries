@@ -36,6 +36,7 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
   return (
     <Layout meta={meta}>
       <HeaderSlim
+        isAdmin
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
       />

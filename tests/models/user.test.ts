@@ -8,6 +8,7 @@ import {
   setUserActive,
   setUserPassword,
   updateUser,
+  updateUserAccount,
 } from "../../src/models/user.js";
 import { createTestDb, seedUser } from "../helpers/d1.js";
 
@@ -104,6 +105,25 @@ test("updateUser changes email, username, and label", async () => {
   assert.equal(user?.email, "new@x.com");
   assert.equal(user?.username, "new");
   assert.equal(user?.label, "Editor");
+});
+
+test("updateUserAccount changes identity and password together", async () => {
+  const db = createTestDb();
+  const id = await seedUser(db, {
+    email: "old@example.com",
+    passwordHash: "old-hash",
+    username: "old",
+  });
+
+  await updateUserAccount(db, id, {
+    email: "new@example.com",
+    passwordHash: "new-hash",
+    username: "new",
+  });
+
+  const user = await findUserByLogin(db, "new");
+  assert.equal(user?.email, "new@example.com");
+  assert.equal(user?.password_hash, "new-hash");
 });
 
 test("setUserActive toggles the active flag", async () => {

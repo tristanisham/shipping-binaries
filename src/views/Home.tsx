@@ -1,4 +1,5 @@
 import type { FC } from "hono/jsx";
+import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Layout, LayoutMeta } from "./layouts/MainLayout.js";
 import { PostGrid } from "./components/blog/posts/PostGrid.js";
@@ -8,14 +9,13 @@ import {
   setCurrentNavItem,
 } from "./components/header/Header.js";
 
-type HomeProps = {
+type HomeProps = ViewerProps & {
   currentPage?: number;
-  isAuthenticated?: boolean;
   posts?: readonly PostWithAuthor[];
 };
 
 export const Home: FC<HomeProps> = (
-  { currentPage = 1, isAuthenticated = false, posts = [] },
+  { currentPage = 1, isAdmin = false, isAuthenticated = false, posts = [] },
 ) => {
   const meta: LayoutMeta = {
     title: "Home | Shipping Binaries",
@@ -32,6 +32,7 @@ export const Home: FC<HomeProps> = (
   return (
     <Layout meta={meta}>
       <Header
+        isAdmin={isAdmin}
         isAuthenticated={isAuthenticated}
         nav={setCurrentNavItem(defaultHeaderNav, "/")}
       />

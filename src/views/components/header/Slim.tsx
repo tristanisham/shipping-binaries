@@ -1,17 +1,19 @@
 import type { FC } from "hono/jsx";
+import type { ViewerProps } from "../../../auth/viewer.js";
 import type { HeaderNavItem } from "./Header.js";
+import { ThemeToggle } from "./ThemeToggle.js";
 import { UserMenu } from "./UserMenu.js";
 import { WeatherWidget } from "./WeatherWidget.js";
 
-type HeaderSlimProps = {
+type HeaderSlimProps = ViewerProps & {
   showCheckerboard?: boolean;
-  isAuthenticated?: boolean;
   nav: HeaderNavItem[];
   size?: "sm" | "md" | "lg";
 };
 
 export const HeaderSlim: FC<HeaderSlimProps> = ({
   showCheckerboard = true,
+  isAdmin = false,
   isAuthenticated = false,
   nav,
   size = "lg",
@@ -55,23 +57,13 @@ export const HeaderSlim: FC<HeaderSlimProps> = ({
               </a>
             ))}
           </div>
-          <div class="flex items-center">
-            <button
-              id="light-dark-toggle"
-              aria-label="Toggle light and dark theme"
-              class="m-4 cursor-pointer"
-              onclick={'const root = document.documentElement; const isDark = root.classList.toggle("dark"); localStorage.setItem("theme", isDark ? "dark" : "light");'}
-              type="button"
-            >
-              <svg
-                aria-hidden="true"
-                class="size-5 fill-current"
-                viewBox="0 0 24 24"
-              >
-                <path d="M11 1h2v3h-2V1Zm0 19h2v3h-2v-3ZM1 11h3v2H1v-2Zm19 0h3v2h-3v-2ZM4.22 2.81l2.12 2.12-1.41 1.41-2.12-2.12 1.41-1.41Zm13.44 13.43 2.12 2.12-1.42 1.42-2.12-2.12 1.42-1.42ZM2.81 19.78l2.12-2.12 1.41 1.41-2.12 2.12-1.41-1.41ZM16.24 4.93l2.12-2.12 1.42 1.41-2.12 2.12-1.42-1.41ZM12 18a6 6 0 0 0 0-12v12Z" />
-              </svg>
-            </button>
-            <UserMenu isAdmin={isAuthenticated} />
+          <div class="ml-8 flex items-center gap-2 pr-4">
+            <ThemeToggle compact />
+            <UserMenu
+              compact
+              isAdmin={isAdmin}
+              isAuthenticated={isAuthenticated}
+            />
           </div>
         </div>
       </nav>

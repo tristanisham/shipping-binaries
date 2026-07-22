@@ -1,7 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { PostWithAuthor } from "../../../../models/post.js";
-import { formatPublishDate, paginate, Pagination } from "./Pagination.js";
-import { PostActions } from "./PostActions.js";
+import { paginateNewest, Pagination } from "./Pagination.js";
+import { PostMeta } from "./PostMeta.js";
 
 type PostGridProps = {
   currentPage?: number;
@@ -10,43 +10,13 @@ type PostGridProps = {
   posts: readonly PostWithAuthor[];
 };
 
-const AuthorAndDate: FC<{ post: PostWithAuthor; inverse?: boolean }> = ({
-  post,
-  inverse = false,
-}) => (
-  <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-    <a
-      class="font-semibold hover:underline"
-      href={`/@${encodeURIComponent(post.authorUsername)}`}
-    >
-      {post.authorLabel ?? `@${post.authorUsername}`}
-    </a>
-    <span aria-hidden="true" class="opacity-50">•</span>
-    <time
-      class={inverse ? "opacity-80" : "opacity-70"}
-      datetime={post.createdAt}
-    >
-      Published {formatPublishDate(post.createdAt)}
-    </time>
-    <PostActions
-      commentCount={post.comments.length}
-      href={`/blog/${post.slug}`}
-      inverse={inverse}
-      title={post.title}
-    />
-  </div>
-);
-
 export const PostGrid: FC<PostGridProps> = ({
   currentPage = 1,
   pageBasePath = "/",
   pageSize = 12,
   posts,
 }) => {
-  const newestFirst = [...posts].sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt)
-  );
-  const page = paginate(newestFirst, currentPage, pageSize);
+  const page = paginateNewest(posts, currentPage, pageSize);
   const [featured, ...remaining] = page.items;
 
   return (
@@ -69,11 +39,11 @@ export const PostGrid: FC<PostGridProps> = ({
                 <div class="absolute inset-0 bg-gradient-to-t from-onyx-950/90 via-onyx-950/45 to-transparent" />
                 <div class="relative mt-auto p-8 sm:p-12">
                   <a class="hover:underline" href={`/blog/${featured.slug}`}>
-                    <h2 class="font-black-ops-one text-4xl sm:text-6xl">
+                    <h2 class="font-sans text-4xl font-bold sm:text-8xl">
                       {featured.title}
                     </h2>
                   </a>
-                  <AuthorAndDate inverse post={featured} />
+                  <PostMeta inverse post={featured} />
                 </div>
               </article>
             </li>
@@ -101,7 +71,7 @@ export const PostGrid: FC<PostGridProps> = ({
                           {post.title}
                         </h2>
                       </a>
-                      <AuthorAndDate post={post} />
+                      <PostMeta post={post} />
                     </div>
                   </article>
                 </li>

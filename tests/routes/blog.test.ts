@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import app from "../../src/index.js";
 import { createPost } from "../../src/models/post.js";
+import { createSession, SESSION_COOKIE_NAME } from "../../src/models/session.js";
 import { createTestDb, seedUser } from "../helpers/d1.js";
 
 test("published posts render at their slug and drafts stay private", async () => {
@@ -114,7 +115,7 @@ test("blog index lists published posts and excludes drafts", async () => {
   assert.match(html, /<title>Blog \| Shipping Binaries<\/title>/);
   assert.match(html, /aria-current="page"[^>]*href="\/blog"/);
   assert.match(html, /href="\/blog\/listed-post"/);
-  assert.match(html, /font-black-ops-one text-4xl sm:text-6xl/);
+  assert.match(html, /font-sans text-4xl font-bold sm:text-6xl/);
   assert.match(html, /href="\/@owner"/);
   assert.match(html, /Site Owner/);
   assert.doesNotMatch(html, /Unlisted draft/);
@@ -137,4 +138,27 @@ test("blog index lists published posts and excludes drafts", async () => {
     { DB: db } as Env,
   );
   assert.equal(missingAuthorResponse.status, 404);
+});
+
+test("public navigation sends a non-admin user directly to account", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, {
+    email: "member@example.com",
+    username: "member",
+  });
+  const token = await createSession(db, userId);
+  const response = await app.request(
+    "/blog",
+    { headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` } },
+    { DB: db } as Env,
+  );
+  const html = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(
+    html,
+    /aria-label="Open account"[^>]*href="\/admin\/account"/,
+  );
+  assert.doesNotMatch(html, /role="menu"/);
+  assert.doesNotMatch(html, /aria-label="Open admin dashboard"/);
 });

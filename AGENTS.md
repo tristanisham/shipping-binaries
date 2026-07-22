@@ -26,20 +26,23 @@
 
 ## Authentication and admin
 
-- Authentication is intentionally a single-owner setup. There is no role column:
-  any valid row in `users` can establish a session and is treated as the admin
-  user.
+- Authentication supports multiple users. Roles use the `roles` and
+  `user_roles` tables; only users assigned the protected `admin` role may open
+  management routes, while every authenticated user may open `/admin/account`.
 - Passwords are hashed and verified with `bcryptjs` in `src/auth/password.ts`;
   never store or log plaintext credentials.
 - Sessions are stored in D1, use SHA-256 hashes of random bearer tokens, expire
   after seven days, and are referenced by the HTTP-only `shipping_session`
   cookie. Keep token hashing and cookie behavior centralized in
   `src/models/session.ts` and `src/routes/auth.tsx`.
-- `requireSession` protects both `/admin` and `/admin/*`. Unauthenticated
-  requests redirect to `/login`; `/logout` deletes the D1 session and clears the
-  cookie.
-- `/admin` is the writing/content dashboard and `/admin/account` is the owner
-  account page. Both use `HeaderSlim` and send `Cache-Control: no-store`.
+- `requireSession` protects both `/admin` and `/admin/*`; `requireAdmin` protects
+  every admin route except `/admin/account`. Unauthenticated requests redirect
+  to `/login`; `/logout` deletes the D1 session and clears the cookie.
+- `/admin` is the writing/content dashboard, `/admin/roles` manages assignable
+  roles, and `/admin/account` is the signed-in user's account page. The built-in
+  `admin` role cannot be renamed or deleted, and the Users form must not let an
+  administrator remove their own admin access. These pages use `HeaderSlim` and
+  send `Cache-Control: no-store`.
 - Posts belong to one user, users may own many posts, and comments belong to one
   post. Comment replies are recursive through `parent_id`; public comment
   mutation routes remain intentionally deferred until commenter authentication
@@ -114,10 +117,11 @@ that depends on D1.
   `Header` is the full public header; `HeaderSlim` is the compact admin header
   and accepts `size="sm" | "md" | "lg"` plus optional checkerboard display.
 - Header navigation items and active-link calculation live in `Header.tsx`. Pass
-  authentication state into either header and reuse `UserMenu`; logged-out users
-  get the `/login` user icon, while the authenticated owner gets the shield
-  icon, `/admin` link, and admin submenu. Do not add admin-only links to the
-  public navigation array.
+  authentication and admin-role state into either header and reuse `UserMenu`:
+  logged-out users get the `/login` person icon, authenticated non-admin users
+  get a person icon linking directly to `/admin/account` without a submenu, and
+  admins get the shield icon, `/admin` link, and admin submenu. Do not add
+  admin-only links to the public navigation array.
 - Keep the weather widget and light/dark toggle behavior shared across both
   header variants. Preserve `HeaderSlim`'s full-width large default unless a
   page explicitly requests another size.
@@ -126,19 +130,27 @@ that depends on D1.
 - Preserve the site palette exactly: light mode uses `bg-amber-50` with
   `text-mist-600`; dark mode reverses that to `dark:bg-mist-600` with
   `dark:text-amber-50`.
+- Treat the current page background as the primary button color: amber in
+  light mode and mist in dark mode. Primary buttons use
+  `bg-amber-50 text-mist-600 dark:bg-mist-600 dark:text-amber-50` so their
+  background and contrasting text follow the light/dark toggle. Tertiary
+  buttons use `bg-chocolate-500 text-amber-50` with
+  `hover:bg-chocolate-400`.
 - Inverse-color UI such as the header control bar mirrors the page palette:
   `bg-mist-600 text-amber-50` in light mode and
   `dark:bg-amber-50 dark:text-mist-600` in dark mode.
 - Admin forms on inverse panels reuse the tokens in
   `src/views/components/admin/panel.ts`: fields use `panelField`, neutral
   actions use `panelOutlineButton` with the outline variant, and primary save,
-  publish, convert, add, or enabled-toggle actions use the chocolate secondary
+  publish, convert, add, or enabled-toggle actions use the chocolate tertiary
   button treatment with amber text or icons. Disabled or inactive toggles must
   return to the neutral transparent toolbar style instead of retaining the
   chocolate active background.
 - Keep compact editor and admin icon actions at the small button size, preserve
   accessible labels and titles when replacing visible text with icons, and use
   title-case labels for visible primary actions.
+- Destructive icon actions use the `danger` button variant: a light burgundy
+  background with amber text or icon color.
 - Use Tailwind utilities for UI changes and do not edit or regenerate
   `public/styles.css`; the user's running Tailwind watcher owns that generated
   file.

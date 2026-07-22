@@ -1,4 +1,5 @@
 import type { FC } from "hono/jsx";
+import type { ViewerProps } from "../auth/viewer.js";
 import {
   defaultHeaderNav,
   Header,
@@ -6,11 +7,10 @@ import {
 } from "./components/header/Header.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
-type AboutProps = {
-  isAuthenticated?: boolean;
-};
-
-export const About: FC<AboutProps> = ({ isAuthenticated = false }) => {
+export const About: FC<ViewerProps> = ({
+  isAdmin = false,
+  isAuthenticated = false,
+}) => {
   const meta: LayoutMeta = {
     title: "About | Shipping Binaries",
     description:
@@ -25,6 +25,7 @@ export const About: FC<AboutProps> = ({ isAuthenticated = false }) => {
   return (
     <Layout meta={meta}>
       <Header
+        isAdmin={isAdmin}
         isAuthenticated={isAuthenticated}
         nav={setCurrentNavItem(defaultHeaderNav, "/about")}
       />

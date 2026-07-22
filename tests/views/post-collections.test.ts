@@ -4,6 +4,7 @@ import { renderToString } from "hono/jsx/dom/server";
 import type { PostWithAuthor } from "../../src/models/post.js";
 import { PostGrid } from "../../src/views/components/blog/posts/PostGrid.js";
 import { PostList } from "../../src/views/components/blog/posts/PostList.js";
+import { formatCommentCount } from "../../src/views/components/blog/posts/PostActions.js";
 
 const makePosts = (count: number): PostWithAuthor[] =>
   Array.from({ length: count }, (_, index) => {
@@ -38,11 +39,20 @@ test("PostList defaults to five posts and links author and pagination", () => {
   assert.match(html, /Published July 6, 2026/);
   assert.match(html, /aria-label="Share Post 6"/);
   assert.match(html, /aria-label="0 comments on Post 6"/);
+  assert.match(html, /text-xs tabular-nums">0<\/span>/);
   assert.match(html, /href="\/blog\/post-6#comments"/);
   assert.match(html, /aria-label="Read Post 6"/);
+  assert.match(html, /bg-chocolate-500 text-amber-50/);
+  assert.match(html, /<span>Read<\/span>/);
   assert.match(html, /ml-auto flex shrink-0 items-center gap-2/);
   assert.match(html, /href="\/blog\?page=2"[^>]*rel="next"/);
-  assert.match(html, /font-black-ops-one text-4xl sm:text-6xl/);
+  assert.match(html, /font-sans text-4xl font-bold sm:text-6xl/);
+});
+
+test("comment counts use compact lowercase notation", () => {
+  assert.equal(formatCommentCount(999), "999");
+  assert.equal(formatCommentCount(1_100), "1.1k");
+  assert.equal(formatCommentCount(12_500), "12.5k");
 });
 
 test("PostGrid defaults to twelve posts with one featured card", () => {
@@ -52,6 +62,7 @@ test("PostGrid defaults to twelve posts with one featured card", () => {
   assert.match(html, />Post 2<\/h2>/);
   assert.doesNotMatch(html, />Post 1<\/h2>/);
   assert.match(html, /md:col-span-3/);
+  assert.match(html, /font-sans text-4xl font-bold sm:text-8xl/);
   assert.match(html, /absolute inset-0 size-full object-cover object-left/);
   assert.match(html, /w-2\/5 shrink-0/);
   assert.match(html, /Published July 13, 2026/);

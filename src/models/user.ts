@@ -83,6 +83,20 @@ export const findUserByEmail = async (
     .bind(email)
     .first<UserRow>();
 
+export const getUserPasswordHashById = async (
+  db: D1Database,
+  id: number,
+): Promise<string | null> => {
+  const row = await db
+    .prepare(
+      "SELECT password_hash FROM users WHERE id = ?1 LIMIT 1",
+    )
+    .bind(id)
+    .first<Pick<UserRow, "password_hash">>();
+
+  return row?.password_hash ?? null;
+};
+
 export const createUser = async (
   db: D1Database,
   input: CreateUserInput,
@@ -187,6 +201,22 @@ export const updateUser = async (
        WHERE id = ?1`,
     )
     .bind(id, input.email, input.username, input.label)
+    .run();
+};
+
+export const updateUserAccount = async (
+  db: D1Database,
+  id: number,
+  input: { email: string; passwordHash: string; username: string },
+): Promise<void> => {
+  await db
+    .prepare(
+      `UPDATE users
+       SET email = ?2, username = ?3, password_hash = ?4,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?1`,
+    )
+    .bind(id, input.email, input.username, input.passwordHash)
     .run();
 };
 

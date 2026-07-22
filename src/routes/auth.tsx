@@ -1,6 +1,11 @@
-import { Hono, type MiddlewareHandler } from "hono";
+import { Hono, type Context, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { hashPassword, verifyPassword } from "../auth/password.js";
+import {
+  hashPassword,
+  validateAccountPassword,
+  verifyPassword,
+} from "../auth/password.js";
+import { getSignedInPath, hasAdminRole } from "../auth/viewer.js";
 import {
   sendInvitationEmail,
   sendPasswordResetEmail,
@@ -31,7 +36,17 @@ import {
   updatePost,
   validatePostSlug,
 } from "../models/post.js";
-import { ADMIN_ROLE, assignRoleToUser } from "../models/role.js";
+import {
+  ADMIN_ROLE,
+  createRole,
+  deleteRole,
+  getAllRoles,
+  getRoleById,
+  getRoleByName,
+  getRolesForUser,
+  setRolesForUser,
+  updateRole,
+} from "../models/role.js";
 import {
   activateUserWithPassword,
   createUser,
@@ -39,9 +54,11 @@ import {
   findUserByLogin,
   getAllUsers,
   getUserById,
+  getUserPasswordHashById,
   setUserActive,
   setUserPassword,
   updateUser,
+  updateUserAccount,
   type User,
   type UserSort,
   type UserSortDirection,
@@ -49,6 +66,7 @@ import {
 import { Account } from "../views/Account.js";
 import { AdminHome } from "../views/AdminHome.js";
 import { AdminPosts } from "../views/AdminPosts.js";
+import { AdminRoles } from "../views/AdminRoles.js";
 import { AdminUserEdit } from "../views/AdminUserEdit.js";
 import { AdminUsers } from "../views/AdminUsers.js";
 import { ForgotPassword } from "../views/ForgotPassword.js";
@@ -69,10 +87,50 @@ const INVALID_LOGIN_HASH =
 const INVALID_LOGIN_MESSAGE = "Invalid email, username, or password.";
 const INVALID_PASSWORD_MESSAGE =
   "Use matching passwords between 12 characters and 72 UTF-8 bytes.";
+const ROLE_NAME_PATTERN = /^[a-z](?:[a-z0-9]|-(?=[a-z0-9])){0,31}$/;
+
+const formStrings = (body: Record<string, unknown>, name: string): string[] => {
+  const value = body[name];
+  const values = Array.isArray(value) ? value : [value];
+  return values.filter((item): item is string => typeof item === "string");
+};
+
+const formString = (
+  body: Record<string, unknown>,
+  name: string,
+  trim = false,
+): string => {
+  const value = formStrings(body, name)[0] ?? "";
+  return trim ? value.trim() : value;
+};
+
+const formRoleIds = (body: Record<string, unknown>): number[] =>
+  formStrings(body, "roleIds")
+    .map((value) => Number.parseInt(value, 10))
+    .filter((id) => Number.isInteger(id) && id > 0);
+
+const normalizeRoleName = (value: string): string =>
+  value.trim().toLowerCase();
+
+const isUniqueRoleError = (error: unknown): boolean =>
+  error instanceof Error && /UNIQUE constraint failed: roles\.name/.test(
+    error.message,
+  );
+
+const isUniqueUserError = (error: unknown): boolean =>
+  error instanceof Error &&
+  /UNIQUE constraint failed: users\.(email|username)/.test(error.message);
 
 const noStore: MiddlewareHandler<AuthEnv> = async (c, next) => {
   await next();
   c.header("Cache-Control", "no-store");
+};
+
+const clearSessionCookie = (c: Context<AuthEnv>): void => {
+  deleteCookie(c, SESSION_COOKIE_NAME, {
+    path: "/",
+    secure: new URL(c.req.url).protocol === "https:",
+  });
 };
 
 const getActionOrigin = (requestUrl: string): string => {
@@ -109,9 +167,10 @@ authRoute.use("/invite", noStore);
 
 authRoute.get("/login", async (c) => {
   const token = getCookie(c, SESSION_COOKIE_NAME);
+  const user = token ? await getSessionUser(c.env.DB, token) : null;
 
-  if (token && await getSessionUser(c.env.DB, token)) {
-    return c.redirect("/admin");
+  if (user) {
+    return c.redirect(getSignedInPath(user.roles));
   }
 
   const notice = c.req.query("password") === "updated"
@@ -152,6 +211,7 @@ authRoute.post("/login", async (c) => {
   }
 
   const token = await createSession(c.env.DB, user.id);
+  const roles = await getRolesForUser(c.env.DB, user.id);
   setCookie(c, SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     path: "/",
@@ -159,7 +219,7 @@ authRoute.post("/login", async (c) => {
     secure: new URL(c.req.url).protocol === "https:",
   });
 
-  return c.redirect("/admin", 303);
+  return c.redirect(getSignedInPath(roles), 303);
 });
 
 authRoute.get("/forgot-password", (c) => c.html(<ForgotPassword />));
@@ -197,28 +257,32 @@ authRoute.get("/reset-password", async (c) => {
   );
 });
 
-authRoute.post("/reset-password", async (c) => {
+type SetPasswordMode = "invite" | "reset";
+
+const handleSetPassword = async (
+  c: Context<AuthEnv>,
+  mode: SetPasswordMode,
+) => {
   const body = await c.req.parseBody();
-  const token = typeof body.token === "string" ? body.token : "";
-  const password = typeof body.password === "string" ? body.password : "";
-  const passwordConfirmation = typeof body.passwordConfirmation === "string"
-    ? body.passwordConfirmation
-    : "";
+  const token = formString(body, "token");
+  const password = formString(body, "password");
+  const passwordConfirmation = formString(body, "passwordConfirmation");
+  const purpose = mode === "invite" ? "invite" : "password_reset";
   const tokenRecord = token
-    ? await getValidAuthToken(c.env.DB, token, "password_reset")
+    ? await getValidAuthToken(c.env.DB, token, purpose)
     : null;
   const error = validatePassword(password, passwordConfirmation);
 
   if (!tokenRecord) {
     return c.html(
-      <SetPassword mode="reset" token={token} valid={false} />,
+      <SetPassword mode={mode} token={token} valid={false} />,
       400,
     );
   }
 
   if (error) {
     return c.html(
-      <SetPassword error={error} mode="reset" token={token} valid />,
+      <SetPassword error={error} mode={mode} token={token} valid />,
       422,
     );
   }
@@ -230,7 +294,7 @@ authRoute.post("/reset-password", async (c) => {
     return c.html(
       <SetPassword
         error={INVALID_PASSWORD_MESSAGE}
-        mode="reset"
+        mode={mode}
         token={token}
         valid
       />,
@@ -238,18 +302,25 @@ authRoute.post("/reset-password", async (c) => {
     );
   }
 
-  const claimed = await claimAuthToken(c.env.DB, token, "password_reset");
+  const claimed = await claimAuthToken(c.env.DB, token, purpose);
   if (!claimed) {
     return c.html(
-      <SetPassword mode="reset" token={token} valid={false} />,
+      <SetPassword mode={mode} token={token} valid={false} />,
       400,
     );
   }
 
-  await setUserPassword(c.env.DB, claimed.userId, passwordHash);
-  await destroySessionsForUser(c.env.DB, claimed.userId);
+  if (mode === "invite") {
+    await activateUserWithPassword(c.env.DB, claimed.userId, passwordHash);
+  } else {
+    await setUserPassword(c.env.DB, claimed.userId, passwordHash);
+    await destroySessionsForUser(c.env.DB, claimed.userId);
+  }
+
   return c.redirect("/login?password=updated", 303);
-});
+};
+
+authRoute.post("/reset-password", (c) => handleSetPassword(c, "reset"));
 
 authRoute.get("/invite", async (c) => {
   const token = c.req.query("token") ?? "";
@@ -262,65 +333,14 @@ authRoute.get("/invite", async (c) => {
   );
 });
 
-authRoute.post("/invite", async (c) => {
-  const body = await c.req.parseBody();
-  const token = typeof body.token === "string" ? body.token : "";
-  const password = typeof body.password === "string" ? body.password : "";
-  const passwordConfirmation = typeof body.passwordConfirmation === "string"
-    ? body.passwordConfirmation
-    : "";
-  const tokenRecord = token
-    ? await getValidAuthToken(c.env.DB, token, "invite")
-    : null;
-  const error = validatePassword(password, passwordConfirmation);
-
-  if (!tokenRecord) {
-    return c.html(
-      <SetPassword mode="invite" token={token} valid={false} />,
-      400,
-    );
-  }
-
-  if (error) {
-    return c.html(
-      <SetPassword error={error} mode="invite" token={token} valid />,
-      422,
-    );
-  }
-
-  let passwordHash: string;
-  try {
-    passwordHash = await hashPassword(password);
-  } catch {
-    return c.html(
-      <SetPassword
-        error={INVALID_PASSWORD_MESSAGE}
-        mode="invite"
-        token={token}
-        valid
-      />,
-      422,
-    );
-  }
-
-  const claimed = await claimAuthToken(c.env.DB, token, "invite");
-  if (!claimed) {
-    return c.html(
-      <SetPassword mode="invite" token={token} valid={false} />,
-      400,
-    );
-  }
-
-  await activateUserWithPassword(c.env.DB, claimed.userId, passwordHash);
-  return c.redirect("/login?password=updated", 303);
-});
+authRoute.post("/invite", (c) => handleSetPassword(c, "invite"));
 
 const requireSession: MiddlewareHandler<AuthEnv> = async (c, next) => {
   const token = getCookie(c, SESSION_COOKIE_NAME);
   const user = token ? await getSessionUser(c.env.DB, token) : null;
 
   if (!user) {
-    deleteCookie(c, SESSION_COOKIE_NAME, { path: "/" });
+    clearSessionCookie(c);
     return c.redirect("/login");
   }
 
@@ -331,7 +351,12 @@ const requireSession: MiddlewareHandler<AuthEnv> = async (c, next) => {
 // Runs after requireSession, so c.var.currentUser is populated. Gates the
 // admin area to users holding the admin role; everyone else gets 403.
 const requireAdmin: MiddlewareHandler<AuthEnv> = async (c, next) => {
-  if (!c.var.currentUser.roles.includes(ADMIN_ROLE)) {
+  if (c.req.path === "/admin/account") {
+    await next();
+    return;
+  }
+
+  if (!hasAdminRole(c.var.currentUser.roles)) {
     return c.text("Forbidden", 403);
   }
 
@@ -345,12 +370,13 @@ authRoute.use("/admin/*", requireAdmin);
 
 authRoute.get("/admin", async (c) => {
   c.header("Cache-Control", "no-store");
-  const [posts, users] = await Promise.all([
+  const [posts, roles, users] = await Promise.all([
     getAllPosts(c.env.DB),
+    getAllRoles(c.env.DB),
     getAllUsers(c.env.DB),
   ]);
 
-  return c.html(<AdminHome posts={posts} userCount={users.length} />);
+  return c.html(<AdminHome posts={posts} roles={roles} users={users} />);
 });
 
 authRoute.get("/admin/write", async (c) => {
@@ -485,6 +511,94 @@ authRoute.post("/admin/posts/:id/draft", async (c) => {
   return c.redirect("/admin/posts", 303);
 });
 
+const renderRolesPage = async (
+  c: Context<AuthEnv>,
+  options: { error?: string; name?: string; status?: 400 | 409 } = {},
+) => {
+  const roles = await getAllRoles(c.env.DB);
+  return c.html(
+    <AdminRoles
+      error={options.error}
+      newRoleName={options.name}
+      roles={roles}
+    />,
+    options.status ?? 200,
+  );
+};
+
+authRoute.get("/admin/roles", (c) => {
+  c.header("Cache-Control", "no-store");
+  return renderRolesPage(c);
+});
+
+authRoute.post("/admin/roles", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const body = await c.req.parseBody();
+  const name = normalizeRoleName(formString(body, "name"));
+
+  if (!ROLE_NAME_PATTERN.test(name)) {
+    return renderRolesPage(c, {
+      error: "Use 1–32 lowercase letters, numbers, and single hyphens.",
+      name,
+      status: 400,
+    });
+  }
+
+  try {
+    await createRole(c.env.DB, name);
+  } catch (error) {
+    if (isUniqueRoleError(error)) {
+      return renderRolesPage(c, {
+        error: "That role already exists.",
+        name,
+        status: 409,
+      });
+    }
+    throw error;
+  }
+
+  return c.redirect("/admin/roles", 303);
+});
+
+authRoute.post("/admin/roles/:id", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const id = Number.parseInt(c.req.param("id"), 10);
+  const role = Number.isInteger(id) ? await getRoleById(c.env.DB, id) : null;
+  if (!role) return c.notFound();
+  if (role.name === ADMIN_ROLE) return c.text("The admin role is protected.", 400);
+
+  const body = await c.req.parseBody();
+  const name = normalizeRoleName(formString(body, "name"));
+  if (!ROLE_NAME_PATTERN.test(name)) {
+    return c.text(
+      "Use 1–32 lowercase letters, numbers, and single hyphens.",
+      400,
+    );
+  }
+
+  try {
+    await updateRole(c.env.DB, id, name);
+  } catch (error) {
+    if (isUniqueRoleError(error)) {
+      return c.text("That role already exists.", 409);
+    }
+    throw error;
+  }
+
+  return c.redirect("/admin/roles", 303);
+});
+
+authRoute.post("/admin/roles/:id/delete", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const id = Number.parseInt(c.req.param("id"), 10);
+  const role = Number.isInteger(id) ? await getRoleById(c.env.DB, id) : null;
+  if (!role) return c.notFound();
+  if (role.name === ADMIN_ROLE) return c.text("The admin role is protected.", 400);
+
+  await deleteRole(c.env.DB, id);
+  return c.redirect("/admin/roles", 303);
+});
+
 authRoute.get("/admin/users", async (c) => {
   c.header("Cache-Control", "no-store");
   const requestedSort = c.req.query("sort");
@@ -496,21 +610,28 @@ authRoute.get("/admin/users", async (c) => {
   const direction: UserSortDirection = requestedDirection === "desc"
     ? "desc"
     : "asc";
-  const users = await getAllUsers(c.env.DB, { direction, sort });
+  const [roles, users] = await Promise.all([
+    getAllRoles(c.env.DB),
+    getAllUsers(c.env.DB, { direction, sort }),
+  ]);
 
   return c.html(
-    <AdminUsers direction={direction} sort={sort} users={users} />,
+    <AdminUsers
+      currentUserId={c.var.currentUser.id}
+      direction={direction}
+      roles={roles}
+      sort={sort}
+      users={users}
+    />,
   );
 });
 
 authRoute.post("/admin/users", async (c) => {
   c.header("Cache-Control", "no-store");
-  const body = await c.req.parseBody();
-  const email = typeof body.email === "string" ? body.email.trim() : "";
-  const username = typeof body.username === "string"
-    ? body.username.trim()
-    : "";
-  const labelValue = typeof body.label === "string" ? body.label.trim() : "";
+  const body = await c.req.parseBody({ all: true });
+  const email = formString(body, "email", true);
+  const username = formString(body, "username", true);
+  const labelValue = formString(body, "label", true);
   if (email && username) {
     const userId = await createUser(c.env.DB, {
       active: false,
@@ -521,7 +642,7 @@ authRoute.post("/admin/users", async (c) => {
       ),
       username,
     });
-    await assignRoleToUser(c.env.DB, userId, ADMIN_ROLE);
+    await setRolesForUser(c.env.DB, userId, formRoleIds(body));
     const token = await createAuthToken(
       c.env.DB,
       userId,
@@ -592,30 +713,126 @@ authRoute.post("/admin/users/:id", async (c) => {
     return c.redirect("/admin/users", 303);
   }
 
-  const body = await c.req.parseBody();
-  const email = typeof body.email === "string" ? body.email.trim() : "";
-  const username = typeof body.username === "string"
-    ? body.username.trim()
-    : "";
-  const labelValue = typeof body.label === "string" ? body.label.trim() : "";
+  const body = await c.req.parseBody({ all: true });
+  const email = formString(body, "email", true);
+  const username = formString(body, "username", true);
+  const labelValue = formString(body, "label", true);
   const label = labelValue.length > 0 ? labelValue : null;
-  const password = typeof body.password === "string" ? body.password : "";
+  const password = formString(body, "password");
+  const roleIds = formRoleIds(body);
+  const inlineSave = c.req.header("Accept")?.includes("application/json") ??
+    false;
 
-  await updateUser(c.env.DB, id, { email, username, label });
-  if (typeof body.active === "string") {
-    await setUserActive(c.env.DB, id, body.active === "1");
+  if (id === c.var.currentUser.id) {
+    const adminRole = await getRoleByName(c.env.DB, ADMIN_ROLE);
+    if (adminRole) roleIds.push(adminRole.id);
   }
 
-  if (password.length > 0) {
-    await setUserPassword(c.env.DB, id, await hashPassword(password));
+  try {
+    await updateUser(c.env.DB, id, { email, username, label });
+    await setRolesForUser(c.env.DB, id, roleIds);
+
+    const active = formString(body, "active");
+    if (active) {
+      await setUserActive(c.env.DB, id, active === "1");
+    }
+
+    if (password.length > 0) {
+      await setUserPassword(c.env.DB, id, await hashPassword(password));
+    }
+  } catch (error) {
+    if (inlineSave) {
+      return c.json(
+        { saved: false },
+        isUniqueUserError(error) ? 409 : 500,
+      );
+    }
+    throw error;
   }
 
+  if (inlineSave) return c.json({ saved: true });
   return c.redirect("/admin/users", 303);
 });
 
 authRoute.get("/admin/account", (c) => {
   c.header("Cache-Control", "no-store");
-  return c.html(<Account email={c.var.currentUser.email} />);
+  return c.html(
+    <Account
+      email={c.var.currentUser.email}
+      isAdmin={hasAdminRole(c.var.currentUser.roles)}
+      username={c.var.currentUser.username}
+    />,
+  );
+});
+
+authRoute.post("/admin/account", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const currentUser = c.var.currentUser;
+  const body = await c.req.parseBody();
+  const email = formString(body, "email", true);
+  const username = formString(body, "username", true);
+  const currentPassword = formString(body, "currentPassword");
+  const newPassword = formString(body, "newPassword");
+  const newPasswordConfirmation = formString(body, "newPasswordConfirmation");
+  const isAdmin = hasAdminRole(currentUser.roles);
+  const renderError = (error: string, status: 400 | 409 | 422) =>
+    c.html(
+      <Account
+        email={email || currentUser.email}
+        error={error}
+        isAdmin={isAdmin}
+        username={username || currentUser.username}
+      />,
+      status,
+    );
+
+  if (!email || !username || !currentPassword) {
+    return renderError("Complete every field.", 400);
+  }
+
+  if (!/^[^\s@]+@[^\s@]+$/.test(email)) {
+    return renderError("Enter a valid email address.", 422);
+  }
+
+  const passwordError = validateAccountPassword(newPassword);
+  if (passwordError) {
+    return renderError(passwordError, 422);
+  }
+
+  if (newPassword !== newPasswordConfirmation) {
+    return renderError("New passwords must match.", 422);
+  }
+
+  const currentPasswordHash = await getUserPasswordHashById(
+    c.env.DB,
+    currentUser.id,
+  );
+  const currentPasswordMatches = await verifyPassword(
+    currentPassword,
+    currentPasswordHash ?? INVALID_LOGIN_HASH,
+  );
+
+  if (!currentPasswordMatches) {
+    return renderError("Current password is incorrect.", 422);
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  try {
+    await updateUserAccount(c.env.DB, currentUser.id, {
+      email,
+      passwordHash,
+      username,
+    });
+  } catch (error) {
+    if (isUniqueUserError(error)) {
+      return renderError("That username or email is already in use.", 409);
+    }
+    throw error;
+  }
+
+  await destroySessionsForUser(c.env.DB, currentUser.id);
+  clearSessionCookie(c);
+  return c.redirect("/login?password=updated", 303);
 });
 
 authRoute.get("/logout", async (c) => {
@@ -625,10 +842,7 @@ authRoute.get("/logout", async (c) => {
     await destroySession(c.env.DB, token);
   }
 
-  deleteCookie(c, SESSION_COOKIE_NAME, {
-    path: "/",
-    secure: new URL(c.req.url).protocol === "https:",
-  });
+  clearSessionCookie(c);
   c.header("Cache-Control", "no-store");
 
   return c.html(<Logout />);
