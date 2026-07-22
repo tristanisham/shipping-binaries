@@ -9,6 +9,8 @@ export interface User {
   updatedAt: string;
 }
 
+export type PublicUser = Pick<User, "id" | "label" | "username">;
+
 // Actually stored in the database.
 export interface UserRow {
   id: number;
@@ -109,6 +111,25 @@ export const getUserById = async (
     .first<UserWithRolesRow>();
 
   return row ? userFromRow(row, parseRoleList(row.roles)) : null;
+};
+
+export const getPublicUserByUsername = async (
+  db: D1Database,
+  username: string,
+): Promise<PublicUser | null> => {
+  const row = await db
+    .prepare(
+      `SELECT id, username, label
+       FROM users
+       WHERE username = ?1
+       LIMIT 1`,
+    )
+    .bind(username)
+    .first<PublicUser>();
+
+  return row
+    ? { id: row.id, label: row.label, username: row.username }
+    : null;
 };
 
 export const updateUser = async (

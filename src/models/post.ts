@@ -2,6 +2,9 @@ import { type BlogComment, getCommentsForPost } from "./comment.js";
 
 const POST_COLUMNS =
   "id, user_id, slug, draft, title, description, keywords, image, body, created_at, updated_at";
+const QUALIFIED_POST_COLUMNS = POST_COLUMNS.split(", ")
+  .map((column) => `posts.${column}`)
+  .join(", ");
 
 export interface Post {
   id: number;
@@ -18,6 +21,11 @@ export interface Post {
   comments: readonly BlogComment[];
 }
 
+export interface PostWithAuthor extends Post {
+  authorLabel: string | null;
+  authorUsername: string;
+}
+
 export interface PostRow {
   id: number;
   user_id: number;
@@ -30,6 +38,11 @@ export interface PostRow {
   body: string;
   created_at: string;
   updated_at: string;
+}
+
+interface PostWithAuthorRow extends PostRow {
+  author_label: string | null;
+  author_username: string;
 }
 
 export const postFromRow = (
@@ -48,6 +61,12 @@ export const postFromRow = (
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   comments,
+});
+
+const postWithAuthorFromRow = (row: PostWithAuthorRow): PostWithAuthor => ({
+  ...postFromRow(row),
+  authorLabel: row.author_label,
+  authorUsername: row.author_username,
 });
 
 export const postToRow = (post: Post): PostRow => ({
@@ -295,17 +314,38 @@ export const updatePost = async (
 
 export const getPublishedPosts = async (
   db: D1Database,
-): Promise<readonly Post[]> => {
+): Promise<readonly PostWithAuthor[]> => {
   const result = await db
     .prepare(
-      `SELECT ${POST_COLUMNS}
+      `SELECT ${QUALIFIED_POST_COLUMNS},
+              users.username AS author_username, users.label AS author_label
        FROM posts
-       WHERE draft = 0
-       ORDER BY created_at DESC, id DESC`,
+       JOIN users ON users.id = posts.user_id
+       WHERE posts.draft = 0
+       ORDER BY posts.created_at DESC, posts.id DESC`,
     )
-    .all<PostRow>();
+    .all<PostWithAuthorRow>();
 
-  return result.results.map((row) => postFromRow(row));
+  return result.results.map(postWithAuthorFromRow);
+};
+
+export const getPublishedPostsForUser = async (
+  db: D1Database,
+  userId: number,
+): Promise<readonly PostWithAuthor[]> => {
+  const result = await db
+    .prepare(
+      `SELECT ${QUALIFIED_POST_COLUMNS},
+              users.username AS author_username, users.label AS author_label
+       FROM posts
+       JOIN users ON users.id = posts.user_id
+       WHERE posts.draft = 0 AND posts.user_id = ?1
+       ORDER BY posts.created_at DESC, posts.id DESC`,
+    )
+    .bind(userId)
+    .all<PostWithAuthorRow>();
+
+  return result.results.map(postWithAuthorFromRow);
 };
 
 export const getPublishedPostBySlug = async (

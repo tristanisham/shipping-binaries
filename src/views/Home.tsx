@@ -1,7 +1,7 @@
 import type { FC } from "hono/jsx";
-import type { Post } from "../models/post.js";
+import type { PostWithAuthor } from "../models/post.js";
 import { Layout, LayoutMeta } from "./layouts/MainLayout.js";
-import { PostList } from "./components/blog/posts/SimpleList.js";
+import { PostGrid } from "./components/blog/posts/PostGrid.js";
 import {
   defaultHeaderNav,
   Header,
@@ -9,12 +9,13 @@ import {
 } from "./components/header/Header.js";
 
 type HomeProps = {
+  currentPage?: number;
   isAuthenticated?: boolean;
-  posts?: readonly Post[];
+  posts?: readonly PostWithAuthor[];
 };
 
 export const Home: FC<HomeProps> = (
-  { isAuthenticated = false, posts = [] },
+  { currentPage = 1, isAuthenticated = false, posts = [] },
 ) => {
   const meta: LayoutMeta = {
     title: "Home | Shipping Binaries",
@@ -34,8 +35,8 @@ export const Home: FC<HomeProps> = (
         isAuthenticated={isAuthenticated}
         nav={setCurrentNavItem(defaultHeaderNav, "/")}
       />
-      <main class={" h-full w-2/5 mx-auto container"}>
-        <PostList posts={posts} />
+      <main class="container mx-auto px-4 pb-16">
+        <PostGrid currentPage={currentPage} posts={posts} />
       </main>
     </Layout>
   );

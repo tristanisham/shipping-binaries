@@ -20,6 +20,17 @@ type ListItem = {
   items: ListItem[];
 };
 
+type Footnote = {
+  id: string;
+  number: number;
+  text: string;
+};
+
+type FootnoteReferenceContext = {
+  counts: Map<string, number>;
+  numbers: ReadonlyMap<string, number>;
+};
+
 const safeLink = (value: string): string | null => {
   if (/^#[A-Za-z0-9_-]+$/.test(value)) {
     return value;
@@ -39,14 +50,12 @@ const safeLink = (value: string): string | null => {
   }
 };
 
-const sanitizeInlineHtml = (value: string): string => {
-  const withFootnoteReferences = value.replace(
-    /\[\^([A-Za-z0-9_-]+)\]/g,
-    (_match, id: string) =>
-      '<sup><a href="#footnote-' + id + '">[' + escapeHtml(id) + "]</a></sup>",
-  );
+const sanitizeInlineHtml = (
+  value: string,
+  footnoteReferences?: FootnoteReferenceContext,
+): string => {
   const links: string[] = [];
-  const withLinkTokens = withFootnoteReferences
+  const withLinkTokens = value
     .replace(
       /<a\s+[^>]*href=(['"])(.*?)\1[^>]*>/gi,
       (_match, _quote: string, href: string) => {
@@ -86,6 +95,26 @@ const sanitizeInlineHtml = (value: string): string => {
     sanitized = sanitized.replace(`EDITORJSLINK${index}TOKEN`, link);
   });
 
+  if (footnoteReferences) {
+    sanitized = sanitized.replace(
+      /\[\^([A-Za-z0-9_-]+)\]/g,
+      (marker, id: string) => {
+        const number = footnoteReferences.numbers.get(id);
+        if (!number) {
+          return marker;
+        }
+
+        const referenceCount = (footnoteReferences.counts.get(id) ?? 0) + 1;
+        footnoteReferences.counts.set(id, referenceCount);
+        const referenceId = referenceCount === 1
+          ? `footnote-reference-${id}`
+          : `footnote-reference-${id}-${referenceCount}`;
+
+        return `<sup><a aria-label="Footnote ${number}" class="text-burgundy-700 underline visited:text-burgundy-600 hover:text-burgundy-600 focus-visible:text-burgundy-600 active:text-burgundy-600" href="#footnote-${id}" id="${referenceId}">${number}</a></sup>`;
+      },
+    );
+  }
+
   return sanitized;
 };
 
@@ -106,8 +135,15 @@ const blockText = (block: EditorBlock, key = "text"): string => {
   return typeof value === "string" ? value : "";
 };
 
-const InlineText: FC<{ value: string }> = ({ value }) => (
-  <span dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(value) }} />
+const InlineText: FC<{
+  footnoteReferences?: FootnoteReferenceContext;
+  value: string;
+}> = ({ footnoteReferences, value }) => (
+  <span
+    dangerouslySetInnerHTML={{
+      __html: sanitizeInlineHtml(value, footnoteReferences),
+    }}
+  />
 );
 
 const normalizeListItems = (value: unknown): ListItem[] => {
@@ -132,7 +168,12 @@ const normalizeListItems = (value: unknown): ListItem[] => {
   });
 };
 
-const ListItems: FC<{ items: ListItem[]; ordered: boolean }> = ({
+const ListItems: FC<{
+  footnoteReferences: FootnoteReferenceContext;
+  items: ListItem[];
+  ordered: boolean;
+}> = ({
+  footnoteReferences,
   items,
   ordered,
 }) => {
@@ -141,9 +182,18 @@ const ListItems: FC<{ items: ListItem[]; ordered: boolean }> = ({
     : "list-disc space-y-2 pl-6";
   const children = items.map((item) => (
     <li>
-      <InlineText value={item.content} />
+      <InlineText
+        footnoteReferences={footnoteReferences}
+        value={item.content}
+      />
       {item.items.length > 0
-        ? <ListItems items={item.items} ordered={ordered} />
+        ? (
+          <ListItems
+            footnoteReferences={footnoteReferences}
+            items={item.items}
+            ordered={ordered}
+          />
+        )
         : null}
     </li>
   ));
@@ -153,14 +203,22 @@ const ListItems: FC<{ items: ListItem[]; ordered: boolean }> = ({
     : <ul class={className}>{children}</ul>;
 };
 
-const EditorBlockView: FC<{ block: EditorBlock }> = ({ block }) => {
+const EditorBlockView: FC<{
+  block: EditorBlock;
+  footnoteReferences: FootnoteReferenceContext;
+}> = ({ block, footnoteReferences }) => {
   if (block.type === "legacy") {
     return <p class="whitespace-pre-wrap">{blockText(block)}</p>;
   }
 
   if (block.type === "header") {
     const level = Number(block.data?.level);
-    const content = <InlineText value={blockText(block)} />;
+    const content = (
+      <InlineText
+        footnoteReferences={footnoteReferences}
+        value={blockText(block)}
+      />
+    );
 
     if (level === 2) return <h2 class="text-2xl font-bold">{content}</h2>;
     if (level === 3) return <h3 class="text-xl font-bold">{content}</h3>;
@@ -172,12 +230,18 @@ const EditorBlockView: FC<{ block: EditorBlock }> = ({ block }) => {
     return (
       <blockquote class="border-l-4 border-chocolate-500 pl-4">
         <p>
-          <InlineText value={blockText(block)} />
+          <InlineText
+            footnoteReferences={footnoteReferences}
+            value={blockText(block)}
+          />
         </p>
         {blockText(block, "caption")
           ? (
             <cite class="mt-2 block text-sm opacity-70">
-              <InlineText value={blockText(block, "caption")} />
+              <InlineText
+                footnoteReferences={footnoteReferences}
+                value={blockText(block, "caption")}
+              />
             </cite>
           )
           : null}
@@ -188,6 +252,7 @@ const EditorBlockView: FC<{ block: EditorBlock }> = ({ block }) => {
   if (block.type === "list") {
     return (
       <ListItems
+        footnoteReferences={footnoteReferences}
         items={normalizeListItems(block.data?.items)}
         ordered={block.data?.style === "ordered"}
       />
@@ -206,37 +271,99 @@ const EditorBlockView: FC<{ block: EditorBlock }> = ({ block }) => {
     return <hr class="border-amber-50/30 dark:border-mist-600/30" />;
   }
 
-  if (block.type === "footnote") {
-    const rawId = blockText(block, "id");
-    const id = rawId.match(/^[A-Za-z0-9_-]+$/)?.[0] ?? "note";
-
-    return (
-      <aside
-        class="flex gap-2 border-t border-amber-50/20 pt-3 text-sm dark:border-mist-600/20"
-        id={"footnote-" + id}
-        role="note"
-      >
-        <sup class="font-bold">[{rawId || id}]</sup>
-        <p class="min-w-0">
-          <InlineText value={blockText(block)} />
-        </p>
-      </aside>
-    );
-  }
-
   return (
     <p>
-      <InlineText value={blockText(block)} />
+      <InlineText
+        footnoteReferences={footnoteReferences}
+        value={blockText(block)}
+      />
     </p>
   );
 };
 
+const collectFootnotes = (blocks: readonly EditorBlock[]): Footnote[] => {
+  const seen = new Set<string>();
+  const footnotes: Footnote[] = [];
+
+  for (const block of blocks) {
+    if (block.type !== "footnote") continue;
+
+    const id = blockText(block, "id");
+    if (!/^[A-Za-z0-9_-]+$/.test(id) || seen.has(id)) continue;
+
+    seen.add(id);
+    footnotes.push({
+      id,
+      number: footnotes.length + 1,
+      text: blockText(block),
+    });
+  }
+
+  return footnotes;
+};
+
+const FootnotesSection: FC<{
+  footnoteReferences: FootnoteReferenceContext;
+  footnotes: readonly Footnote[];
+}> = ({ footnoteReferences, footnotes }) => (
+  <section
+    aria-labelledby="footnotes-heading"
+    class="mt-10 border-t border-mist-600/25 pt-5 dark:border-amber-50/25"
+  >
+    <h2 class="mb-3 text-lg font-bold" id="footnotes-heading">Footnotes</h2>
+    <ol class="list-decimal space-y-3 pl-6 text-sm">
+      {footnotes.map((footnote) => (
+        <li id={`footnote-${footnote.id}`} role="note">
+          <InlineText
+            footnoteReferences={footnoteReferences}
+            value={footnote.text}
+          />
+          {footnoteReferences.counts.has(footnote.id)
+            ? (
+              <a
+                aria-label={`Back to footnote ${footnote.number} reference`}
+                class="ml-2 text-burgundy-700 underline visited:text-burgundy-600 hover:text-burgundy-600 focus-visible:text-burgundy-600 active:text-burgundy-600"
+                href={`#footnote-reference-${footnote.id}`}
+              >
+                ↩
+              </a>
+            )
+            : null}
+        </li>
+      ))}
+    </ol>
+  </section>
+);
+
 export const PostBody: FC<PostBodyProps> = ({ body }) => {
   const data = parseBody(body);
+  const footnotes = collectFootnotes(data.blocks);
+  const footnoteReferences: FootnoteReferenceContext = {
+    counts: new Map(),
+    numbers: new Map(
+      footnotes.map((footnote) => [footnote.id, footnote.number]),
+    ),
+  };
+  const contentBlocks = data.blocks.filter((block) =>
+    block.type !== "footnote"
+  );
 
   return (
     <div class="space-y-4 leading-relaxed">
-      {data.blocks.map((block) => <EditorBlockView block={block} />)}
+      {contentBlocks.map((block) => (
+        <EditorBlockView
+          block={block}
+          footnoteReferences={footnoteReferences}
+        />
+      ))}
+      {footnotes.length > 0
+        ? (
+          <FootnotesSection
+            footnoteReferences={footnoteReferences}
+            footnotes={footnotes}
+          />
+        )
+        : null}
     </div>
   );
 };

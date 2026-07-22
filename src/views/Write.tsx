@@ -7,12 +7,13 @@ import {
 import { AdminNav } from "./components/admin/AdminNav.js";
 import { AdminTools, AdminToolSection } from "./components/admin/AdminTools.js";
 import { EditorJs } from "./components/admin/EditorJs.js";
+import { KeywordTagCloud } from "./components/admin/KeywordTagCloud.js";
 import {
   defaultHeaderNav,
   setCurrentNavItem,
 } from "./components/header/Header.js";
 import { HeaderSlim } from "./components/header/Slim.js";
-import { Button } from "./components/ui/Button.js";
+import { Button, buttonVariants } from "./components/ui/Button.js";
 import {
   Card,
   CardAction,
@@ -168,7 +169,8 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
   const body = values?.body ?? post?.body ?? "";
   const slug = values?.slug ?? post?.slug ?? "";
   const slugMode = values?.slugMode ?? (post ? "custom" : "auto");
-  const keywords = values?.keywords ?? (post ? formatKeywords(post.keywords) : "");
+  const keywords = values?.keywords ??
+    (post ? formatKeywords(post.keywords) : "");
   const image = values?.image ?? post?.image ?? "";
 
   return (
@@ -191,7 +193,35 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
               {post ? "Edit post" : "Post editor"}
             </CardTitle>
             <CardDescription>Write and format a post.</CardDescription>
-            <CardAction>
+            <CardAction class="flex items-center gap-2">
+              {post && !post.draft && post.slug
+                ? (
+                  <a
+                    aria-label="View live post"
+                    class={cn(
+                      buttonVariants({ size: "sm", variant: "outline" }),
+                      panelOutlineButton,
+                    )}
+                    data-view-live-post
+                    href={`/blog/${post.slug}`}
+                    title="View live post"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      class="size-4 fill-none stroke-current"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M2 12h20" />
+                      <path d="M12 2a15.3 15.3 0 0 1 0 20" />
+                      <path d="M12 2a15.3 15.3 0 0 0 0 20" />
+                    </svg>
+                  </a>
+                )
+                : null}
               <Button
                 aria-label="Import Markdown"
                 class={panelOutlineButton}
@@ -261,6 +291,7 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
               Save draft
             </Button>
             <Button
+              class="capitalize !text-amber-50"
               name="postAction"
               type="submit"
               value="publish"
@@ -321,8 +352,13 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
                   value={slug}
                 />
                 <input name="slugMode" type="hidden" value={slugMode} />
-                <span class="text-xs font-normal opacity-70" id="post-slug-help">
-                  /blog/<span data-slug-preview>{slug || "generated-slug"}</span>
+                <span
+                  class="text-xs font-normal opacity-70"
+                  id="post-slug-help"
+                >
+                  /blog/<span data-slug-preview>
+                    {slug || "generated-slug"}
+                  </span>
                 </span>
                 <span
                   class="text-xs font-normal text-burgundy-300 dark:text-burgundy-600"
@@ -333,15 +369,7 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
                   {slugError ?? ""}
                 </span>
               </div>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                Keywords
-                <Input
-                  class={panelField}
-                  name="keywords"
-                  placeholder="Hono, Cloudflare"
-                  value={keywords}
-                />
-              </label>
+              <KeywordTagCloud value={keywords} />
             </div>
           </AdminToolSection>
           <AdminToolSection open title="Image">

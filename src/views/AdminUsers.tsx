@@ -7,7 +7,7 @@ import {
 } from "./components/header/Header.js";
 import { HeaderSlim } from "./components/header/Slim.js";
 import { Badge } from "./components/ui/Badge.js";
-import { Button, buttonVariants } from "./components/ui/Button.js";
+import { Button } from "./components/ui/Button.js";
 import {
   Card,
   CardContent,
@@ -15,10 +15,10 @@ import {
   CardHeader,
   CardTitle,
 } from "./components/ui/Card.js";
-import { cn } from "./components/ui/utils.js";
+import { Input } from "./components/ui/Input.js";
 import {
   panelDivider,
-  panelGhostButton,
+  panelField,
   panelMuted,
   panelOutlineButton,
 } from "./components/admin/panel.js";
@@ -43,7 +43,7 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
       <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,4fr)] gap-4 px-4 py-6">
         <AdminNav current="/admin/users" />
 
-        <Card class="min-w-0">
+        <Card class="min-w-0 w-full">
           <CardHeader class={`border-b ${panelDivider}`}>
             <CardTitle class="text-2xl">Users</CardTitle>
             <CardDescription>
@@ -52,54 +52,73 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
           </CardHeader>
           <CardContent>
             <div class="overflow-x-auto">
-              <table class="w-full text-left text-sm">
+              <table class="w-full table-fixed text-left text-sm">
                 <thead
                   class={`border-b text-xs uppercase ${panelDivider} ${panelMuted}`}
                 >
                   <tr>
-                    <th class="py-2 pr-4 font-medium">Username</th>
-                    <th class="py-2 pr-4 font-medium">Email</th>
-                    <th class="py-2 pr-4 font-medium">Status</th>
-                    <th class="py-2 pr-4 font-medium">Actions</th>
+                    <th class="w-1/5 py-2 pr-4 font-medium">Label</th>
+                    <th class="w-1/5 py-2 pr-4 font-medium">Username</th>
+                    <th class="w-1/4 py-2 pr-4 font-medium">Email</th>
+                    <th class="w-[10%] py-2 pr-4 font-medium">Status</th>
+                    <th class="py-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user) => (
                     <tr class="border-b border-amber-50/10 last:border-0 dark:border-mist-600/10">
-                      <td class="py-3 pr-4 font-medium">
-                        {user.username}
-                        {user.label
-                          ? (
-                            <span
-                              class={`block text-xs font-normal ${panelMuted}`}
-                            >
-                              {user.label}
-                            </span>
-                          )
-                          : null}
+                      <td class="py-3 pr-4">
+                        <form
+                          action={`/admin/users/${user.id}`}
+                          id={`user-${user.id}-identity`}
+                          method="post"
+                        >
+                          <Input
+                            aria-label={`Label for ${user.username}`}
+                            class={panelField}
+                            name="label"
+                            placeholder="Display name"
+                            value={user.label ?? ""}
+                          />
+                        </form>
                       </td>
-                      <td class={`py-3 pr-4 ${panelMuted}`}>
-                        {user.email}
+                      <td class="py-3 pr-4 text-amber-50 dark:text-mist-600">
+                        <Input
+                          aria-label={`Username for ${user.username}`}
+                          class={panelField}
+                          form={`user-${user.id}-identity`}
+                          name="username"
+                          required
+                          value={user.username}
+                        />
+                      </td>
+                      <td class="py-3 pr-4">
+                        <Input
+                          aria-label={`Email for ${user.username}`}
+                          class={panelField}
+                          form={`user-${user.id}-identity`}
+                          name="email"
+                          required
+                          type="email"
+                          value={user.email}
+                        />
                       </td>
                       <td class="py-3 pr-4">
                         <Badge variant={user.active ? "published" : "draft"}>
                           {user.active ? "Active" : "Deactivated"}
                         </Badge>
                       </td>
-                      <td class="py-3 pr-4">
-                        <div class="flex items-center gap-2">
-                          <a
-                            class={cn(
-                              buttonVariants({
-                                size: "sm",
-                                variant: "outline",
-                              }),
-                              panelOutlineButton,
-                            )}
-                            href={`/admin/users/${user.id}/edit`}
+                      <td class="py-3 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                          <Button
+                            class="capitalize !text-amber-50"
+                            form={`user-${user.id}-identity`}
+                            size="sm"
+                            type="submit"
+                            variant="secondary"
                           >
-                            Edit
-                          </a>
+                            Save
+                          </Button>
                           <form
                             action={`/admin/users/${user.id}/active`}
                             method="post"
@@ -110,10 +129,10 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
                               value={user.active ? "0" : "1"}
                             />
                             <Button
-                              class={panelGhostButton}
+                              class={panelOutlineButton}
                               size="sm"
                               type="submit"
-                              variant="ghost"
+                              variant="outline"
                             >
                               {user.active ? "Deactivate" : "Activate"}
                             </Button>

@@ -181,9 +181,7 @@ authRoute.post("/admin/write", async (c) => {
   const keywords = typeof body.keywords === "string" ? body.keywords : "";
   const image = typeof body.image === "string" ? body.image : "";
   const postBody = typeof body.body === "string" ? body.body : "";
-  const draft = isAutosave
-    ? body.currentDraft === "1"
-    : action !== "publish";
+  const draft = isAutosave ? body.currentDraft === "1" : action !== "publish";
   const currentPostId = Number.isInteger(id) ? id : undefined;
   let slug: string;
   let slugError: string | null = null;
@@ -329,7 +327,9 @@ authRoute.post("/admin/users/:id", async (c) => {
   const password = typeof body.password === "string" ? body.password : "";
 
   await updateUser(c.env.DB, id, { email, username, label });
-  await setUserActive(c.env.DB, id, body.active === "1");
+  if (typeof body.active === "string") {
+    await setUserActive(c.env.DB, id, body.active === "1");
+  }
 
   if (password.length > 0) {
     await setUserPassword(c.env.DB, id, await hashPassword(password));

@@ -129,6 +129,16 @@ that depends on D1.
 - Inverse-color UI such as the header control bar mirrors the page palette:
   `bg-mist-600 text-amber-50` in light mode and
   `dark:bg-amber-50 dark:text-mist-600` in dark mode.
+- Admin forms on inverse panels reuse the tokens in
+  `src/views/components/admin/panel.ts`: fields use `panelField`, neutral
+  actions use `panelOutlineButton` with the outline variant, and primary save,
+  publish, convert, add, or enabled-toggle actions use the chocolate secondary
+  button treatment with amber text or icons. Disabled or inactive toggles must
+  return to the neutral transparent toolbar style instead of retaining the
+  chocolate active background.
+- Keep compact editor and admin icon actions at the small button size, preserve
+  accessible labels and titles when replacing visible text with icons, and use
+  title-case labels for visible primary actions.
 - Use Tailwind utilities for UI changes and do not edit or regenerate
   `public/styles.css`; the user's running Tailwind watcher owns that generated
   file.

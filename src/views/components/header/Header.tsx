@@ -11,6 +11,7 @@ export type HeaderNavItem = {
 export const defaultHeaderNav: HeaderNavItem[] = [
   { label: "Home", link: "/", current: false },
   { label: "About", link: "/about", current: false },
+  { label: "Blog", link: "/blog", current: false },
 ];
 
 export const setCurrentNavItem = (

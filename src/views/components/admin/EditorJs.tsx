@@ -297,6 +297,183 @@ const editorJsScript = `
     }
   }
 
+  class InlineFootnoteTool {
+    static get isInline() {
+      return true;
+    }
+
+    static get title() {
+      return "Footnote";
+    }
+
+    static get shortcut() {
+      return "CTRL+ALT+I";
+    }
+
+    constructor({ api }) {
+      this.api = api;
+      this.actions = null;
+      this.blockIndex = -1;
+      this.button = null;
+      this.labelInput = null;
+      this.noteInput = null;
+      this.range = null;
+    }
+
+    render() {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.innerHTML = '<svg style="height:14px;width:14px" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h8M9 4v16M5 20h8M17 8h4M19 6v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+      button.classList.add(this.api.styles.inlineToolButton);
+      button.setAttribute("aria-label", "Add footnote");
+      this.button = button;
+      return button;
+    }
+
+    surround(range) {
+      if (!range || range.collapsed || !this.actions) return;
+
+      this.range = range.cloneRange();
+      this.blockIndex = this.api.blocks.getCurrentBlockIndex();
+      this.labelInput.value = this.nextAvailableId();
+      this.labelInput.setCustomValidity("");
+      this.noteInput.value = "";
+      this.noteInput.setCustomValidity("");
+      this.actions.hidden = false;
+      this.button?.classList.add(this.api.styles.inlineToolButtonActive);
+      requestAnimationFrame(() => this.noteInput.focus());
+    }
+
+    renderActions() {
+      const actions = document.createElement("div");
+      actions.className = "space-y-2 p-2";
+      actions.style.minWidth = "16rem";
+      actions.hidden = true;
+      actions.setAttribute("aria-label", "Add footnote");
+      actions.setAttribute("role", "form");
+
+      const labelField = document.createElement("label");
+      labelField.className = "block space-y-1 text-xs font-medium";
+      labelField.append(document.createTextNode("Label"));
+
+      const labelInput = document.createElement("input");
+      labelInput.classList.add(this.api.styles.input);
+      labelInput.autocomplete = "off";
+      labelInput.pattern = "[A-Za-z0-9_-]+";
+      labelInput.placeholder = "source";
+      labelInput.required = true;
+      labelInput.setAttribute("aria-label", "Footnote label");
+      labelInput.addEventListener("input", () => {
+        labelInput.value = labelInput.value.replace(/[^A-Za-z0-9_-]/g, "");
+        labelInput.setCustomValidity("");
+      });
+      labelField.append(labelInput);
+
+      const noteField = document.createElement("label");
+      noteField.className = "block space-y-1 text-xs font-medium";
+      noteField.append(document.createTextNode("Note"));
+
+      const noteInput = document.createElement("textarea");
+      noteInput.classList.add(this.api.styles.input);
+      noteInput.placeholder = "Footnote text";
+      noteInput.required = true;
+      noteInput.rows = 3;
+      noteInput.setAttribute("aria-label", "Footnote note");
+      noteInput.addEventListener("input", () => {
+        noteInput.setCustomValidity("");
+      });
+      noteField.append(noteInput);
+
+      const submit = document.createElement("button");
+      submit.className = "w-full rounded-md bg-chocolate-500 px-3 py-2 text-sm font-medium text-chocolate-950 hover:bg-chocolate-400";
+      submit.textContent = "Add footnote";
+      submit.type = "button";
+      submit.addEventListener("click", () => this.commit());
+
+      actions.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          this.commit();
+        }
+      });
+      actions.append(labelField, noteField, submit);
+      this.actions = actions;
+      this.labelInput = labelInput;
+      this.noteInput = noteInput;
+      return actions;
+    }
+
+    nextAvailableId() {
+      const usedIds = this.usedIds();
+      let number = 1;
+      let id = "inline-footnote-" + number;
+      while (usedIds.has(id)) {
+        number += 1;
+        id = "inline-footnote-" + number;
+      }
+      return id;
+    }
+
+    usedIds() {
+      return new Set(
+        Array.from(document.querySelectorAll("[data-footnote-id]"))
+          .map((input) => input.value)
+          .filter(Boolean),
+      );
+    }
+
+    commit() {
+      if (!this.range || !this.labelInput || !this.noteInput) return;
+
+      const id = this.labelInput.value.trim();
+      const footnoteText = this.noteInput.value.trim();
+      if (id && this.usedIds().has(id)) {
+        this.labelInput.setCustomValidity("That footnote label is already in use.");
+      }
+      if (!this.labelInput.reportValidity()) return;
+      if (!footnoteText) {
+        this.noteInput.setCustomValidity("Enter the footnote text.");
+      }
+      if (!this.noteInput.reportValidity()) return;
+
+      const marker = document.createTextNode("[^" + id + "]");
+      this.range.collapse(false);
+      this.range.insertNode(marker);
+
+      const selection = window.getSelection();
+      if (selection) {
+        const caret = document.createRange();
+        caret.setStartAfter(marker);
+        caret.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(caret);
+      }
+
+      if (this.blockIndex >= 0) {
+        this.api.blocks.getBlockByIndex(this.blockIndex)?.dispatchChange();
+      }
+      this.api.blocks.insert(
+        "footnote",
+        { id, text: markdownInline(footnoteText) },
+        undefined,
+        this.api.blocks.getBlocksCount(),
+        false,
+      );
+      this.clear();
+    }
+
+    checkState() {
+      return false;
+    }
+
+    clear() {
+      this.range = null;
+      this.blockIndex = -1;
+      if (this.actions) this.actions.hidden = true;
+      this.button?.classList.remove(this.api.styles.inlineToolButtonActive);
+    }
+  }
+
   window.initEditorJs = (root, state) => {
     if (root.dataset.editorjsReady === "true") return;
 
@@ -355,6 +532,7 @@ const editorJsScript = `
         code: window.CodeTool,
         delimiter: window.Delimiter,
         footnote: FootnoteTool,
+        footnoteInline: InlineFootnoteTool,
         header: {
           class: window.Header,
           config: { defaultLevel: 2, levels: [2, 3, 4] },
@@ -782,6 +960,8 @@ export const EditorJs: FC<EditorJsProps> = ({
               "x-bind:aria-label":
                 "autosaveEnabled ? 'Disable autosave' : 'Enable autosave'",
               "x-bind:aria-pressed": "autosaveEnabled.toString()",
+              "x-bind:class":
+                "autosaveEnabled ? '!bg-chocolate-500 !text-amber-50 hover:!bg-chocolate-400' : '!bg-transparent !text-amber-50 !shadow-none hover:!bg-amber-50/10 dark:!text-mist-600 dark:hover:!bg-mist-600/10'",
               "x-on:click": "autosaveEnabled = !autosaveEnabled",
             }}
           >
@@ -865,8 +1045,8 @@ export const EditorJs: FC<EditorJsProps> = ({
           Convert Markdown
         </h2>
         <p class="mt-2 text-sm opacity-70">
-          This replaces the current Editor.js body with converted blocks.
-          Google Drive and Obsidian footnotes are detected automatically.
+          This replaces the current Editor.js body with converted blocks. Google
+          Drive and Obsidian footnotes are detected automatically.
         </p>
         <Textarea
           class={`mt-4 min-h-80 ${panelField}`}
@@ -885,7 +1065,13 @@ export const EditorJs: FC<EditorJsProps> = ({
           >
             Cancel
           </Button>
-          <Button data-markdown-convert size="sm" type="button">
+          <Button
+            class="capitalize !text-amber-50"
+            data-markdown-convert
+            size="sm"
+            type="button"
+            variant="secondary"
+          >
             Convert
           </Button>
         </div>
