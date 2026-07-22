@@ -1,6 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { PostWithAuthor } from "../../../../models/post.js";
 import { formatPublishDate, paginate, Pagination } from "./Pagination.js";
+import { PostActions } from "./PostActions.js";
 
 type PostGridProps = {
   currentPage?: number;
@@ -27,6 +28,12 @@ const AuthorAndDate: FC<{ post: PostWithAuthor; inverse?: boolean }> = ({
     >
       Published {formatPublishDate(post.createdAt)}
     </time>
+    <PostActions
+      commentCount={post.comments.length}
+      href={`/blog/${post.slug}`}
+      inverse={inverse}
+      title={post.title}
+    />
   </div>
 );
 

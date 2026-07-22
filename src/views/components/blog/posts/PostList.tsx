@@ -1,6 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { PostWithAuthor } from "../../../../models/post.js";
 import { formatPublishDate, paginate, Pagination } from "./Pagination.js";
+import { PostActions } from "./PostActions.js";
 
 type PostListProps = {
   currentPage?: number;
@@ -49,6 +50,11 @@ export const PostList: FC<PostListProps> = ({
                       <time class="opacity-70" datetime={post.createdAt}>
                         Published {formatPublishDate(post.createdAt)}
                       </time>
+                      <PostActions
+                        commentCount={post.comments.length}
+                        href={href}
+                        title={post.title}
+                      />
                     </div>
 
                     {post.image

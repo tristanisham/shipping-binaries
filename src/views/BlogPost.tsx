@@ -43,14 +43,16 @@ export const BlogPost: FC<BlogPostProps> = ({
           <PostBody body={post.body} />
         </article>
 
-        {post.comments.length > 0
-          ? (
-            <section class="mt-12 space-y-4" aria-labelledby="comments-heading">
-              <h2 class="text-2xl font-bold" id="comments-heading">Comments</h2>
-              {post.comments.map((comment) => <Comment comment={comment} />)}
-            </section>
-          )
-          : null}
+        <section
+          aria-labelledby="comments-heading"
+          class="mt-12 space-y-4"
+          id="comments"
+        >
+          <h2 class="text-2xl font-bold" id="comments-heading">Comments</h2>
+          {post.comments.length > 0
+            ? post.comments.map((comment) => <Comment comment={comment} />)
+            : <p>No comments yet.</p>}
+        </section>
       </main>
     </Layout>
   );
