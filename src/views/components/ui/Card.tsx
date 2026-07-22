@@ -1,15 +1,19 @@
 import type { FC, JSX } from "hono/jsx";
+import { panelSurface } from "../admin/panel.js";
 import { cn } from "./utils.js";
 
 type DivProps = Omit<JSX.IntrinsicElements["div"], "class"> & {
   class?: string;
 };
 
+// Admin sections use the site's inverse panel treatment (see panel.ts):
+// secondary-color background with primary-color text, flipped in dark mode.
 export const Card: FC<DivProps> = ({ class: className, ...props }) => (
   <div
     data-slot="card"
     class={cn(
-      "flex flex-col gap-6 rounded-xl border border-onyx-200 bg-amber-50/90 py-6 text-onyx-900 shadow-sm dark:border-onyx-700 dark:bg-onyx-900/90 dark:text-onyx-50",
+      "flex flex-col gap-6 rounded-xl border border-amber-50/15 py-6 shadow-sm dark:border-mist-600/15",
+      panelSurface,
       className,
     )}
     {...props}
@@ -41,7 +45,7 @@ export const CardDescription: FC<DivProps> = ({
 }) => (
   <div
     data-slot="card-description"
-    class={cn("text-sm text-onyx-600 dark:text-onyx-300", className)}
+    class={cn("text-sm text-amber-50/70 dark:text-mist-600/70", className)}
     {...props}
   />
 );

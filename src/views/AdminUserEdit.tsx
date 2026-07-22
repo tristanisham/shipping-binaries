@@ -16,6 +16,11 @@ import {
   CardTitle,
 } from "./components/ui/Card.js";
 import { Input } from "./components/ui/Input.js";
+import {
+  panelDivider,
+  panelField,
+  panelMuted,
+} from "./components/admin/panel.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AdminUserEditProps = {
@@ -38,10 +43,8 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
         <AdminNav current="/admin/users" />
 
         <Card class="min-w-0 max-w-xl">
-          <CardHeader class="border-b border-onyx-200 dark:border-onyx-700">
-            <CardTitle class="text-2xl text-burgundy-700 dark:text-burgundy-300">
-              Edit user
-            </CardTitle>
+          <CardHeader class={`border-b ${panelDivider}`}>
+            <CardTitle class="text-2xl">Edit user</CardTitle>
             <CardDescription>
               Update account details for {user.username}.
             </CardDescription>
@@ -50,11 +53,20 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
             <CardContent class="flex flex-col gap-5 pt-6">
               <label class="flex flex-col gap-2 text-sm font-medium">
                 Email
-                <Input name="email" type="email" value={user.email} />
+                <Input
+                  class={panelField}
+                  name="email"
+                  type="email"
+                  value={user.email}
+                />
               </label>
               <label class="flex flex-col gap-2 text-sm font-medium">
                 Username
-                <Input name="username" value={user.username} />
+                <Input
+                  class={panelField}
+                  name="username"
+                  value={user.username}
+                />
               </label>
               <label class="flex flex-col gap-2 text-sm font-medium">
                 Name
@@ -71,6 +83,7 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
                 New password
                 <Input
                   autocomplete="new-password"
+                  class={panelField}
                   name="password"
                   placeholder="Leave blank to keep current"
                   type="password"
@@ -87,9 +100,9 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
                 Active
               </label>
             </CardContent>
-            <CardFooter class="justify-end gap-2 border-t border-onyx-200 pt-6 dark:border-onyx-700">
+            <CardFooter class={`justify-end gap-2 border-t pt-6 ${panelDivider}`}>
               <a
-                class="text-sm text-onyx-600 underline dark:text-onyx-300"
+                class={`text-sm underline ${panelMuted}`}
                 href="/admin/users"
               >
                 Cancel
