@@ -9,6 +9,8 @@ export type LayoutMeta = {
   viewport?: string;
   robots?: string;
   canonical?: string;
+  // Load Alpine.js — only needed on pages with interactive `x-*` directives.
+  alpine?: boolean;
 };
 
 type LayoutProps = {
@@ -36,10 +38,12 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         {meta?.robots && <meta name="robots" content={meta.robots} />}
         {meta?.canonical && <link rel="canonical" href={meta.canonical} />}
         <link rel="icon" type="image/png" href="/favicon.png" />
-        <script
-          defer
-          src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.12/dist/cdn.min.js"
-        />
+        {meta?.alpine && (
+          <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.12/dist/cdn.min.js"
+          />
+        )}
         <script
           dangerouslySetInnerHTML={{
             __html:

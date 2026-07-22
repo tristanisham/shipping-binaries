@@ -31,6 +31,7 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(html, /data-editorjs-tool="quote"/);
   assert.match(html, /data-editorjs-tool="code"/);
   assert.match(html, /data-editorjs-tool="delimiter"/);
+  assert.match(html, /data-editorjs-tool="footnote"/);
   assert.match(html, /data-editorjs-link/);
   assert.doesNotMatch(html, /<span>Autosave<\/span>/);
   assert.doesNotMatch(html, /data-md-input/);
@@ -41,6 +42,8 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(inlineScript, /editor\.blocks\.insert\(/);
   assert.match(inlineScript, /insertAt,\s+false/);
   assert.match(inlineScript, /dispatchChange\(\)/);
+  assert.match(inlineScript, /class FootnoteTool/);
+  assert.match(inlineScript, /footnote: FootnoteTool/);
 
   const browserWindow = {} as {
     markdownToEditorBlocks?: (markdown: string) => {
@@ -49,13 +52,18 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   };
   new Function("window", inlineScript)(browserWindow);
   const converted = browserWindow.markdownToEditorBlocks?.(
-    "## Heading\n\n- one\n- two\n\n```ts\nconst ok = true;\n```",
+    "## Heading[^source]\n\n- one\n- two\n\n```ts\nconst ok = true;\n```\n\n[^source]: Citation text",
   );
   assert.deepEqual(converted?.blocks.map((block) => block.type), [
     "header",
     "list",
     "code",
+    "footnote",
   ]);
+  assert.deepEqual(converted?.blocks.at(-1), {
+    type: "footnote",
+    data: { id: "source", text: "Citation text" },
+  });
 });
 
 test("new post form generates and validates a customizable slug", () => {

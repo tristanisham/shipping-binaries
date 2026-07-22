@@ -776,6 +776,15 @@
       border-color: color-mix(in oklab, var(--color-chocolate-500) 50%, transparent);
     }
   }
+  .border-current {
+    border-color: currentcolor;
+  }
+  .border-current\/20 {
+    border-color: currentcolor;
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, currentcolor 20%, transparent);
+    }
+  }
   .border-mist-600 {
     border-color: var(--color-mist-600);
   }
@@ -1009,6 +1018,9 @@
   }
   .pt-1 {
     padding-top: var(--spacing);
+  }
+  .pt-3 {
+    padding-top: calc(var(--spacing) * 3);
   }
   .pt-6 {
     padding-top: calc(var(--spacing) * 6);

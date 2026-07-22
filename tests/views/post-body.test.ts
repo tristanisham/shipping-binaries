@@ -20,3 +20,30 @@ test("PostBody preserves safe inline formatting and escapes unsafe HTML", () => 
   assert.doesNotMatch(html, /<img/);
   assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
 });
+
+test("PostBody links footnote references to safely rendered definitions", () => {
+  const html = renderToString(PostBody({
+    body: JSON.stringify({
+      blocks: [
+        {
+          type: "paragraph",
+          data: { text: "A supported claim[^source]." },
+        },
+        {
+          type: "footnote",
+          data: {
+            id: "source",
+            text: '<b>Source</b> <script>alert(1)</script>',
+          },
+        },
+      ],
+    }),
+  }));
+
+  assert.match(html, /href="#footnote-source"/);
+  assert.match(html, /id="footnote-source"/);
+  assert.match(html, /role="note"/);
+  assert.match(html, /<strong>Source<\/strong>/);
+  assert.doesNotMatch(html, /<script>/);
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+});

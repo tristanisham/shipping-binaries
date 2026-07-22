@@ -159,6 +159,7 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
   const meta: LayoutMeta = {
     title: post ? "Edit post | Shipping Binaries" : "Write | Shipping Binaries",
     robots: "noindex",
+    alpine: true,
   };
   const isDraft = values?.draft ?? (post ? post.draft : true);
   const id = values?.id ?? (post ? String(post.id) : "");

@@ -1,6 +1,8 @@
 import type { FC } from "hono/jsx";
 import { Button } from "../ui/Button.js";
 import { Textarea } from "../ui/Textarea.js";
+import { escapeHtml } from "../ui/utils.js";
+import { type EditorData, parseEditorData } from "../editorData.js";
 import { panelField, panelOutlineButton, panelSurface } from "./panel.js";
 
 type EditorJsProps = {
@@ -9,39 +11,8 @@ type EditorJsProps = {
   placeholder?: string;
 };
 
-type EditorData = {
-  blocks: unknown[];
-  time?: number;
-  version?: string;
-};
-
-const parseEditorData = (value: string): EditorData | null => {
-  try {
-    const parsed = JSON.parse(value) as unknown;
-
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "blocks" in parsed &&
-      Array.isArray(parsed.blocks)
-    ) {
-      return parsed as EditorData;
-    }
-  } catch {
-    // Existing posts contain plain text rather than Editor.js output.
-  }
-
-  return null;
-};
-
 const escapeLegacyText = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-    .replace(/\r?\n/g, "<br>");
+  escapeHtml(value).replace(/\r?\n/g, "<br>");
 
 export const normalizeEditorData = (value = ""): EditorData => {
   const parsed = parseEditorData(value);
@@ -98,6 +69,7 @@ const editorJsScript = `
   const markdownToBlocks = (markdown) => {
     const lines = markdown.replace(/\\r\\n/g, "\\n").split("\\n");
     const blocks = [];
+    const footnotes = [];
     let paragraph = [];
     let code = [];
     let inCode = false;
@@ -118,6 +90,27 @@ const editorJsScript = `
 
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index];
+
+      const footnote = line.match(/^\\[\\^([A-Za-z0-9_-]+)\\]:\\s*(.*)$/);
+      if (footnote && !inCode) {
+        flushParagraph();
+        const definition = [footnote[2]];
+        while (
+          index + 1 < lines.length &&
+          /^(?: {2,}|\\t)\\S/.test(lines[index + 1])
+        ) {
+          index += 1;
+          definition.push(lines[index].trim());
+        }
+        footnotes.push({
+          type: "footnote",
+          data: {
+            id: footnote[1],
+            text: definition.map(markdownInline).join("<br>"),
+          },
+        });
+        continue;
+      }
 
       if (line.trimStart().startsWith(codeFence)) {
         if (inCode) flushCode();
@@ -193,10 +186,86 @@ const editorJsScript = `
 
     if (inCode) flushCode();
     flushParagraph();
-    return { blocks };
+    return { blocks: blocks.concat(footnotes) };
   };
 
   window.markdownToEditorBlocks = markdownToBlocks;
+
+  class FootnoteTool {
+    static get toolbox() {
+      return {
+        title: "Footnote",
+        icon: '<svg width="18" height="18" viewBox="0 0 24 24"><path d="M5 4h8M9 4v16M5 20h8M17 8h4M19 6v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+      };
+    }
+
+    static get isReadOnlySupported() {
+      return true;
+    }
+
+    static get sanitize() {
+      return {
+        id: false,
+        text: {
+          a: { href: true },
+          b: true,
+          br: true,
+          code: true,
+          del: true,
+          em: true,
+          i: true,
+          s: true,
+          strong: true,
+          u: true,
+        },
+      };
+    }
+
+    constructor({ data }) {
+      this.data = data || {};
+      this.wrapper = null;
+    }
+
+    render() {
+      const wrapper = document.createElement("div");
+      wrapper.className = "space-y-2 rounded-md border border-current/20 p-3";
+
+      const id = document.createElement("input");
+      id.className = "cdx-input";
+      id.dataset.footnoteId = "";
+      id.placeholder = "Footnote label (for example: 1 or source)";
+      id.value = typeof this.data.id === "string" ? this.data.id : "";
+      id.setAttribute("aria-label", "Footnote label");
+      id.addEventListener("input", () => {
+        id.value = id.value.replace(/[^A-Za-z0-9_-]/g, "");
+      });
+
+      const text = document.createElement("div");
+      text.className = "ce-paragraph cdx-block cdx-input";
+      text.contentEditable = "true";
+      text.dataset.footnoteText = "";
+      text.dataset.placeholder = "Footnote text";
+      text.innerHTML = typeof this.data.text === "string" ? this.data.text : "";
+      text.setAttribute("aria-label", "Footnote text");
+
+      wrapper.append(id, text);
+      this.wrapper = wrapper;
+      return wrapper;
+    }
+
+    save() {
+      const id = this.wrapper?.querySelector("[data-footnote-id]");
+      const text = this.wrapper?.querySelector("[data-footnote-text]");
+      return {
+        id: id?.value.trim() || "",
+        text: text?.innerHTML.trim() || "",
+      };
+    }
+
+    validate(data) {
+      return Boolean(data.id && data.text);
+    }
+  }
 
   window.initEditorJs = (root, state) => {
     if (root.dataset.editorjsReady === "true") return;
@@ -255,6 +324,7 @@ const editorJsScript = `
       tools: {
         code: window.CodeTool,
         delimiter: window.Delimiter,
+        footnote: FootnoteTool,
         header: {
           class: window.Header,
           config: { defaultLevel: 2, levels: [2, 3, 4] },
@@ -296,6 +366,8 @@ const editorJsScript = `
           return { code: "" };
         case "delimiter":
           return {};
+        case "footnote":
+          return { id: "", text: "" };
         default:
           return { text: "" };
       }
@@ -466,7 +538,7 @@ const editorJsScript = `
       }
 
       void save();
-    }, 5);
+    }, 500);
 
     form.addEventListener("submit", async (event) => {
       if (submitting) {
@@ -622,6 +694,22 @@ export const EditorJs: FC<EditorJsProps> = ({
           <svg class={iconClass} {...commonSvgProps}>
             <path d="m16 18 6-6-6-6" />
             <path d="m8 6-6 6 6 6" />
+          </svg>
+        </button>
+        <button
+          aria-label="Add footnote"
+          class={editorToolButtonClass}
+          data-editorjs-tool="footnote"
+          disabled
+          title="Add footnote"
+          type="button"
+        >
+          <svg class={iconClass} {...commonSvgProps}>
+            <path d="M5 4h8" />
+            <path d="M9 4v16" />
+            <path d="M5 20h8" />
+            <path d="M17 8h4" />
+            <path d="M19 6v4" />
           </svg>
         </button>
         <button

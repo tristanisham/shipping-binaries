@@ -235,14 +235,14 @@ authRoute.post("/admin/write", async (c) => {
     draft,
   };
 
-  if (idRaw && Number.isInteger(id)) {
-    await updatePost(c.env.DB, id, input);
+  if (currentPostId !== undefined) {
+    await updatePost(c.env.DB, currentPostId, input);
 
     if (isAutosave) {
-      return c.json({ id, saved: true, slug });
+      return c.json({ id: currentPostId, saved: true, slug });
     }
 
-    return c.redirect(`/admin/write?id=${id}`, 303);
+    return c.redirect(`/admin/write?id=${currentPostId}`, 303);
   }
 
   const newId = await createPost(c.env.DB, {

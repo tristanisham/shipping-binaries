@@ -1,5 +1,8 @@
 import { type BlogComment, getCommentsForPost } from "./comment.js";
 
+const POST_COLUMNS =
+  "id, user_id, slug, draft, title, description, keywords, image, body, created_at, updated_at";
+
 export interface Post {
   id: number;
   userId: number;
@@ -67,8 +70,7 @@ export const getPostById = async (
 ): Promise<Post | null> => {
   const row = await db
     .prepare(
-      `SELECT id, user_id, slug, draft, title, description, keywords, image, body,
-              created_at, updated_at
+      `SELECT ${POST_COLUMNS}
        FROM posts
        WHERE id = ?1
        LIMIT 1`,
@@ -90,8 +92,7 @@ export const getPostsForUser = async (
 ): Promise<readonly Post[]> => {
   const result = await db
     .prepare(
-      `SELECT id, user_id, slug, draft, title, description, keywords, image, body,
-              created_at, updated_at
+      `SELECT ${POST_COLUMNS}
        FROM posts
        WHERE user_id = ?1
        ORDER BY created_at DESC, id DESC`,
@@ -297,8 +298,7 @@ export const getPublishedPosts = async (
 ): Promise<readonly Post[]> => {
   const result = await db
     .prepare(
-      `SELECT id, user_id, slug, draft, title, description, keywords, image, body,
-              created_at, updated_at
+      `SELECT ${POST_COLUMNS}
        FROM posts
        WHERE draft = 0
        ORDER BY created_at DESC, id DESC`,
@@ -314,8 +314,7 @@ export const getPublishedPostBySlug = async (
 ): Promise<Post | null> => {
   const row = await db
     .prepare(
-      `SELECT id, user_id, slug, draft, title, description, keywords, image, body,
-              created_at, updated_at
+      `SELECT ${POST_COLUMNS}
        FROM posts
        WHERE slug = ?1 AND draft = 0
        LIMIT 1`,

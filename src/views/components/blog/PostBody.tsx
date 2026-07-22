@@ -1,4 +1,6 @@
 import type { FC } from "hono/jsx";
+import { escapeHtml } from "../ui/utils.js";
+import { parseEditorData } from "../editorData.js";
 
 type EditorBlock = {
   type?: string;
@@ -18,15 +20,11 @@ type ListItem = {
   items: ListItem[];
 };
 
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-
 const safeLink = (value: string): string | null => {
+  if (/^#[A-Za-z0-9_-]+$/.test(value)) {
+    return value;
+  }
+
   if (value.startsWith("/")) {
     return value;
   }
@@ -42,8 +40,13 @@ const safeLink = (value: string): string | null => {
 };
 
 const sanitizeInlineHtml = (value: string): string => {
+  const withFootnoteReferences = value.replace(
+    /\[\^([A-Za-z0-9_-]+)\]/g,
+    (_match, id: string) =>
+      '<sup><a href="#footnote-' + id + '">[' + escapeHtml(id) + "]</a></sup>",
+  );
   const links: string[] = [];
-  const withLinkTokens = value
+  const withLinkTokens = withFootnoteReferences
     .replace(
       /<a\s+[^>]*href=(['"])(.*?)\1[^>]*>/gi,
       (_match, _quote: string, href: string) => {
@@ -74,6 +77,8 @@ const sanitizeInlineHtml = (value: string): string => {
     .replace(/&lt;\/(?:s|del)&gt;/gi, "</del>")
     .replace(/&lt;code&gt;/gi, "<code>")
     .replace(/&lt;\/code&gt;/gi, "</code>")
+    .replace(/&lt;sup&gt;/gi, "<sup>")
+    .replace(/&lt;\/sup&gt;/gi, "</sup>")
     .replace(/&lt;br\s*\/?&gt;/gi, "<br>")
     .replace(/EDITORJSLINKENDTOKEN/g, "</a>");
 
@@ -85,20 +90,12 @@ const sanitizeInlineHtml = (value: string): string => {
 };
 
 const parseBody = (body: string): EditorData => {
-  try {
-    const parsed = JSON.parse(body) as unknown;
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "blocks" in parsed &&
-      Array.isArray(parsed.blocks)
-    ) {
-      return { blocks: parsed.blocks as EditorBlock[] };
-    }
-  } catch {
-    // Legacy post bodies are rendered as plain text below.
+  const parsed = parseEditorData(body);
+  if (parsed) {
+    return { blocks: parsed.blocks as EditorBlock[] };
   }
 
+  // Legacy post bodies are rendered as plain text.
   return {
     blocks: [{ type: "legacy", data: { text: body } }],
   };
@@ -207,6 +204,24 @@ const EditorBlockView: FC<{ block: EditorBlock }> = ({ block }) => {
 
   if (block.type === "delimiter") {
     return <hr class="border-amber-50/30 dark:border-mist-600/30" />;
+  }
+
+  if (block.type === "footnote") {
+    const rawId = blockText(block, "id");
+    const id = rawId.match(/^[A-Za-z0-9_-]+$/)?.[0] ?? "note";
+
+    return (
+      <aside
+        class="flex gap-2 border-t border-amber-50/20 pt-3 text-sm dark:border-mist-600/20"
+        id={"footnote-" + id}
+        role="note"
+      >
+        <sup class="font-bold">[{rawId || id}]</sup>
+        <p class="min-w-0">
+          <InlineText value={blockText(block)} />
+        </p>
+      </aside>
+    );
   }
 
   return (

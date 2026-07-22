@@ -71,17 +71,7 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
               <label class="flex flex-col gap-2 text-sm font-medium">
                 Name
                 <Input
-                  name="label"
-                  placeholder="Optional display name"
-                  value={user.label ?? ""}
-                />
-                <span class="text-xs font-normal text-onyx-500 dark:text-onyx-400">
-                  Optional full name shown alongside the username.
-                </span>
-              </label>
-              <label class="flex flex-col gap-2 text-sm font-medium">
-                Name
-                <Input
+                  class={panelField}
                   name="label"
                   placeholder="Optional display name"
                   value={user.label ?? ""}
