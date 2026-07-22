@@ -7,13 +7,20 @@ import {
   getSessionUser,
   SESSION_COOKIE_NAME,
 } from "../models/session.js";
-import { getAllPosts } from "../models/post.js";
+import {
+  createPost,
+  getAllPosts,
+  getPostById,
+  parseKeywords,
+  type Post,
+  updatePost,
+} from "../models/post.js";
 import { findUserByLogin, getAllUsers, type User } from "../models/user.js";
 import { Account } from "../views/Account.js";
 import { AdminHome } from "../views/AdminHome.js";
-import { Dashboard } from "../views/Dashboard.js";
 import { Login } from "../views/Login.js";
 import { Logout } from "../views/Logout.js";
+import { Write } from "../views/Write.js";
 
 type AuthEnv = {
   Bindings: Env;
@@ -109,6 +116,52 @@ authRoute.get("/admin", async (c) => {
   ]);
 
   return c.html(<AdminHome posts={posts} userCount={users.length} />);
+});
+
+authRoute.get("/admin/write", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const idParam = c.req.query("id");
+  let post: Post | undefined;
+
+  if (idParam) {
+    const id = Number.parseInt(idParam, 10);
+    if (Number.isInteger(id)) {
+      post = (await getPostById(c.env.DB, id)) ?? undefined;
+    }
+  }
+
+  return c.html(<Write post={post} />);
+});
+
+authRoute.post("/admin/write", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const body = await c.req.parseBody();
+
+  const input = {
+    title: typeof body.title === "string" ? body.title : "",
+    description: typeof body.description === "string" ? body.description : "",
+    keywords: parseKeywords(
+      typeof body.keywords === "string" ? body.keywords : "",
+    ),
+    image: typeof body.image === "string" ? body.image : "",
+    body: typeof body.body === "string" ? body.body : "",
+    draft: body.action !== "publish",
+  };
+
+  const idRaw = typeof body.id === "string" ? body.id : "";
+  const id = idRaw ? Number.parseInt(idRaw, 10) : Number.NaN;
+
+  if (idRaw && Number.isInteger(id)) {
+    await updatePost(c.env.DB, id, input);
+    return c.redirect(`/admin/write?id=${id}`, 303);
+  }
+
+  const newId = await createPost(c.env.DB, {
+    userId: c.var.currentUser.id,
+    ...input,
+  });
+
+  return c.redirect(`/admin/write?id=${newId}`, 303);
 });
 
 authRoute.get("/admin/account", (c) => {
