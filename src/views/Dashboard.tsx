@@ -5,6 +5,18 @@ import {
   setCurrentNavItem,
 } from "./components/header/Header.js";
 import { HeaderSlim } from "./components/header/Slim.js";
+import { Badge } from "./components/ui/Badge.js";
+import { Button } from "./components/ui/Button.js";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "./components/ui/Card.js";
+import { Input } from "./components/ui/Input.js";
+import { Textarea } from "./components/ui/Textarea.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type DashboardProps = {
@@ -23,66 +35,113 @@ export const Dashboard: FC<DashboardProps> = ({ posts }) => {
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
       />
-      <main class="grid min-h-[calc(100vh-5rem)] w-full grid-cols-[20%_60%_20%]">
-        <aside class="border-r-2 border-mist-600/30 p-6 dark:border-amber-50/30">
-          <h1 class="mb-6 text-2xl font-bold">Content</h1>
-          {posts.length === 0 ? (
-            <p>No posts yet.</p>
-          ) : (
-            <ol class="flex flex-col gap-3">
-              {posts.map((post) => (
-                <li class="rounded-md border-2 border-mist-600/30 p-3 dark:border-amber-50/30">
-                  <p class="font-bold">{post.title}</p>
-                  <p class="text-sm">{post.draft ? "Draft" : "Published"}</p>
-                </li>
-              ))}
-            </ol>
-          )}
-        </aside>
+      <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)] gap-4 px-4 py-6">
+        <Card class="min-w-0 self-start border-chocolate-500/50 bg-linear-to-b from-onyx-900 to-onyx-950 text-onyx-50 dark:border-chocolate-400/50">
+          <CardHeader class="border-b border-onyx-700">
+            <CardTitle class="text-xl text-chocolate-300">Content</CardTitle>
+            <CardDescription class="text-onyx-300">
+              {posts.length} {posts.length === 1 ? "post" : "posts"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {posts.length === 0 ? (
+              <div class="rounded-lg border border-dashed border-onyx-600 px-4 py-8 text-center text-sm text-onyx-300">
+                No posts yet.
+              </div>
+            ) : (
+              <ol class="flex flex-col gap-2">
+                {posts.map((post) => (
+                  <li class="rounded-lg border border-onyx-700 bg-onyx-900/70 p-3 transition-colors hover:border-chocolate-400">
+                    <div class="flex flex-col gap-2">
+                      <p class="truncate text-sm font-medium">{post.title}</p>
+                      <Badge variant={post.draft ? "draft" : "published"}>
+                        {post.draft ? "Draft" : "Published"}
+                      </Badge>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </CardContent>
+        </Card>
 
-        <section aria-labelledby="post-editor-heading" class="p-8">
-          <h2 class="mb-6 text-3xl font-bold" id="post-editor-heading">
-            Post editor
-          </h2>
-          <div class="flex min-h-[65vh] flex-col gap-5">
-            <label class="flex flex-col gap-2 font-bold">
+        <Card class="min-w-0 bg-linear-to-br from-onyx-50 via-chocolate-50/60 to-burgundy-50 dark:from-onyx-950 dark:via-onyx-900 dark:to-burgundy-950">
+          <CardHeader class="border-b border-burgundy-200 dark:border-burgundy-900">
+            <CardTitle
+              class="text-2xl text-burgundy-700 dark:text-burgundy-300"
+              id="post-editor-heading"
+            >
+              Post editor
+            </CardTitle>
+            <CardDescription>Write and format a post.</CardDescription>
+          </CardHeader>
+          <CardContent
+            aria-labelledby="post-editor-heading"
+            class="flex min-h-[60vh] flex-col gap-5"
+          >
+            <label class="flex flex-col gap-2 text-sm font-medium">
               Title
-              <input
-                class="rounded-md border-2 border-mist-600 bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-mist-600 dark:border-amber-50 dark:focus:ring-amber-50"
-                name="title"
+              <Input name="title" placeholder="Post title" />
+            </label>
+            <label class="flex flex-col gap-2 text-sm font-medium">
+              Description
+              <Textarea
+                class="resize-y"
+                name="description"
+                placeholder="A one-line summary"
+                rows={3}
               />
             </label>
-            <label class="flex flex-col gap-2 font-bold">
-              Description
-              <textarea
-                class="resize-y rounded-md border-2 border-mist-600 bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-mist-600 dark:border-amber-50 dark:focus:ring-amber-50"
-                name="description"
-                rows={3}
-              ></textarea>
-            </label>
-            <label class="flex grow flex-col gap-2 font-bold">
+            <label class="flex grow flex-col gap-2 text-sm font-medium">
               Body
-              <textarea
-                class="grow resize-y rounded-md border-2 border-mist-600 bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-mist-600 dark:border-amber-50 dark:focus:ring-amber-50"
+              <Textarea
+                class="min-h-80 grow resize-y"
                 name="body"
-              ></textarea>
+                placeholder="Start writing..."
+              />
             </label>
-          </div>
-        </section>
+          </CardContent>
+          <CardFooter class="justify-end gap-2 border-t border-burgundy-200 dark:border-burgundy-900">
+            <Button variant="outline">Save draft</Button>
+            <Button>Publish</Button>
+          </CardFooter>
+        </Card>
 
-        <aside class="border-l-2 border-mist-600/30 p-6 dark:border-amber-50/30">
-          <h2 class="mb-6 text-2xl font-bold">Tools</h2>
-          <div class="flex flex-col gap-4">
-            <section class="rounded-md border-2 border-mist-600/30 p-4 dark:border-amber-50/30">
-              <h3 class="font-bold">Publishing</h3>
-            </section>
-            <section class="rounded-md border-2 border-mist-600/30 p-4 dark:border-amber-50/30">
-              <h3 class="font-bold">Metadata</h3>
-            </section>
-            <section class="rounded-md border-2 border-mist-600/30 p-4 dark:border-amber-50/30">
-              <h3 class="font-bold">Image</h3>
-            </section>
-          </div>
+        <aside class="flex min-w-0 flex-col gap-4">
+          <h2 class="px-1 text-xl font-semibold text-burgundy-700 dark:text-burgundy-300">
+            Tools
+          </h2>
+          <Card class="gap-4 border-chocolate-500/50 bg-linear-to-br from-burgundy-900 to-burgundy-950 py-5 text-burgundy-50 dark:border-chocolate-400/50">
+            <CardHeader class="px-5">
+              <CardTitle>Publishing</CardTitle>
+            </CardHeader>
+            <CardContent class="flex items-center justify-between px-5">
+              <span class="text-sm">Status</span>
+              <Badge variant="draft">Draft</Badge>
+            </CardContent>
+          </Card>
+          <Card class="gap-4 border-burgundy-300/60 py-5 dark:border-burgundy-800">
+            <CardHeader class="px-5">
+              <CardTitle>Metadata</CardTitle>
+            </CardHeader>
+            <CardContent class="px-5">
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                Keywords
+                <Input name="keywords" placeholder="Hono, Cloudflare" />
+              </label>
+            </CardContent>
+          </Card>
+          <Card class="gap-4 border-chocolate-300/70 py-5 dark:border-chocolate-800">
+            <CardHeader class="px-5">
+              <CardTitle>Image</CardTitle>
+            </CardHeader>
+            <CardContent class="px-5">
+              <label class="flex flex-col gap-2 text-sm font-medium">
+                Image URL
+                <Input name="image" placeholder="https://" type="url" />
+              </label>
+            </CardContent>
+          </Card>
         </aside>
       </main>
     </Layout>
