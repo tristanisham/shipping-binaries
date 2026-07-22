@@ -113,7 +113,7 @@ const sanitizeInlineHtml = (
           ? `footnote-reference-${id}`
           : `footnote-reference-${id}-${referenceCount}`;
 
-        return `<sup><a aria-label="Footnote ${number}" class="${publicLinkClass}" href="#footnote-${id}" id="${referenceId}">${number}</a></sup>`;
+        return `<sup><a aria-label="Footnote ${id}, note ${number}" class="${publicLinkClass}" href="#footnote-${id}" id="${referenceId}">[${id}]</a></sup>`;
       },
     );
   }
