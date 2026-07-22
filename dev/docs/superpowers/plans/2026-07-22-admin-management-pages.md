@@ -10,10 +10,10 @@
 
 ## Global Constraints
 
-- **Testing:** Model-layer logic is test-driven with `node:test`. Tests live under `dev/tests/` and run via `npm test` →
-  `NODE_OPTIONS="--import tsx" node --test "dev/tests/**/*.test.ts"`. The `tsx` `--import` (via `NODE_OPTIONS`, so it propagates to the runner's per-file child processes) is required to resolve the repo's NodeNext `.js` import specifiers to their `.ts` sources. Views and routes (thin JSX/glue) are verified by `npm run typecheck` + `npm run build` + the manual browser checks in each task; route-level integration tests are a documented follow-up, not part of this plan.
-- **`dev/` is gitignored.** Test files under `dev/tests/` are intentionally NOT committed. Commit steps add only tracked files (`src/`, `migrations/`, `package.json`).
-- **`tsconfig.json` typechecks `src` only** (`include: ["src"]`). Test files are not typechecked by `tsc`; they run through `tsx` (types stripped). Do not add `dev/` to the tsconfig include.
+- **Testing:** Model-layer logic is test-driven with `node:test`. Tests live under `tests/` and run via `npm test` →
+  `NODE_OPTIONS="--import tsx" node --test "tests/**/*.test.ts"`. The `tsx` `--import` (via `NODE_OPTIONS`, so it propagates to the runner's per-file child processes) is required to resolve the repo's NodeNext `.js` import specifiers to their `.ts` sources. Views and routes (thin JSX/glue) are verified by `npm run typecheck` + `npm run build` + the manual browser checks in each task; route-level integration tests are a documented follow-up, not part of this plan.
+- **Tests are tracked.** Test files live under `tests/` and are committed alongside the code they cover (each model task commits its test file with the model change).
+- **`tsconfig.json` typechecks `src` only** (`include: ["src"]`). Test files under `tests/` are not typechecked by `tsc`; they run through `tsx` (types stripped). Do not add `tests/` to the tsconfig include.
 - Strict TypeScript, two-space indentation.
 - Keep `.js` extensions on all relative imports, **including** imports of `.tsx` files (`module: "NodeNext"`).
 - JSX is Hono JSX (`jsxImportSource: "hono/jsx"`), not React: use `class`, lowercase handlers, import `FC`/`Child` from `hono/jsx`.
@@ -33,8 +33,8 @@ Adds the `active` and `body` columns and stands up the `node:sqlite`-backed D1 t
 **Files:**
 - Create: `migrations/0004_admin_management.sql`
 - Modify: `package.json` (add `test` script)
-- Create: `dev/tests/helpers/d1.ts` (gitignored)
-- Create: `dev/tests/helpers/harness.test.ts` (gitignored, smoke test)
+- Create: `tests/helpers/d1.ts`
+- Create: `tests/helpers/harness.test.ts` (smoke test)
 
 **Interfaces:**
 - Produces:
@@ -57,12 +57,12 @@ ALTER TABLE posts ADD COLUMN body TEXT NOT NULL DEFAULT '';
 In `package.json`, add this entry to `scripts` (after `"typecheck"`):
 
 ```json
-"test": "NODE_OPTIONS=\"--import tsx\" node --test \"dev/tests/**/*.test.ts\""
+"test": "NODE_OPTIONS=\"--import tsx\" node --test \"tests/**/*.test.ts\""
 ```
 
 - [ ] **Step 3: Create the D1 test harness**
 
-Create `dev/tests/helpers/d1.ts`:
+Create `tests/helpers/d1.ts`:
 
 ```ts
 import { readdirSync, readFileSync } from "node:fs";
@@ -129,7 +129,7 @@ class FakeD1 {
   }
 }
 
-const MIGRATIONS_DIR = join(import.meta.dirname, "../../../migrations");
+const MIGRATIONS_DIR = join(import.meta.dirname, "../../migrations");
 
 export const createTestDb = (): D1Database => {
   const db = new DatabaseSync(":memory:");
@@ -172,7 +172,7 @@ export const seedUser = async (
 
 - [ ] **Step 4: Write the harness smoke test**
 
-Create `dev/tests/helpers/harness.test.ts`:
+Create `tests/helpers/harness.test.ts`:
 
 ```ts
 import assert from "node:assert/strict";
@@ -216,14 +216,12 @@ Expected: wrangler reports migration `0004_admin_management.sql` applied, no err
 Run: `npm test`
 Expected: PASS (`pass 1 fail 0`). This proves the harness applies migrations and the adapter's `bind`/`first`/`all`/`run` behave like D1.
 
-- [ ] **Step 7: Commit (tracked files only)**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add migrations/0004_admin_management.sql package.json
+git add migrations/0004_admin_management.sql package.json tests/helpers/d1.ts tests/helpers/harness.test.ts
 git commit -m "chore(admin): add migration and node:test D1 harness"
 ```
-
-(The `dev/tests/helpers/*` files are gitignored and intentionally not committed.)
 
 ---
 
@@ -232,7 +230,7 @@ git commit -m "chore(admin): add migration and node:test D1 harness"
 Adds `active` and the user queries the management pages need, driven by tests.
 
 **Files:**
-- Create: `dev/tests/models/user.test.ts` (gitignored)
+- Create: `tests/models/user.test.ts`
 - Modify: `src/models/user.ts`
 
 **Interfaces:**
@@ -247,7 +245,7 @@ Adds `active` and the user queries the management pages need, driven by tests.
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `dev/tests/models/user.test.ts`:
+Create `tests/models/user.test.ts`:
 
 ```ts
 import assert from "node:assert/strict";
@@ -259,7 +257,7 @@ import {
   setUserActive,
   setUserPassword,
   updateUser,
-} from "../../../src/models/user.js";
+} from "../../src/models/user.js";
 import { createTestDb, seedUser } from "../helpers/d1.js";
 
 test("getUserById maps active to a boolean", async () => {
@@ -487,10 +485,10 @@ Expected: PASS (all user + harness tests green).
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 6: Commit (tracked files only)**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/models/user.ts
+git add src/models/user.ts tests/models/user.test.ts
 git commit -m "feat(admin): add user.active and admin user queries"
 ```
 
@@ -501,7 +499,7 @@ git commit -m "feat(admin): add user.active and admin user queries"
 Adds `body`, keyword helpers, all-posts listing, and create/update/draft mutations, driven by tests.
 
 **Files:**
-- Create: `dev/tests/models/post.test.ts` (gitignored)
+- Create: `tests/models/post.test.ts`
 - Modify: `src/models/post.ts`
 
 **Interfaces:**
@@ -519,7 +517,7 @@ Adds `body`, keyword helpers, all-posts listing, and create/update/draft mutatio
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `dev/tests/models/post.test.ts`:
+Create `tests/models/post.test.ts`:
 
 ```ts
 import assert from "node:assert/strict";
@@ -532,7 +530,7 @@ import {
   parseKeywords,
   setPostDraft,
   updatePost,
-} from "../../../src/models/post.js";
+} from "../../src/models/post.js";
 import { createTestDb, seedUser } from "../helpers/d1.js";
 
 test("parseKeywords splits, trims, and drops blanks", () => {
@@ -841,10 +839,10 @@ Expected: PASS (all post + user + harness tests green).
 Run: `npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 8: Commit (tracked files only)**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/models/post.ts
+git add src/models/post.ts tests/models/post.test.ts
 git commit -m "feat(admin): add post body, listing, and create/update/draft queries"
 ```
 
@@ -1943,4 +1941,4 @@ Then exercise, with `npm run dev:worker`:
 - Route/view integration tests (driving `app.request()` with a seeded session + the D1 harness) are a viable follow-up but out of scope; this plan test-drives the model layer only.
 - No comment moderation, no public rendering of post `body`, no user creation/deletion from the UI (still `npm run account:create`).
 - The production D1 migration (`npm run db:migrate:remote`) is a deploy-time step, run when shipping — not part of task implementation.
-- Test files under `dev/tests/` are gitignored and not committed, per project setup.
+- Test files under `tests/` are committed alongside the code they cover.
