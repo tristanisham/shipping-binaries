@@ -35,6 +35,7 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         {meta?.author && <meta name="author" content={meta.author} />}
         {meta?.robots && <meta name="robots" content={meta.robots} />}
         {meta?.canonical && <link rel="canonical" href={meta.canonical} />}
+        <link rel="icon" type="image/png" href="/favicon.png" />
         <script
           dangerouslySetInnerHTML={{
             __html:
