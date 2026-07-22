@@ -8,6 +8,10 @@
     {
       "pattern": "shippingbinaries.com",
       "custom_domain": true
+    },
+    {
+      "pattern": "www.shippingbinaries.com",
+      "custom_domain": true
     }
   ],
   "assets": {

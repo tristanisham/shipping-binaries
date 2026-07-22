@@ -18,7 +18,10 @@ export const Account: FC<AccountProps> = ({ email }) => {
 
   return (
     <Layout meta={meta}>
-      <Header nav={setCurrentNavItem(defaultHeaderNav, "/admin")} />
+      <Header
+        isAuthenticated
+        nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
+      />
       <main class="container mx-auto h-full w-2/5">
         <section class="mx-auto mt-16 max-w-md">
           <h1 class="mb-4 text-3xl font-bold">Account</h1>

@@ -22,10 +22,11 @@ export const setCurrentNavItem = (
   }));
 
 type HeaderProps = {
+  isAuthenticated?: boolean;
   nav: HeaderNavItem[];
 };
 
-export const Header: FC<HeaderProps> = ({ nav }) => {
+export const Header: FC<HeaderProps> = ({ isAuthenticated = false, nav }) => {
   return (
     <header class={""}>
       <nav class={"@container flex w-full flex-col py-2"}>
@@ -34,9 +35,9 @@ export const Header: FC<HeaderProps> = ({ nav }) => {
             <WeatherWidget />
             <div class="flex items-center">
               <a
-                aria-label="Log in"
+                aria-label={isAuthenticated ? "Open account" : "Log in"}
                 class="m-4 cursor-pointer text-amber-50 dark:text-mist-600"
-                href="/login"
+                href={isAuthenticated ? "/admin" : "/login"}
               >
                 <svg
                   aria-hidden="true"

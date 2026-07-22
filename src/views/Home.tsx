@@ -9,10 +9,11 @@ import {
 } from "./components/header/Header.js";
 
 type HomeProps = {
+  isAuthenticated?: boolean;
   posts?: readonly Post[];
 };
 
-export const Home: FC<HomeProps> = ({ posts = [] }) => {
+export const Home: FC<HomeProps> = ({ isAuthenticated = false, posts = [] }) => {
   const meta: LayoutMeta = {
     title: "Home | Shipping Binaries",
     description:
@@ -28,6 +29,7 @@ export const Home: FC<HomeProps> = ({ posts = [] }) => {
   return (
     <Layout meta={meta}>
       <Header
+        isAuthenticated={isAuthenticated}
         nav={setCurrentNavItem(defaultHeaderNav, "/")}
       />
       <main class={" h-full w-2/5 mx-auto container"}>

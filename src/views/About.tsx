@@ -6,7 +6,11 @@ import {
 } from "./components/header/Header.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
-export const About: FC = () => {
+type AboutProps = {
+  isAuthenticated?: boolean;
+};
+
+export const About: FC<AboutProps> = ({ isAuthenticated = false }) => {
   const meta: LayoutMeta = {
     title: "About | Shipping Binaries",
     description:
@@ -21,6 +25,7 @@ export const About: FC = () => {
   return (
     <Layout meta={meta}>
       <Header
+        isAuthenticated={isAuthenticated}
         nav={setCurrentNavItem(defaultHeaderNav, "/about")}
       />
       <main class="container mx-auto h-full w-2/5">
