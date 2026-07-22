@@ -7,6 +7,7 @@ import {
   panelMuted,
   panelOutlineButton,
 } from "./components/admin/panel.js";
+import { adminTagClass, TagCloud } from "./components/admin/TagCloud.js";
 import {
   defaultHeaderNav,
   setCurrentNavItem,
@@ -59,13 +60,32 @@ export const AdminRoles: FC<AdminRolesProps> = ({
             </CardDescription>
           </CardHeader>
           <CardContent class="grid gap-6">
+            <div class="flex flex-col gap-2 text-sm font-medium">
+              <span>Current roles</span>
+              <TagCloud aria-label="Current roles">
+                {roles.map((role) => (
+                  <a
+                    aria-label={`Edit role ${role.name}`}
+                    class={adminTagClass}
+                    href={`#role-${role.id}`}
+                  >
+                    {role.name}
+                  </a>
+                ))}
+              </TagCloud>
+              <span class={`text-xs font-normal ${panelMuted}`}>
+                Click on a role to edit it
+              </span>
+            </div>
             <form action="/admin/roles" class="flex items-end gap-3" method="post">
               <label class="flex grow flex-col gap-2 font-bold">
                 Add role
                 <Input
                   class={panelField}
+                  autocapitalize="none"
                   maxlength={32}
                   name="name"
+                  oninput="this.value = this.value.toLowerCase()"
                   pattern="[a-z](?:[a-z0-9]|-(?=[a-z0-9])){0,31}"
                   placeholder="editor"
                   required
@@ -116,7 +136,10 @@ export const AdminRoles: FC<AdminRolesProps> = ({
                     const formId = `role-${role.id}`;
 
                     return (
-                      <tr class={`border-b last:border-0 ${panelDivider}`}>
+                      <tr
+                        class={`border-b last:border-0 ${panelDivider}`}
+                        id={`role-${role.id}`}
+                      >
                         <td class="py-3 pr-4">
                           <form
                             action={`/admin/roles/${role.id}`}
@@ -125,10 +148,12 @@ export const AdminRoles: FC<AdminRolesProps> = ({
                           >
                             <Input
                               aria-label={`Name for ${role.name}`}
+                              autocapitalize="none"
                               class={panelField}
                               disabled={protectedRole}
                               maxlength={32}
                               name="name"
+                              oninput="this.value = this.value.toLowerCase()"
                               pattern="[a-z](?:[a-z0-9]|-(?=[a-z0-9])){0,31}"
                               required
                               value={role.name}

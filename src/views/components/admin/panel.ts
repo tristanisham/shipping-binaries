@@ -17,6 +17,10 @@
 export const panelSurface =
   "bg-mist-600 text-amber-50 dark:bg-amber-50 dark:text-mist-600";
 
+// Explicit foreground for nested elements that may otherwise inherit the page
+// color instead of the inverse panel color.
+export const panelText = "text-amber-50 dark:text-mist-600";
+
 // Hairline dividers (card header/footer borders, table rules).
 export const panelDivider = "border-amber-50/20 dark:border-mist-600/20";
 

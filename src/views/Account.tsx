@@ -154,7 +154,10 @@ export const Account: FC<AccountProps> = ({
               />
             </label>
             {error && (
-              <p class="font-bold text-burgundy-500" role="alert">
+              <p
+                class="font-bold text-burgundy-700 dark:text-burgundy-300"
+                role="alert"
+              >
                 {error}
               </p>
             )}

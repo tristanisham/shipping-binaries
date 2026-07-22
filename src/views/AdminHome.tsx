@@ -25,6 +25,7 @@ import {
   panelMuted,
   panelOutlineButton,
   panelRow,
+  panelText,
 } from "./components/admin/panel.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
@@ -138,7 +139,7 @@ export const AdminHome: FC<AdminHomeProps> = ({ posts, roles, users }) => {
                       <th class="pb-2 text-right font-medium">Status</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody class={panelText}>
                     {users.map((user) => (
                       <tr class={`border-t ${panelDivider}`}>
                         <td class="py-3 pr-4">{user.label ?? "—"}</td>
@@ -172,7 +173,7 @@ export const AdminHome: FC<AdminHomeProps> = ({ posts, roles, users }) => {
                       <th class="pb-2 text-right font-medium">Accounts</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody class={panelText}>
                     {roles.map((role) => (
                       <tr class={`border-t ${panelDivider}`}>
                         <td class="py-3 pr-4">{role.name}</td>
@@ -189,7 +190,13 @@ export const AdminHome: FC<AdminHomeProps> = ({ posts, roles, users }) => {
         <AdminTools title="Quick links">
           <AdminToolSection open title="Posts">
             <div class="flex flex-col gap-3">
-              <a class={cn(buttonVariants(), "w-full")} href="/admin/write">
+              <a
+                class={cn(
+                  buttonVariants({ variant: "tertiary" }),
+                  "w-full",
+                )}
+                href="/admin/write"
+              >
                 New post
               </a>
               <a

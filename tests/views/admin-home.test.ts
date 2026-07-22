@@ -37,6 +37,10 @@ test("overview includes separate user and role tables", () => {
 
   assert.match(html, /id="overview-users-title">Users<\/h2>/);
   assert.match(html, /<table aria-label="Users"/);
+  assert.equal(
+    html.match(/<tbody class="text-amber-50 dark:text-mist-600">/g)?.length,
+    2,
+  );
   assert.match(html, /Site Owner/);
   assert.match(html, /owner@example\.com/);
   assert.match(html, /id="overview-roles-title">Roles<\/h2>/);
@@ -44,4 +48,8 @@ test("overview includes separate user and role tables", () => {
   assert.match(html, />admin<\/td>/);
   assert.match(html, /Manage users \(1\)/);
   assert.match(html, /Manage roles \(1\)/);
+  assert.match(
+    html,
+    /class="[^"]*bg-chocolate-500 text-amber-50[^"]*" href="\/admin\/write">New post<\/a>/,
+  );
 });

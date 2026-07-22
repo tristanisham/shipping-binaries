@@ -382,21 +382,21 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                         <div class="flex items-center justify-end gap-2">
                           <Button
                             aria-label={`Save ${user.username}`}
-                            class="capitalize hover:!text-amber-50"
+                            class="capitalize disabled:opacity-100"
                             form={`user-${user.id}-identity`}
                             size="sm"
                             title={`Save ${user.username}`}
                             type="submit"
-                            variant="secondary"
+                            variant="primary"
                             {...{
                               "x-bind:aria-busy":
                                 "(saveState === 'saving').toString()",
                               "x-bind:aria-label":
                                 `saveState === 'saved' ? 'Saved ${user.username}' : saveState === 'error' ? 'Could not save ${user.username}' : 'Save ${user.username}'`,
                               "x-bind:class":
-                                "saveState !== 'idle' ? '!text-amber-50' : ''",
+                                "saveState !== 'idle' ? '!bg-chocolate-500 !text-amber-50' : ''",
                               "x-bind:data-variant":
-                                "saveState === 'idle' ? 'secondary' : 'tertiary'",
+                                "saveState === 'idle' ? 'primary' : 'tertiary'",
                               "x-bind:disabled": "saveState === 'saving'",
                               "x-bind:title":
                                 `saveState === 'saved' ? 'Saved ${user.username}' : saveState === 'error' ? 'Could not save ${user.username}' : 'Save ${user.username}'`,

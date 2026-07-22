@@ -102,7 +102,10 @@ export const Login: FC<LoginProps> = ({ error, login = "", notice }) => {
               </div>
             </label>
             {error && (
-              <p class="font-bold text-burgundy-500" role="alert">
+              <p
+                class="font-bold text-burgundy-700 dark:text-burgundy-300"
+                role="alert"
+              >
                 {error}
               </p>
             )}

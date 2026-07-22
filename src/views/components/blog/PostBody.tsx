@@ -31,6 +31,9 @@ type FootnoteReferenceContext = {
   numbers: ReadonlyMap<string, number>;
 };
 
+const publicLinkClass =
+  "text-burgundy-700 underline visited:text-burgundy-600 hover:text-burgundy-600 focus-visible:text-burgundy-600 active:text-burgundy-600 dark:text-burgundy-300 dark:visited:text-burgundy-200 dark:hover:text-burgundy-200 dark:focus-visible:text-burgundy-200 dark:active:text-burgundy-200";
+
 const safeLink = (value: string): string | null => {
   if (/^#[A-Za-z0-9_-]+$/.test(value)) {
     return value;
@@ -66,7 +69,7 @@ const sanitizeInlineHtml = (
 
         const token = `EDITORJSLINK${links.length}TOKEN`;
         links.push(
-          `<a class="text-burgundy-700 underline visited:text-burgundy-600 hover:text-burgundy-600 focus-visible:text-burgundy-600 active:text-burgundy-600" href="${
+          `<a class="${publicLinkClass}" href="${
             escapeHtml(safeHref)
           }" rel="noreferrer">`,
         );
@@ -110,7 +113,7 @@ const sanitizeInlineHtml = (
           ? `footnote-reference-${id}`
           : `footnote-reference-${id}-${referenceCount}`;
 
-        return `<sup><a aria-label="Footnote ${number}" class="text-burgundy-700 underline visited:text-burgundy-600 hover:text-burgundy-600 focus-visible:text-burgundy-600 active:text-burgundy-600" href="#footnote-${id}" id="${referenceId}">${number}</a></sup>`;
+        return `<sup><a aria-label="Footnote ${number}" class="${publicLinkClass}" href="#footnote-${id}" id="${referenceId}">${number}</a></sup>`;
       },
     );
   }
@@ -322,7 +325,7 @@ const FootnotesSection: FC<{
             ? (
               <a
                 aria-label={`Back to footnote ${footnote.number} reference`}
-                class="ml-2 text-burgundy-700 underline visited:text-burgundy-600 hover:text-burgundy-600 focus-visible:text-burgundy-600 active:text-burgundy-600"
+                class={`ml-2 ${publicLinkClass}`}
                 href={`#footnote-reference-${footnote.id}`}
               >
                 ↩

@@ -24,7 +24,16 @@ test("roles page protects admin and edits custom roles in place", () => {
   }));
 
   assert.match(html, /aria-current="page"[^>]*href="\/admin\/roles"/);
+  assert.match(html, /aria-label="Current roles"/);
+  assert.match(html, /aria-label="Edit role admin"[^>]*href="#role-1"/);
+  assert.match(html, /aria-label="Edit role writer"[^>]*href="#role-2"/);
+  assert.match(html, /Click on a role to edit it/);
   assert.match(html, /action="\/admin\/roles"/);
+  assert.equal(
+    html.match(/oninput="this\.value = this\.value\.toLowerCase\(\)"/g)
+      ?.length,
+    3,
+  );
   assert.match(html, /name="name"[^>]*placeholder="editor"/);
   assert.match(
     html,
@@ -32,5 +41,6 @@ test("roles page protects admin and edits custom roles in place", () => {
   );
   assert.match(html, />Protected<\/span>/);
   assert.match(html, /action="\/admin\/roles\/2"/);
+  assert.match(html, /id="role-2"/);
   assert.match(html, /action="\/admin\/roles\/2\/delete"/);
 });

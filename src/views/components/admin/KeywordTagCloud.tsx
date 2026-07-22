@@ -3,13 +3,11 @@ import { parseKeywords } from "../../../models/post.js";
 import { Button } from "../ui/Button.js";
 import { Input } from "../ui/Input.js";
 import { panelField } from "./panel.js";
+import { adminTagClass, TagCloud } from "./TagCloud.js";
 
 type KeywordTagCloudProps = {
   value: string;
 };
-
-const keywordButtonClass =
-  "rounded-full border border-amber-50/30 bg-amber-50/10 px-2 py-0.5 text-xs font-normal text-amber-50 transition-colors hover:bg-amber-50/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-50/60 dark:border-mist-600/30 dark:bg-mist-600/10 dark:text-mist-600 dark:hover:bg-mist-600/20 dark:focus-visible:ring-mist-600/60";
 
 const keywordTagCloudScript = `
 window.initKeywordTagCloud = (root) => {
@@ -34,7 +32,7 @@ window.initKeywordTagCloud = (root) => {
     const tags = keywords.map((keyword, index) => {
       const tag = document.createElement("button");
       tag.type = "button";
-      tag.className = ${JSON.stringify(keywordButtonClass)};
+      tag.className = ${JSON.stringify(adminTagClass)};
       tag.textContent = keyword;
       tag.title = "Remove " + keyword;
       tag.setAttribute("aria-label", "Remove keyword " + keyword);
@@ -96,23 +94,22 @@ export const KeywordTagCloud: FC<KeywordTagCloudProps> = ({ value }) => {
       {...{ "x-init": "initKeywordTagCloud($el)" }}
     >
       <label for="post-keywords">Keywords</label>
-      <div
+      <TagCloud
         aria-label="Current keywords"
         aria-live="polite"
-        class="flex min-h-6 flex-wrap items-center gap-1.5"
         data-keyword-cloud
       >
         {keywords.map((keyword) => (
           <button
             aria-label={`Remove keyword ${keyword}`}
-            class={keywordButtonClass}
+            class={adminTagClass}
             title={`Remove ${keyword}`}
             type="button"
           >
             {keyword}
           </button>
         ))}
-      </div>
+      </TagCloud>
       <input name="keywords" type="hidden" value={value} />
       <div aria-label="Add keyword" class="flex gap-2" role="group">
         <Input

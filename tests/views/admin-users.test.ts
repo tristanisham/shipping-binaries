@@ -47,7 +47,9 @@ test("users table edits identity fields in place across the full width", () => {
   assert.match(html, /form="user-1-identity"[^>]*name="roleIds"/);
   assert.match(html, />admin<\/span>/);
   assert.match(html, /text-amber-50 dark:text-mist-600/);
-  assert.match(html, /capitalize hover:!text-amber-50/);
+  assert.match(html, /capitalize disabled:opacity-100/);
+  assert.match(html, /data-variant="primary"/);
+  assert.match(html, /hover:bg-chocolate-500 hover:text-amber-50/);
   assert.match(html, /aria-label="Save owner"/);
   assert.match(html, /x-on:submit\.prevent=/);
   assert.match(html, /x-bind:data-variant=/);
@@ -58,6 +60,9 @@ test("users table edits identity fields in place across the full width", () => {
   assert.doesNotMatch(html, />Save<\/button>/);
   assert.match(html, /justify-end gap-2/);
   assert.match(html, /aria-label="Deactivate owner"/);
-  assert.match(html, /bg-burgundy-500 text-amber-50/);
+  assert.match(
+    html,
+    /bg-burgundy-700 text-amber-50 hover:bg-burgundy-600 dark:bg-burgundy-400/,
+  );
   assert.doesNotMatch(html, />Deactivate<\/button>/);
 });
