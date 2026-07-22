@@ -3,6 +3,7 @@ export interface User {
   email: string;
   username: string;
   active: boolean;
+  roles: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -18,6 +19,16 @@ export interface UserRow {
   updated_at: string;
 }
 
+// A user row joined with its comma-joined role names (from user_roles).
+export interface UserWithRolesRow extends UserRow {
+  roles: string | null;
+}
+
+// Parse the GROUP_CONCAT of role names into a list. Role names never contain
+// commas, so a plain split is safe.
+export const parseRoleList = (roles: string | null | undefined): string[] =>
+  roles ? roles.split(",") : [];
+
 export interface CreateUserInput {
   email: string;
   username: string;
@@ -30,11 +41,12 @@ export interface CreateUserRow {
   password_hash: string;
 }
 
-export const userFromRow = (row: UserRow): User => ({
+export const userFromRow = (row: UserRow, roles: string[] = []): User => ({
   id: row.id,
   email: row.email,
   username: row.username,
   active: row.active === 1,
+  roles,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -58,13 +70,18 @@ export const getAllUsers = async (
 ): Promise<readonly User[]> => {
   const result = await db
     .prepare(
-      `SELECT id, email, username, password_hash, active, created_at, updated_at
+      `SELECT users.id, users.email, users.username, users.password_hash,
+              users.active, users.created_at, users.updated_at,
+              (SELECT GROUP_CONCAT(roles.name, ',')
+               FROM user_roles
+               JOIN roles ON roles.id = user_roles.role_id
+               WHERE user_roles.user_id = users.id) AS roles
        FROM users
-       ORDER BY id ASC`,
+       ORDER BY users.id ASC`,
     )
-    .all<UserRow>();
+    .all<UserWithRolesRow>();
 
-  return result.results.map(userFromRow);
+  return result.results.map((row) => userFromRow(row, parseRoleList(row.roles)));
 };
 
 export const getUserById = async (
@@ -73,15 +90,20 @@ export const getUserById = async (
 ): Promise<User | null> => {
   const row = await db
     .prepare(
-      `SELECT id, email, username, password_hash, active, created_at, updated_at
+      `SELECT users.id, users.email, users.username, users.password_hash,
+              users.active, users.created_at, users.updated_at,
+              (SELECT GROUP_CONCAT(roles.name, ',')
+               FROM user_roles
+               JOIN roles ON roles.id = user_roles.role_id
+               WHERE user_roles.user_id = users.id) AS roles
        FROM users
-       WHERE id = ?1
+       WHERE users.id = ?1
        LIMIT 1`,
     )
     .bind(id)
-    .first<UserRow>();
+    .first<UserWithRolesRow>();
 
-  return row ? userFromRow(row) : null;
+  return row ? userFromRow(row, parseRoleList(row.roles)) : null;
 };
 
 export const updateUser = async (

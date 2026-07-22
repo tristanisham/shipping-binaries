@@ -1,4 +1,4 @@
-import type { User } from "./user.js";
+import { parseRoleList, type User } from "./user.js";
 
 export const SESSION_COOKIE_NAME = "shipping_session";
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -52,21 +52,49 @@ export const destroySession = async (
     .run();
 };
 
+interface SessionUserRow {
+  id: number;
+  email: string;
+  username: string;
+  active: 0 | 1;
+  roles: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export const getSessionUser = async (
   db: D1Database,
   token: string,
 ): Promise<User | null> => {
   const tokenHash = await hashSessionToken(token);
 
-  return db
+  const row = await db
     .prepare(
-      `SELECT users.id, users.email, users.username,
-              users.created_at AS createdAt, users.updated_at AS updatedAt
+      `SELECT users.id, users.email, users.username, users.active,
+              users.created_at, users.updated_at,
+              (SELECT GROUP_CONCAT(roles.name, ',')
+               FROM user_roles
+               JOIN roles ON roles.id = user_roles.role_id
+               WHERE user_roles.user_id = users.id) AS roles
        FROM sessions
        JOIN users ON users.id = sessions.user_id
        WHERE sessions.token_hash = ?1 AND sessions.expires_at > ?2
        LIMIT 1`,
     )
     .bind(tokenHash, new Date().toISOString())
-    .first<User>();
+    .first<SessionUserRow>();
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    email: row.email,
+    username: row.username,
+    active: row.active === 1,
+    roles: parseRoleList(row.roles),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 };

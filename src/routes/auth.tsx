@@ -16,6 +16,7 @@ import {
   setPostDraft,
   updatePost,
 } from "../models/post.js";
+import { ADMIN_ROLE } from "../models/role.js";
 import {
   findUserByLogin,
   getAllUsers,
@@ -117,8 +118,20 @@ const requireSession: MiddlewareHandler<AuthEnv> = async (c, next) => {
   await next();
 };
 
+// Runs after requireSession, so c.var.currentUser is populated. Gates the
+// admin area to users holding the admin role; everyone else gets 403.
+const requireAdmin: MiddlewareHandler<AuthEnv> = async (c, next) => {
+  if (!c.var.currentUser.roles.includes(ADMIN_ROLE)) {
+    return c.text("Forbidden", 403);
+  }
+
+  await next();
+};
+
 authRoute.use("/admin", requireSession);
+authRoute.use("/admin", requireAdmin);
 authRoute.use("/admin/*", requireSession);
+authRoute.use("/admin/*", requireAdmin);
 
 authRoute.get("/admin", async (c) => {
   c.header("Cache-Control", "no-store");
