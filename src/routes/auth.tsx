@@ -1,6 +1,6 @@
 import { Hono, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { verifyPassword } from "../auth/password.js";
+import { hashPassword, verifyPassword } from "../auth/password.js";
 import {
   createSession,
   destroySession,
@@ -16,10 +16,20 @@ import {
   setPostDraft,
   updatePost,
 } from "../models/post.js";
-import { findUserByLogin, getAllUsers, type User } from "../models/user.js";
+import {
+  findUserByLogin,
+  getAllUsers,
+  getUserById,
+  setUserActive,
+  setUserPassword,
+  updateUser,
+  type User,
+} from "../models/user.js";
 import { Account } from "../views/Account.js";
 import { AdminHome } from "../views/AdminHome.js";
 import { AdminPosts } from "../views/AdminPosts.js";
+import { AdminUserEdit } from "../views/AdminUserEdit.js";
+import { AdminUsers } from "../views/AdminUsers.js";
 import { Login } from "../views/Login.js";
 import { Logout } from "../views/Logout.js";
 import { Write } from "../views/Write.js";
@@ -183,6 +193,63 @@ authRoute.post("/admin/posts/:id/draft", async (c) => {
   }
 
   return c.redirect("/admin/posts", 303);
+});
+
+authRoute.get("/admin/users", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const users = await getAllUsers(c.env.DB);
+
+  return c.html(<AdminUsers users={users} />);
+});
+
+authRoute.post("/admin/users/:id/active", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const id = Number.parseInt(c.req.param("id"), 10);
+
+  if (Number.isInteger(id)) {
+    const body = await c.req.parseBody();
+    await setUserActive(c.env.DB, id, body.active === "1");
+  }
+
+  return c.redirect("/admin/users", 303);
+});
+
+authRoute.get("/admin/users/:id/edit", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const id = Number.parseInt(c.req.param("id"), 10);
+  const user = Number.isInteger(id)
+    ? await getUserById(c.env.DB, id)
+    : null;
+
+  if (!user) {
+    return c.notFound();
+  }
+
+  return c.html(<AdminUserEdit user={user} />);
+});
+
+authRoute.post("/admin/users/:id", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const id = Number.parseInt(c.req.param("id"), 10);
+
+  if (!Number.isInteger(id)) {
+    return c.redirect("/admin/users", 303);
+  }
+
+  const body = await c.req.parseBody();
+  const email = typeof body.email === "string" ? body.email.trim() : "";
+  const username =
+    typeof body.username === "string" ? body.username.trim() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+
+  await updateUser(c.env.DB, id, { email, username });
+  await setUserActive(c.env.DB, id, body.active === "1");
+
+  if (password.length > 0) {
+    await setUserPassword(c.env.DB, id, await hashPassword(password));
+  }
+
+  return c.redirect("/admin/users", 303);
 });
 
 authRoute.get("/admin/account", (c) => {
