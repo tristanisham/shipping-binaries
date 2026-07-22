@@ -37,6 +37,7 @@
     "deploy": "wrangler deploy",
     "start": "node --import=tsx src/dev.ts",
     "types:worker": "wrangler types src/worker-configuration.d.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "NODE_OPTIONS=\"--import tsx\" node --test \"dev/tests/**/*.test.ts\""
   }
 }
