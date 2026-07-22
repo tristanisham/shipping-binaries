@@ -60,7 +60,14 @@ export const AdminUsers: FC<AdminUsersProps> = ({ users }) => {
                 <tbody>
                   {users.map((user) => (
                     <tr class="border-b border-onyx-100 last:border-0 dark:border-onyx-800">
-                      <td class="py-3 pr-4 font-medium">{user.username}</td>
+                      <td class="py-3 pr-4 font-medium">
+                        {user.username}
+                        {user.label ? (
+                          <span class="block text-xs font-normal text-onyx-500 dark:text-onyx-400">
+                            {user.label}
+                          </span>
+                        ) : null}
+                      </td>
                       <td class="py-3 pr-4 text-onyx-600 dark:text-onyx-300">
                         {user.email}
                       </td>
