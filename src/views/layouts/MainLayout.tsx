@@ -55,6 +55,23 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
           />
         )}
         <link rel="icon" type="image/png" href="/favicon.png" />
+        {/* Preload above-the-fold fonts so the download starts before styles.css
+            is parsed, shrinking the font-display: swap flash. crossorigin is
+            required even same-origin: fonts fetch in anonymous-CORS mode. */}
+        <link
+          rel="preload"
+          as="font"
+          type="font/ttf"
+          crossorigin=""
+          href="/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf"
+        />
+        <link
+          rel="preload"
+          as="font"
+          type="font/ttf"
+          crossorigin=""
+          href="/fonts/Black_Ops_One/BlackOpsOne-Regular.ttf"
+        />
         {meta?.alpine && (
           <script
             defer
