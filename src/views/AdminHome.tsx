@@ -49,7 +49,7 @@ export const AdminHome: FC<AdminHomeProps> = ({ posts, roles, users }) => {
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
       />
-      <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)] gap-4 px-4 py-6">
+      <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-1 gap-4 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)]">
         <AdminNav current="/admin" />
 
         <Card class="min-w-0">
