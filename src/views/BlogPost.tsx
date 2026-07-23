@@ -5,8 +5,9 @@ import { Comment } from "./components/blog/Comment.js";
 import { CommentEditor } from "./components/blog/CommentEditor.js";
 import { PostBody } from "./components/blog/PostBody.js";
 import { PostMeta } from "./components/blog/posts/PostMeta.js";
+import { toIsoTimestamp } from "./components/date.js";
 import { defaultHeaderNav, Header } from "./components/header/Header.js";
-import { toAbsoluteUrl, toIsoTimestamp } from "./components/SocialMeta.js";
+import { toAbsoluteUrl } from "./components/SocialMeta.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type BlogPostProps = ViewerProps & {

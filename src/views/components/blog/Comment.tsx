@@ -1,6 +1,6 @@
 import type { FC } from "hono/jsx";
 import type { BlogComment } from "../../../models/comment.js";
-import { toIsoTimestamp } from "../SocialMeta.js";
+import { toIsoTimestamp } from "../date.js";
 import { PostBody } from "./PostBody.js";
 
 type CommentProps = {

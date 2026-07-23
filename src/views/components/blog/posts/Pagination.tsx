@@ -1,4 +1,5 @@
 import type { FC } from "hono/jsx";
+import { toIsoTimestamp } from "../../date.js";
 
 type PaginationProps = {
   basePath: string;
@@ -100,11 +101,8 @@ const publishDateFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 export const formatPublishDate = (value: string): string => {
-  const isoValue = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
-    ? `${value.replace(" ", "T")}Z`
-    : value;
-  const date = new Date(isoValue);
-  if (Number.isNaN(date.getTime())) return value;
+  const isoValue = toIsoTimestamp(value);
+  if (!isoValue) return value;
 
-  return publishDateFormatter.format(date);
+  return publishDateFormatter.format(new Date(isoValue));
 };

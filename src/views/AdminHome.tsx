@@ -10,6 +10,7 @@ import {
 } from "./components/header/Header.js";
 import { HeaderSlim } from "./components/header/Slim.js";
 import { Badge } from "./components/ui/Badge.js";
+import { EditIcon } from "./components/icons/EditIcon.js";
 import { buttonVariants } from "./components/ui/Button.js";
 import {
   Card,
@@ -106,19 +107,7 @@ export const AdminHome: FC<AdminHomeProps> = ({
                             aria-label={`Edit ${post.title}`}
                             title={`Edit ${post.title}`}
                           >
-                            <svg
-                              aria-hidden="true"
-                              class="size-4"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                            </svg>
+                            <EditIcon />
                           </a>
                           <Badge variant={post.draft ? "draft" : "published"}>
                             {post.draft ? "Draft" : "Published"}

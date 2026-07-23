@@ -1,4 +1,5 @@
 import type { FC } from "hono/jsx";
+import { EditIcon } from "../../icons/EditIcon.js";
 import { buttonVariants } from "../../ui/Button.js";
 
 type PostActionsProps = {
@@ -54,17 +55,7 @@ export const PostActions: FC<PostActionsProps> = ({
             href={editHref}
             title="Edit"
           >
-            <svg
-              aria-hidden="true"
-              class="size-4 fill-none stroke-current"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              viewBox="0 0 24 24"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
-            </svg>
+            <EditIcon />
             <span>Edit</span>
           </a>
         )
