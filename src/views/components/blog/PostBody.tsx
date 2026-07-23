@@ -38,7 +38,10 @@ type FootnoteReferenceContext = {
 const autoFootnoteId = /^(?:inline-footnote|obsidian-inline)-\d+$/;
 
 const publicLinkClass =
-  "text-burgundy-700 underline visited:text-burgundy-600 hover:text-burgundy-600 focus-visible:text-burgundy-600 active:text-burgundy-600 dark:text-burgundy-300 dark:visited:text-burgundy-200 dark:hover:text-burgundy-200 dark:focus-visible:text-burgundy-200 dark:active:text-burgundy-200";
+  "inline-flex items-baseline gap-1 text-burgundy-700 underline visited:text-burgundy-600 hover:text-burgundy-600 focus-visible:text-burgundy-600 active:text-burgundy-600 dark:text-burgundy-300 dark:visited:text-burgundy-200 dark:hover:text-burgundy-200 dark:focus-visible:text-burgundy-200 dark:active:text-burgundy-200";
+
+const externalLinkIcon =
+  '<svg aria-hidden="true" class="size-3.5 shrink-0 self-center fill-none stroke-current" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>';
 
 const safeLink = (value: string): string | null => {
   if (/^#[A-Za-z0-9_-]+$/.test(value)) {
@@ -63,7 +66,8 @@ const sanitizeInlineHtml = (
   value: string,
   footnoteReferences?: FootnoteReferenceContext,
 ): string => {
-  const links: string[] = [];
+  const links: { close: string; open: string }[] = [];
+  let closingLinkIndex = 0;
   const withLinkTokens = value
     .replace(
       /<a\s+[^>]*href=(['"])(.*?)\1[^>]*>/gi,
@@ -74,15 +78,22 @@ const sanitizeInlineHtml = (
         }
 
         const token = `EDITORJSLINK${links.length}TOKEN`;
-        links.push(
-          `<a class="${publicLinkClass}" href="${
+        const external = /^https?:\/\//.test(safeHref);
+        links.push({
+          close: external ? `${externalLinkIcon}</a>` : "</a>",
+          open: `<a class="${publicLinkClass}" href="${
             escapeHtml(safeHref)
-          }" rel="noreferrer">`,
-        );
+          }"${
+            external ? ' rel="noopener noreferrer" target="_blank"' : ""
+          }>`,
+        });
         return token;
       },
     )
-    .replace(/<\/a>/gi, "EDITORJSLINKENDTOKEN");
+    .replace(
+      /<\/a>/gi,
+      () => `EDITORJSLINKEND${closingLinkIndex++}TOKEN`,
+    );
 
   let sanitized = escapeHtml(withLinkTokens)
     .replace(/&lt;(?:b|strong)&gt;/gi, "<strong>")
@@ -97,11 +108,12 @@ const sanitizeInlineHtml = (
     .replace(/&lt;\/code&gt;/gi, "</code>")
     .replace(/&lt;sup&gt;/gi, "<sup>")
     .replace(/&lt;\/sup&gt;/gi, "</sup>")
-    .replace(/&lt;br\s*\/?&gt;/gi, "<br>")
-    .replace(/EDITORJSLINKENDTOKEN/g, "</a>");
+    .replace(/&lt;br\s*\/?&gt;/gi, "<br>");
 
   links.forEach((link, index) => {
-    sanitized = sanitized.replace(`EDITORJSLINK${index}TOKEN`, link);
+    sanitized = sanitized
+      .replace(`EDITORJSLINK${index}TOKEN`, link.open)
+      .replace(`EDITORJSLINKEND${index}TOKEN`, link.close);
   });
 
   if (footnoteReferences) {

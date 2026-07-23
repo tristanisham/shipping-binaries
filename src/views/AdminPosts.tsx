@@ -26,6 +26,7 @@ import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AdminPostsProps = {
   posts: readonly PostListItem[];
+  viewerUsername?: string;
 };
 
 const estDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -51,7 +52,7 @@ const formatUpdatedAt = (timestamp: string): string => {
   return `${estDateTimeFormatter.format(date).replace(" at ", " ")} EST`;
 };
 
-export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
+export const AdminPosts: FC<AdminPostsProps> = ({ posts, viewerUsername }) => {
   const meta: LayoutMeta = {
     title: "Posts | Shipping Binaries",
     robots: "noindex",
@@ -63,6 +64,7 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
         isAdmin
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
+        viewerUsername={viewerUsername}
       />
       <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,4fr)] gap-4 px-4 py-6">
         <AdminNav current="/admin/posts" />

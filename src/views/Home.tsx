@@ -22,6 +22,7 @@ export const Home: FC<HomeProps> = (
     isAuthenticated = false,
     posts = [],
     viewerUserId = null,
+    viewerUsername = null,
   },
 ) => {
   const meta: LayoutMeta = {
@@ -46,6 +47,7 @@ export const Home: FC<HomeProps> = (
         isAdmin={isAdmin}
         isAuthenticated={isAuthenticated}
         nav={setCurrentNavItem(defaultHeaderNav, "/")}
+        viewerUsername={viewerUsername}
       />
       <main class="w-full px-4 pb-16">
         <PostList

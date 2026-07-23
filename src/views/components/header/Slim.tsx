@@ -17,6 +17,7 @@ export const HeaderSlim: FC<HeaderSlimProps> = ({
   isAuthenticated = false,
   nav,
   size = "lg",
+  viewerUsername = null,
 }) => {
   const widthClass = size === "sm"
     ? "w-max max-w-full"
@@ -63,6 +64,7 @@ export const HeaderSlim: FC<HeaderSlimProps> = ({
               compact
               isAdmin={isAdmin}
               isAuthenticated={isAuthenticated}
+              username={viewerUsername}
             />
           </div>
         </div>

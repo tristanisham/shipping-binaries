@@ -3,6 +3,7 @@ import {
   type SocialMeta,
   SocialMetaTags,
 } from "../components/SocialMeta.js";
+import { ToastViewport } from "../components/Toast.js";
 
 export type LayoutMeta = {
   title?: string;
@@ -71,6 +72,7 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
       </head>
       <body class="bg-amber-50 font-sans text-mist-600 dark:bg-mist-600 dark:text-amber-50">
         {children}
+        <ToastViewport />
       </body>
     </html>
   );

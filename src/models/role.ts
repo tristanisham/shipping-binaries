@@ -1,4 +1,6 @@
 export const ADMIN_ROLE = "admin";
+export const GUEST_ROLE = "guest";
+export const PROTECTED_ROLES = [ADMIN_ROLE, GUEST_ROLE] as const;
 
 export interface Role {
   id: number;
@@ -119,6 +121,8 @@ export const deleteRole = async (
   db: D1Database,
   id: number,
 ): Promise<void> => {
+  await db.prepare("DELETE FROM role_permissions WHERE role_id = ?1").bind(id)
+    .run();
   await db.prepare("DELETE FROM user_roles WHERE role_id = ?1").bind(id).run();
   await db.prepare("DELETE FROM roles WHERE id = ?1").bind(id).run();
 };

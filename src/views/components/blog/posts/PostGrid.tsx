@@ -1,9 +1,11 @@
 import type { FC } from "hono/jsx";
 import type { PostWithAuthor } from "../../../../models/post.js";
+import { cn } from "../../ui/utils.js";
 import { paginateNewest, Pagination } from "./Pagination.js";
 import { PostMeta } from "./PostMeta.js";
 
 type PostGridProps = {
+  class?: string;
   currentPage?: number;
   pageBasePath?: string;
   pageSize?: number;
@@ -11,6 +13,7 @@ type PostGridProps = {
 };
 
 export const PostGrid: FC<PostGridProps> = ({
+  class: className,
   currentPage = 1,
   pageBasePath = "/",
   pageSize = 12,
@@ -20,7 +23,10 @@ export const PostGrid: FC<PostGridProps> = ({
   const [featured, ...remaining] = page.items;
 
   return (
-    <section aria-label="Blog posts" class="mt-16 w-full">
+    <section
+      aria-label="Blog posts"
+      class={cn("mt-16 w-full", className)}
+    >
       {featured
         ? (
           <ul class="grid grid-cols-1 gap-6 md:grid-cols-3">

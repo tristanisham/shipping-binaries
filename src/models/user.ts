@@ -101,21 +101,71 @@ export const createUser = async (
   db: D1Database,
   input: CreateUserInput,
 ): Promise<number> => {
-  const result = await db
-    .prepare(
-      `INSERT INTO users (email, username, password_hash, label, active)
-       VALUES (?1, ?2, ?3, ?4, ?5)`,
-    )
-    .bind(
-      input.email,
-      input.username,
-      input.passwordHash,
-      input.label,
-      input.active === false ? 0 : 1,
-    )
-    .run();
+  const results = await db.batch([
+    db
+      .prepare(
+        `INSERT INTO users (email, username, password_hash, label, active)
+         VALUES (?1, ?2, ?3, ?4, ?5)`,
+      )
+      .bind(
+        input.email,
+        input.username,
+        input.passwordHash,
+        input.label,
+        input.active === false ? 0 : 1,
+      ),
+    db
+      .prepare(
+        `INSERT INTO profiles (user_id)
+         SELECT id
+         FROM users
+         WHERE username = ?1`,
+      )
+      .bind(input.username),
+  ]);
 
-  return result.meta.last_row_id;
+  return results[0].meta.last_row_id;
+};
+
+export const createUserWithRole = async (
+  db: D1Database,
+  input: CreateUserInput,
+  roleName: string,
+): Promise<number> => {
+  const results = await db.batch([
+    db
+      .prepare(
+        `INSERT INTO users (email, username, password_hash, label, active)
+         VALUES (?1, ?2, ?3, ?4, ?5)`,
+      )
+      .bind(
+        input.email,
+        input.username,
+        input.passwordHash,
+        input.label,
+        input.active === false ? 0 : 1,
+      ),
+    db
+      .prepare(
+        `INSERT INTO user_roles (user_id, role_id)
+         SELECT users.id, roles.id
+         FROM users
+         CROSS JOIN roles
+         WHERE users.username = ?1
+           AND roles.name = ?2`,
+      )
+      .bind(input.username, roleName),
+    db
+      .prepare(
+        `INSERT INTO profiles (user_id)
+         SELECT id
+         FROM users
+         WHERE username = ?1`,
+      )
+      .bind(input.username),
+  ]);
+
+  return results[0].meta.last_row_id;
 };
 
 export const getAllUsers = async (
@@ -184,9 +234,7 @@ export const getPublicUserByUsername = async (
     .bind(username)
     .first<PublicUser>();
 
-  return row
-    ? { id: row.id, label: row.label, username: row.username }
-    : null;
+  return row ? { id: row.id, label: row.label, username: row.username } : null;
 };
 
 export const updateUser = async (

@@ -13,16 +13,23 @@ test("logged-out visitors get a person icon linking to login", () => {
   assert.doesNotMatch(html, /role="menu"/);
 });
 
-test("non-admin users get a person icon linking directly to account", () => {
-  const html = renderToString(UserMenu({ isAuthenticated: true }));
+test("non-admin users get a hover menu with profile and account", () => {
+  const html = renderToString(UserMenu({
+    isAuthenticated: true,
+    username: "member",
+  }));
 
   assert.match(
     html,
-    /aria-label="Open account"[^>]*href="\/admin\/account"/,
+    /<button[^>]*aria-haspopup="menu"[^>]*aria-label="Open user menu"[^>]*type="button"/,
   );
   assert.match(html, /<circle cx="12" cy="8" r="5"><\/circle>/);
-  assert.doesNotMatch(html, /aria-haspopup="menu"/);
-  assert.doesNotMatch(html, /role="menu"/);
+  assert.match(html, /role="menu"/);
+  assert.match(html, /href="\/@member"[^>]*role="menuitem">Profile<\/a>/);
+  assert.match(
+    html,
+    /href="\/admin\/account"[^>]*role="menuitem">Account<\/a>/,
+  );
   assert.doesNotMatch(html, />Dashboard<\/a>/);
 });
 
@@ -30,14 +37,16 @@ test("admin users retain the shield icon and dashboard menu", () => {
   const html = renderToString(UserMenu({
     isAdmin: true,
     isAuthenticated: true,
+    username: "owner",
   }));
 
   assert.match(
     html,
-    /aria-haspopup="menu"[^>]*aria-label="Open admin dashboard"[^>]*href="\/admin"/,
+    /<button[^>]*aria-haspopup="menu"[^>]*aria-label="Open user menu"[^>]*type="button"/,
   );
   assert.match(html, /role="menu"/);
   assert.match(html, />Dashboard<\/a>/);
+  assert.match(html, /href="\/@owner"[^>]*role="menuitem">Profile<\/a>/);
   assert.match(html, /href="\/admin\/account"[^>]*role="menuitem"/);
 });
 
@@ -46,6 +55,7 @@ test("slim header separates nav from a tightly spaced icon group", () => {
     isAdmin: true,
     isAuthenticated: true,
     nav: defaultHeaderNav,
+    viewerUsername: "owner",
   }));
 
   assert.match(html, /class="ml-8 flex items-center gap-2 pr-4"/);
@@ -55,6 +65,6 @@ test("slim header separates nav from a tightly spaced icon group", () => {
   );
   assert.match(
     html,
-    /aria-label="Open admin dashboard"[^>]*class="inline-flex cursor-pointer"/,
+    /aria-label="Open user menu"[^>]*class="inline-flex cursor-pointer"/,
   );
 });

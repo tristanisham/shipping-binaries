@@ -16,9 +16,7 @@ const sharePost = [
   "var url=new URL(button.dataset.sharePath,window.location.origin).href;",
   "var text='I just finished reading '+button.dataset.shareTitle+' by '+button.dataset.shareAuthor+' on Shipping Binaries';",
   "var message=text+'\\n\\n'+url;",
-  "var status=button.parentElement.querySelector('[data-share-status]');",
-  "var report=function(value){status.textContent=value;window.setTimeout(function(){status.textContent=''},2000)};",
-  "var copy=function(){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(message).then(function(){button.title='Message copied';report('Copied')},function(){report('Copy failed');window.prompt('Copy this share message:',message)})}else{report('Copy unavailable');window.prompt('Copy this share message:',message)}};",
+  "var copy=function(){window.copyWithToast(message,'Share message copied').then(function(copied){if(copied){button.title='Message copied'}})};",
   "var data={title:button.dataset.shareTitle,text:text,url:url};",
   "var canNativeShare=false;try{canNativeShare=Boolean(navigator.share)&&(!navigator.canShare||navigator.canShare(data))}catch(error){}",
   "if(canNativeShare){navigator.share(data).catch(function(error){if(!error||error.name!=='AbortError'){copy()}})}else{copy()}",
@@ -98,11 +96,6 @@ export const PostActions: FC<PostActionsProps> = ({
           <path d="m8.6 13.5 6.8 4" />
         </svg>
       </button>
-      <span
-        aria-live="polite"
-        class="pointer-events-none absolute top-full right-0 mt-1 whitespace-nowrap text-xs font-semibold text-chocolate-500"
-        data-share-status
-      />
       <a
         aria-label={`${commentCount} ${
           commentCount === 1 ? "comment" : "comments"

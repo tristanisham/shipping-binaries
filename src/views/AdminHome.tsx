@@ -33,9 +33,15 @@ type AdminHomeProps = {
   posts: readonly PostListItem[];
   roles: readonly RoleWithUserCount[];
   users: readonly User[];
+  viewerUsername?: string;
 };
 
-export const AdminHome: FC<AdminHomeProps> = ({ posts, roles, users }) => {
+export const AdminHome: FC<AdminHomeProps> = ({
+  posts,
+  roles,
+  users,
+  viewerUsername,
+}) => {
   const meta: LayoutMeta = {
     title: "Admin | Shipping Binaries",
     robots: "noindex",
@@ -48,6 +54,7 @@ export const AdminHome: FC<AdminHomeProps> = ({ posts, roles, users }) => {
         isAdmin
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
+        viewerUsername={viewerUsername}
       />
       <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)] gap-4 px-4 py-6">
         <AdminNav current="/admin" />

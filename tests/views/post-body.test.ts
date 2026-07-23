@@ -18,8 +18,26 @@ test("PostBody preserves safe inline formatting and escapes unsafe HTML", () => 
 
   assert.match(html, /<strong>Bold<\/strong>/);
   assert.match(html, /href="https:\/\/example\.com\/"/);
+  assert.match(html, /target="_blank"/);
+  assert.match(html, /rel="noopener noreferrer"/);
+  assert.match(html, /<path d="M15 3h6v6"><\/path>/);
   assert.doesNotMatch(html, /<img/);
   assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+});
+
+test("PostBody keeps internal links in the current tab without an icon", () => {
+  const html = renderToString(PostBody({
+    body: JSON.stringify({
+      blocks: [{
+        type: "paragraph",
+        data: { text: '<a href="/about">About</a>' },
+      }],
+    }),
+  }));
+
+  assert.match(html, /href="\/about"/);
+  assert.doesNotMatch(html, /target="_blank"/);
+  assert.doesNotMatch(html, /M15 3h6v6/);
 });
 
 test("PostBody links footnote references to safely rendered definitions", () => {

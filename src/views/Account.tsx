@@ -1,70 +1,31 @@
 import type { FC } from "hono/jsx";
-import {
-  ACCOUNT_PASSWORD_MIN_LENGTH,
-  ACCOUNT_PASSWORD_RULES,
-  BCRYPT_MAX_BYTES,
-} from "../auth/password.js";
+import { MAX_PROFILE_BIOGRAPHY_LENGTH } from "../models/profile.js";
 import {
   defaultHeaderNav,
   setCurrentNavItem,
 } from "./components/header/Header.js";
+import { PasswordFields } from "./components/auth/PasswordFields.js";
 import { HeaderSlim } from "./components/header/Slim.js";
 import { Button } from "./components/ui/Button.js";
 import { Input } from "./components/ui/Input.js";
+import { Textarea } from "./components/ui/Textarea.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AccountProps = {
+  biography: string;
   email: string;
   error?: string;
   isAdmin?: boolean;
+  label: string;
   username: string;
 };
 
-const passwordGuidanceScript = `
-(function () {
-  var password = document.getElementById("account-new-password");
-  var confirmation = document.getElementById("account-password-confirmation");
-  if (!password || !confirmation) return;
-
-  function setRule(element, valid) {
-    element.classList.toggle("font-bold", valid);
-    element.classList.toggle("opacity-60", !valid);
-    element.firstElementChild.textContent = valid ? "✓" : "○";
-  }
-
-  function updateGuidance() {
-    var value = password.value;
-    var validity = {
-      length: value.length >= ${ACCOUNT_PASSWORD_MIN_LENGTH},
-      letter: /[A-Za-z]/.test(value),
-      special: /[^A-Za-z0-9\\s]/.test(value),
-      bytes: new TextEncoder().encode(value).length <= ${BCRYPT_MAX_BYTES},
-      match: confirmation.value.length > 0 && value === confirmation.value
-    };
-    document.querySelectorAll("[data-password-rule]").forEach(function (rule) {
-      setRule(rule, validity[rule.dataset.passwordRule]);
-    });
-
-    password.setCustomValidity(
-      validity.length && validity.letter && validity.special && validity.bytes
-        ? ""
-        : "Password does not meet the requirements."
-    );
-    confirmation.setCustomValidity(
-      validity.match ? "" : "Passwords must match."
-    );
-  }
-
-  password.addEventListener("input", updateGuidance);
-  confirmation.addEventListener("input", updateGuidance);
-  updateGuidance();
-})();
-`;
-
 export const Account: FC<AccountProps> = ({
+  biography,
   email,
   error,
   isAdmin = false,
+  label,
   username,
 }) => {
   const meta: LayoutMeta = {
@@ -78,6 +39,7 @@ export const Account: FC<AccountProps> = ({
         isAdmin={isAdmin}
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin/account")}
+        viewerUsername={username}
       />
       <main class="container mx-auto h-full w-full px-4 sm:w-2/3 lg:w-2/5">
         <section class="mx-auto mt-16 max-w-md">
@@ -87,6 +49,14 @@ export const Account: FC<AccountProps> = ({
             class="flex flex-col gap-5"
             method="post"
           >
+            <label class="flex flex-col gap-2 font-bold">
+              Name
+              <Input
+                autocomplete="name"
+                name="label"
+                value={label}
+              />
+            </label>
             <label class="flex flex-col gap-2 font-bold">
               Username
               <Input
@@ -107,6 +77,17 @@ export const Account: FC<AccountProps> = ({
               />
             </label>
             <label class="flex flex-col gap-2 font-bold">
+              Biography
+              <Textarea
+                maxlength={MAX_PROFILE_BIOGRAPHY_LENGTH}
+                name="biography"
+                placeholder="Tell readers about yourself."
+                rows={6}
+              >
+                {biography}
+              </Textarea>
+            </label>
+            <label class="flex flex-col gap-2 font-bold">
               Current password
               <Input
                 autocomplete="current-password"
@@ -115,44 +96,14 @@ export const Account: FC<AccountProps> = ({
                 type="password"
               />
             </label>
-            <label class="flex flex-col gap-2 font-bold">
-              New password
-              <Input
-                aria-describedby="account-password-rules"
-                autocomplete="new-password"
-                id="account-new-password"
-                minlength={ACCOUNT_PASSWORD_MIN_LENGTH}
-                name="newPassword"
-                required
-                type="password"
-              />
-            </label>
-            <ul
-              aria-live="polite"
-              class="-mt-3 grid gap-1 text-xs"
-              id="account-password-rules"
-            >
-              {ACCOUNT_PASSWORD_RULES.map((rule) => (
-                <li
-                  class="opacity-60"
-                  data-password-rule={rule.key}
-                  id={`password-rule-${rule.key}`}
-                >
-                  <span aria-hidden="true">○</span> {rule.label}
-                </li>
-              ))}
-            </ul>
-            <label class="flex flex-col gap-2 font-bold">
-              Confirm new password
-              <Input
-                autocomplete="new-password"
-                id="account-password-confirmation"
-                minlength={ACCOUNT_PASSWORD_MIN_LENGTH}
-                name="newPasswordConfirmation"
-                required
-                type="password"
-              />
-            </label>
+            <PasswordFields
+              confirmationLabel="Confirm new password"
+              confirmationName="newPasswordConfirmation"
+              idPrefix="account-new"
+              label="New password"
+              passwordName="newPassword"
+              ruleIdPrefix="password-rule"
+            />
             {error && (
               <p
                 class="font-bold text-burgundy-700 dark:text-burgundy-300"
@@ -168,7 +119,6 @@ export const Account: FC<AccountProps> = ({
           </form>
         </section>
       </main>
-      <script dangerouslySetInnerHTML={{ __html: passwordGuidanceScript }} />
     </Layout>
   );
 };
