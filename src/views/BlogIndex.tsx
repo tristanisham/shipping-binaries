@@ -8,6 +8,7 @@ import {
   setCurrentNavItem,
 } from "./components/header/Header.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
+import { toAbsoluteUrl } from "./components/SocialMeta.js";
 
 type BlogIndexProps = ViewerProps & {
   currentPage?: number;
@@ -23,6 +24,10 @@ export const BlogIndex: FC<BlogIndexProps> = ({
   const meta: LayoutMeta = {
     title: "Blog | Shipping Binaries",
     description: "Software development articles from Shipping Binaries.",
+    canonical: toAbsoluteUrl("/blog"),
+    social: {
+      title: "Shipping Binaries Blog",
+    },
   };
 
   return (

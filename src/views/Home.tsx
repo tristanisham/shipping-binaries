@@ -3,6 +3,7 @@ import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Layout, LayoutMeta } from "./layouts/MainLayout.js";
 import { PostGrid } from "./components/blog/posts/PostGrid.js";
+import { toAbsoluteUrl } from "./components/SocialMeta.js";
 import {
   defaultHeaderNav,
   Header,
@@ -27,6 +28,10 @@ export const Home: FC<HomeProps> = (
       "AI Engineer",
       "Software Development Blog",
     ],
+    canonical: toAbsoluteUrl("/"),
+    social: {
+      title: "Shipping Binaries",
+    },
   };
 
   return (

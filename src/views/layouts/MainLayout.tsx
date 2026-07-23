@@ -1,4 +1,8 @@
 import type { Child, FC } from "hono/jsx";
+import {
+  type SocialMeta,
+  SocialMetaTags,
+} from "../components/SocialMeta.js";
 
 export type LayoutMeta = {
   title?: string;
@@ -9,6 +13,9 @@ export type LayoutMeta = {
   viewport?: string;
   robots?: string;
   canonical?: string;
+  // Open Graph / Twitter card tags; title, description, and url fall back to
+  // the page's title, description, and canonical when not set.
+  social?: SocialMeta;
   // Load Alpine.js — only needed on pages with interactive `x-*` directives.
   alpine?: boolean;
 };
@@ -40,6 +47,16 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         {meta?.author && <meta name="author" content={meta.author} />}
         {meta?.robots && <meta name="robots" content={meta.robots} />}
         {meta?.canonical && <link rel="canonical" href={meta.canonical} />}
+        {meta?.social && (
+          <SocialMetaTags
+            social={{
+              title: meta.title,
+              description: meta.description,
+              url: meta.canonical,
+              ...meta.social,
+            }}
+          />
+        )}
         <link rel="icon" type="image/png" href="/favicon.png" />
         {meta?.alpine && (
           <script

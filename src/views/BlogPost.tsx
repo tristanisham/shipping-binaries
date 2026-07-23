@@ -1,13 +1,17 @@
 import type { FC } from "hono/jsx";
 import type { ViewerProps } from "../auth/viewer.js";
-import type { Post } from "../models/post.js";
+import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
 import { PostBody } from "./components/blog/PostBody.js";
 import { defaultHeaderNav, Header } from "./components/header/Header.js";
+import {
+  toAbsoluteUrl,
+  toIsoTimestamp,
+} from "./components/SocialMeta.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type BlogPostProps = ViewerProps & {
-  post: Post;
+  post: PostWithAuthor;
 };
 
 export const BlogPost: FC<BlogPostProps> = ({
@@ -15,10 +19,22 @@ export const BlogPost: FC<BlogPostProps> = ({
   isAuthenticated = false,
   post,
 }) => {
+  const postUrl = toAbsoluteUrl(`/blog/${post.slug}`);
   const meta: LayoutMeta = {
     title: `${post.title} | Shipping Binaries`,
     description: post.description,
     keywords: post.keywords,
+    canonical: postUrl,
+    social: {
+      title: post.title,
+      type: "article",
+      url: postUrl,
+      image: post.image ? toAbsoluteUrl(post.image) : undefined,
+      imageAlt: post.image ? post.title : undefined,
+      author: post.authorLabel ?? post.authorUsername,
+      publishedTime: toIsoTimestamp(post.createdAt),
+      modifiedTime: toIsoTimestamp(post.updatedAt),
+    },
   };
 
   return (

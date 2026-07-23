@@ -63,8 +63,11 @@ export const postFromRow = (
   comments,
 });
 
-const postWithAuthorFromRow = (row: PostWithAuthorRow): PostWithAuthor => ({
-  ...postFromRow(row),
+const postWithAuthorFromRow = (
+  row: PostWithAuthorRow,
+  comments: readonly BlogComment[] = [],
+): PostWithAuthor => ({
+  ...postFromRow(row, comments),
   authorLabel: row.author_label,
   authorUsername: row.author_username,
 });
@@ -326,7 +329,7 @@ export const getPublishedPosts = async (
     )
     .all<PostWithAuthorRow>();
 
-  return result.results.map(postWithAuthorFromRow);
+  return result.results.map((row) => postWithAuthorFromRow(row));
 };
 
 export const getPublishedPostsForUser = async (
@@ -345,29 +348,31 @@ export const getPublishedPostsForUser = async (
     .bind(userId)
     .all<PostWithAuthorRow>();
 
-  return result.results.map(postWithAuthorFromRow);
+  return result.results.map((row) => postWithAuthorFromRow(row));
 };
 
 export const getPublishedPostBySlug = async (
   db: D1Database,
   slug: string,
-): Promise<Post | null> => {
+): Promise<PostWithAuthor | null> => {
   const row = await db
     .prepare(
-      `SELECT ${POST_COLUMNS}
+      `SELECT ${QUALIFIED_POST_COLUMNS},
+              users.username AS author_username, users.label AS author_label
        FROM posts
-       WHERE slug = ?1 AND draft = 0
+       JOIN users ON users.id = posts.user_id
+       WHERE posts.slug = ?1 AND posts.draft = 0
        LIMIT 1`,
     )
     .bind(slug)
-    .first<PostRow>();
+    .first<PostWithAuthorRow>();
 
   if (!row) {
     return null;
   }
 
   const comments = await getCommentsForPost(db, row.id);
-  return postFromRow(row, comments);
+  return postWithAuthorFromRow(row, comments);
 };
 
 export const setPostDraft = async (

@@ -57,6 +57,7 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
                 <Input
                   class={panelField}
                   name="email"
+                  required
                   type="email"
                   value={user.email}
                 />
