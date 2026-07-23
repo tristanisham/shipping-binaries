@@ -22,14 +22,20 @@ type ListItem = {
 
 type Footnote = {
   id: string;
+  label: string;
   number: number;
   text: string;
 };
 
 type FootnoteReferenceContext = {
   counts: Map<string, number>;
+  labels: ReadonlyMap<string, string>;
   numbers: ReadonlyMap<string, number>;
 };
+
+// Ids minted by the editor's inline footnote tool and the Markdown importer
+// when the author never chose a label; these render as the footnote number.
+const autoFootnoteId = /^(?:inline-footnote|obsidian-inline)-\d+$/;
 
 const publicLinkClass =
   "text-burgundy-700 underline visited:text-burgundy-600 hover:text-burgundy-600 focus-visible:text-burgundy-600 active:text-burgundy-600 dark:text-burgundy-300 dark:visited:text-burgundy-200 dark:hover:text-burgundy-200 dark:focus-visible:text-burgundy-200 dark:active:text-burgundy-200";
@@ -113,7 +119,8 @@ const sanitizeInlineHtml = (
           ? `footnote-reference-${id}`
           : `footnote-reference-${id}-${referenceCount}`;
 
-        return `<sup><a aria-label="Footnote ${id}, note ${number}" class="${publicLinkClass}" href="#footnote-${id}" id="${referenceId}">[${id}]</a></sup>`;
+        const label = footnoteReferences.labels.get(id) ?? String(number);
+        return `<sup><a aria-label="Footnote ${label}, note ${number}" class="${publicLinkClass}" href="#footnote-${id}" id="${referenceId}">${label}</a></sup>`;
       },
     );
   }
@@ -295,9 +302,11 @@ const collectFootnotes = (blocks: readonly EditorBlock[]): Footnote[] => {
     if (!/^[A-Za-z0-9_-]+$/.test(id) || seen.has(id)) continue;
 
     seen.add(id);
+    const number = footnotes.length + 1;
     footnotes.push({
       id,
-      number: footnotes.length + 1,
+      label: autoFootnoteId.test(id) ? String(number) : id,
+      number,
       text: blockText(block),
     });
   }
@@ -343,6 +352,9 @@ export const PostBody: FC<PostBodyProps> = ({ body }) => {
   const footnotes = collectFootnotes(data.blocks);
   const footnoteReferences: FootnoteReferenceContext = {
     counts: new Map(),
+    labels: new Map(
+      footnotes.map((footnote) => [footnote.id, footnote.label]),
+    ),
     numbers: new Map(
       footnotes.map((footnote) => [footnote.id, footnote.number]),
     ),

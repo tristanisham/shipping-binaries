@@ -44,7 +44,7 @@ test("PostBody links footnote references to safely rendered definitions", () => 
   assert.match(html, /href="#footnote-source"/);
   assert.match(html, /id="footnote-reference-source"/);
   assert.match(html, /aria-label="Footnote source, note 1"/);
-  assert.match(html, /href="#footnote-source"[^>]*>\[source\]<\/a>/);
+  assert.match(html, /href="#footnote-source"[^>]*>source<\/a>/);
   assert.match(html, /id="footnote-source"/);
   assert.match(html, /role="note"/);
   assert.match(html, /id="footnotes-heading">Footnotes<\/h2>/);
@@ -53,6 +53,33 @@ test("PostBody links footnote references to safely rendered definitions", () => 
   assert.match(html, /<strong>Source<\/strong>/);
   assert.doesNotMatch(html, /<script>/);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+});
+
+test("PostBody renders auto-generated footnote ids as their order number", () => {
+  const html = renderToString(PostBody({
+    body: JSON.stringify({
+      blocks: [
+        {
+          type: "paragraph",
+          data: {
+            text: "First[^inline-footnote-1], labeled[^source]," +
+              " imported[^obsidian-inline-2].",
+          },
+        },
+        { type: "footnote", data: { id: "inline-footnote-1", text: "One" } },
+        { type: "footnote", data: { id: "source", text: "Two" } },
+        { type: "footnote", data: { id: "obsidian-inline-2", text: "Three" } },
+      ],
+    }),
+  }));
+
+  assert.match(html, /href="#footnote-inline-footnote-1"[^>]*>1<\/a><\/sup>/);
+  assert.match(html, /href="#footnote-source"[^>]*>source<\/a><\/sup>/);
+  assert.match(html, /href="#footnote-obsidian-inline-2"[^>]*>3<\/a><\/sup>/);
+  assert.match(html, /aria-label="Footnote 1, note 1"/);
+  assert.match(html, /aria-label="Footnote source, note 2"/);
+  assert.match(html, /aria-label="Footnote 3, note 3"/);
+  assert.doesNotMatch(html, /\[inline-footnote-1\]/);
 });
 
 test("PostBody leaves references visible when no definition exists", () => {
