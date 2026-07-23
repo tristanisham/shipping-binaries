@@ -4,6 +4,7 @@ import { ADMIN_ROLE } from "../models/role.js";
 export type ViewerProps = {
   isAdmin?: boolean;
   isAuthenticated?: boolean;
+  viewerUserId?: number | null;
 };
 
 export type ViewerState = Required<ViewerProps>;
@@ -23,5 +24,6 @@ export const getViewerState = async (
   return {
     isAdmin: user ? hasAdminRole(user.roles) : false,
     isAuthenticated: Boolean(user),
+    viewerUserId: user?.id ?? null,
   };
 };

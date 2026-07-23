@@ -2,7 +2,7 @@ import type { FC } from "hono/jsx";
 import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Layout, LayoutMeta } from "./layouts/MainLayout.js";
-import { PostGrid } from "./components/blog/posts/PostGrid.js";
+import { PostList } from "./components/blog/posts/PostList.js";
 import { toAbsoluteUrl } from "./components/SocialMeta.js";
 import {
   defaultHeaderNav,
@@ -16,7 +16,13 @@ type HomeProps = ViewerProps & {
 };
 
 export const Home: FC<HomeProps> = (
-  { currentPage = 1, isAdmin = false, isAuthenticated = false, posts = [] },
+  {
+    currentPage = 1,
+    isAdmin = false,
+    isAuthenticated = false,
+    posts = [],
+    viewerUserId = null,
+  },
 ) => {
   const meta: LayoutMeta = {
     title: "Home | Shipping Binaries",
@@ -41,8 +47,14 @@ export const Home: FC<HomeProps> = (
         isAuthenticated={isAuthenticated}
         nav={setCurrentNavItem(defaultHeaderNav, "/")}
       />
-      <main class="container mx-auto px-4 pb-16">
-        <PostGrid currentPage={currentPage} posts={posts} />
+      <main class="w-full px-4 pb-16">
+        <PostList
+          currentPage={currentPage}
+          isAdmin={isAdmin}
+          pageBasePath="/"
+          posts={posts}
+          viewerUserId={viewerUserId}
+        />
       </main>
     </Layout>
   );

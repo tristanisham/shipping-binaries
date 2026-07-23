@@ -104,8 +104,24 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
                     <tbody>
                       {posts.map((post) => (
                         <tr class="border-b border-amber-50/10 last:border-0 dark:border-mist-600/10">
-                          <td class="max-w-xs truncate py-3 pr-4 font-medium text-amber-50 dark:text-mist-600">
-                            {post.title}
+                          <td class="max-w-xs py-3 pr-4 font-medium text-amber-50 dark:text-mist-600">
+                            <a
+                              class="group inline-flex items-center gap-1.5 hover:underline"
+                              href={`/blog/${post.slug}`}
+                            >
+                              <span class="truncate">{post.title}</span>
+                              <svg
+                                aria-hidden="true"
+                                class="size-4 shrink-0 fill-none stroke-current opacity-0 transition-opacity group-hover:opacity-100"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                              </svg>
+                            </a>
                           </td>
                           <td class={`py-3 pr-4 ${panelMuted}`}>
                             {post.authorUsername}

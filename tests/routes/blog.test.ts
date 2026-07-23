@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import app from "../../src/index.js";
 import { createPost } from "../../src/models/post.js";
-import { createSession, SESSION_COOKIE_NAME } from "../../src/models/session.js";
+import {
+  createSession,
+  SESSION_COOKIE_NAME,
+} from "../../src/models/session.js";
 import { createTestDb, seedUser } from "../helpers/d1.js";
 
 test("published posts render at their slug and drafts stay private", async () => {
@@ -48,6 +51,23 @@ test("published posts render at their slug and drafts stay private", async () =>
   assert.match(html, /Public post/);
   assert.match(html, /<h2[^>]*><span>A heading<\/span><\/h2>/);
   assert.match(html, /A <strong>public<\/strong> body/);
+  assert.match(html, /href="\/@owner"/);
+  assert.match(html, /Site Owner/);
+  assert.match(html, /aria-label="Share Public post"/);
+  assert.match(html, /aria-label="0 comments on Public post"/);
+  assert.doesNotMatch(html, /aria-label="Edit Public post"/);
+  assert.doesNotMatch(html, /aria-label="Read Public post"/);
+
+  const authorToken = await createSession(db, userId);
+  const authorResponse = await app.request(
+    "/blog/public-post",
+    { headers: { Cookie: `${SESSION_COOKIE_NAME}=${authorToken}` } },
+    { DB: db } as Env,
+  );
+  const authorHtml = await authorResponse.text();
+  assert.equal(authorResponse.status, 200);
+  assert.match(authorHtml, /aria-label="Edit Public post"/);
+  assert.match(authorHtml, /href="\/admin\/write\?id=1"/);
 
   const draftResponse = await app.request(
     "/blog/private-draft",
@@ -115,7 +135,7 @@ test("blog index lists published posts and excludes drafts", async () => {
   assert.match(html, /<title>Blog \| Shipping Binaries<\/title>/);
   assert.match(html, /aria-current="page"[^>]*href="\/blog"/);
   assert.match(html, /href="\/blog\/listed-post"/);
-  assert.match(html, /font-sans text-4xl font-bold sm:text-6xl/);
+  assert.match(html, /font-sans text-3xl font-bold sm:text-4xl/);
   assert.match(html, /href="\/@owner"/);
   assert.match(html, /Site Owner/);
   assert.doesNotMatch(html, /Unlisted draft/);

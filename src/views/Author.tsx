@@ -23,6 +23,7 @@ export const Author: FC<AuthorProps> = ({
   isAdmin = false,
   isAuthenticated = false,
   posts,
+  viewerUserId = null,
 }) => {
   const displayName = author.label ?? author.username;
   const meta: LayoutMeta = {
@@ -48,8 +49,10 @@ export const Author: FC<AuthorProps> = ({
         </header>
         <PostList
           currentPage={currentPage}
+          isAdmin={isAdmin}
           pageBasePath={`/@${encodeURIComponent(author.username)}`}
           posts={posts}
+          viewerUserId={viewerUserId}
         />
       </main>
     </Layout>

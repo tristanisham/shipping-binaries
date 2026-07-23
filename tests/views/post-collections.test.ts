@@ -38,6 +38,13 @@ test("PostList defaults to five posts and links author and pagination", () => {
   assert.match(html, /Alice Author/);
   assert.match(html, /Published July 6, 2026/);
   assert.match(html, /aria-label="Share Post 6"/);
+  assert.match(html, /data-share-author="Alice Author"/);
+  assert.match(html, /I just finished reading/);
+  assert.match(html, /navigator\.canShare/);
+  assert.match(html, /navigator\.share/);
+  assert.match(html, /navigator\.clipboard/);
+  assert.match(html, /Copy this share message/);
+  assert.match(html, /data-share-status/);
   assert.match(html, /aria-label="0 comments on Post 6"/);
   assert.match(html, /text-xs tabular-nums">0<\/span>/);
   assert.match(html, /href="\/blog\/post-6#comments"/);
@@ -46,7 +53,68 @@ test("PostList defaults to five posts and links author and pagination", () => {
   assert.match(html, /<span>Read<\/span>/);
   assert.match(html, /ml-auto flex shrink-0 items-center gap-2/);
   assert.match(html, /href="\/blog\?page=2"[^>]*rel="next"/);
-  assert.match(html, /font-sans text-4xl font-bold sm:text-6xl/);
+  assert.match(html, /mx-auto mt-16 w-full max-w-\[60rem\]/);
+  assert.match(html, /flex w-full flex-col rounded-b-2xl/);
+  assert.match(html, /font-sans text-3xl font-bold sm:text-4xl/);
+  assert.match(html, /mt-4 block w-fit font-semibold text-chocolate-500/);
+  assert.match(html, /href="\/blog\/post-6"[^>]*>Read more\.\.\.<\/a>/);
+});
+
+test("PostList adjusts body depth to the number of posts", () => {
+  const posts = makePosts(3).map((post) => ({
+    ...post,
+    body: JSON.stringify({
+      blocks: [
+        { type: "paragraph", data: { text: `<b>First ${post.id}</b>` } },
+        { type: "paragraph", data: { text: `Second ${post.id}` } },
+        { type: "paragraph", data: { text: `Third ${post.id}` } },
+        { type: "paragraph", data: { text: `Fourth ${post.id}` } },
+      ],
+    }),
+  }));
+
+  const single = renderToString(PostList({ posts: [posts[0]] }));
+  assert.match(single, /<strong>First 1<\/strong>/);
+  assert.match(single, /Fourth 1/);
+  assert.doesNotMatch(single, /Read more\.\.\./);
+
+  const pair = renderToString(PostList({ posts: posts.slice(0, 2) }));
+  assert.match(pair, /<p>First 2<\/p>/);
+  assert.match(pair, /<p>Second 2<\/p>/);
+  assert.match(pair, /<p>Third 2<\/p>/);
+  assert.doesNotMatch(pair, /Fourth 2/);
+  assert.doesNotMatch(pair, /line-clamp-4/);
+  assert.equal(pair.match(/>Read more\.\.\.<\/a>/g)?.length, 2);
+
+  const compact = renderToString(PostList({ posts }));
+  assert.match(compact, /line-clamp-4/);
+  assert.equal(compact.match(/>Read more\.\.\.<\/a>/g)?.length, 3);
+});
+
+test("PostList shows Edit first for the post author or an admin", () => {
+  const [post] = makePosts(1);
+  const author = renderToString(PostList({
+    posts: [post],
+    viewerUserId: post.userId,
+  }));
+  const admin = renderToString(PostList({
+    isAdmin: true,
+    posts: [post],
+    viewerUserId: 99,
+  }));
+  const otherViewer = renderToString(PostList({
+    posts: [post],
+    viewerUserId: 99,
+  }));
+
+  assert.match(author, /aria-label="Edit Post 1"/);
+  assert.match(author, /href="\/admin\/write\?id=1"/);
+  assert.ok(
+    author.indexOf('aria-label="Edit Post 1"') <
+      author.indexOf('aria-label="Share Post 1"'),
+  );
+  assert.match(admin, /aria-label="Edit Post 1"/);
+  assert.doesNotMatch(otherViewer, /aria-label="Edit Post 1"/);
 });
 
 test("comment counts use compact lowercase notation", () => {

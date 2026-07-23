@@ -3,11 +3,9 @@ import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
 import { PostBody } from "./components/blog/PostBody.js";
+import { PostMeta } from "./components/blog/posts/PostMeta.js";
 import { defaultHeaderNav, Header } from "./components/header/Header.js";
-import {
-  toAbsoluteUrl,
-  toIsoTimestamp,
-} from "./components/SocialMeta.js";
+import { toAbsoluteUrl, toIsoTimestamp } from "./components/SocialMeta.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type BlogPostProps = ViewerProps & {
@@ -18,6 +16,7 @@ export const BlogPost: FC<BlogPostProps> = ({
   isAdmin = false,
   isAuthenticated = false,
   post,
+  viewerUserId = null,
 }) => {
   const postUrl = toAbsoluteUrl(`/blog/${post.slug}`);
   const meta: LayoutMeta = {
@@ -51,6 +50,11 @@ export const BlogPost: FC<BlogPostProps> = ({
             {post.description
               ? <p class="mt-3 text-lg opacity-75">{post.description}</p>
               : null}
+            <PostMeta
+              canEdit={isAdmin || viewerUserId === post.userId}
+              post={post}
+              showRead={false}
+            />
           </header>
           {post.image
             ? (
