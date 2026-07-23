@@ -965,83 +965,95 @@ authRoute.post(
   },
 );
 
-authRoute.post("/admin/users/:id/active", async (c) => {
-  c.header("Cache-Control", "no-store");
-  const id = Number.parseInt(c.req.param("id"), 10);
+authRoute.post(
+  "/admin/users/:id/active",
+  Permission.require(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
 
-  if (Number.isInteger(id)) {
-    const body = await c.req.parseBody();
-    await setUserActive(c.env.DB, id, body.active === "1");
-  }
+    if (Number.isInteger(id)) {
+      const body = await c.req.parseBody();
+      await setUserActive(c.env.DB, id, body.active === "1");
+    }
 
-  return c.redirect("/admin/users", 303);
-});
-
-authRoute.get("/admin/users/:id/edit", async (c) => {
-  c.header("Cache-Control", "no-store");
-  const id = Number.parseInt(c.req.param("id"), 10);
-  const user = Number.isInteger(id) ? await getUserById(c.env.DB, id) : null;
-
-  if (!user) {
-    return c.notFound();
-  }
-
-  return c.html(
-    <AdminUserEdit
-      user={user}
-      viewerUsername={c.var.currentUser.username}
-    />,
-  );
-});
-
-authRoute.post("/admin/users/:id", async (c) => {
-  c.header("Cache-Control", "no-store");
-  const id = Number.parseInt(c.req.param("id"), 10);
-
-  if (!Number.isInteger(id)) {
     return c.redirect("/admin/users", 303);
-  }
+  },
+);
 
-  const body = await c.req.parseBody({ all: true });
-  const email = formString(body, "email", true);
-  const username = formString(body, "username", true);
-  const labelValue = formString(body, "label", true);
-  const label = labelValue.length > 0 ? labelValue : null;
-  const password = formString(body, "password");
-  const roleIds = formRoleIds(body);
-  const inlineSave = c.req.header("Accept")?.includes("application/json") ??
-    false;
+authRoute.get(
+  "/admin/users/:id/edit",
+  Permission.require(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
+    const user = Number.isInteger(id) ? await getUserById(c.env.DB, id) : null;
 
-  if (id === c.var.currentUser.id) {
-    const adminRole = await getRoleByName(c.env.DB, ADMIN_ROLE);
-    if (adminRole) roleIds.push(adminRole.id);
-  }
-
-  try {
-    await updateUser(c.env.DB, id, { email, username, label });
-    await setRolesForUser(c.env.DB, id, roleIds);
-
-    const active = formString(body, "active");
-    if (active) {
-      await setUserActive(c.env.DB, id, active === "1");
+    if (!user) {
+      return c.notFound();
     }
 
-    if (password.length > 0) {
-      await setUserPassword(c.env.DB, id, await hashPassword(password));
-    }
-  } catch (error) {
-    if (inlineSave) {
-      return c.json(
-        { saved: false },
-        isUniqueUserError(error) ? 409 : 500,
-      );
-    }
-    throw error;
-  }
+    return c.html(
+      <AdminUserEdit
+        user={user}
+        viewerUsername={c.var.currentUser.username}
+      />,
+    );
+  },
+);
 
-  if (inlineSave) return c.json({ saved: true });
-  return c.redirect("/admin/users", 303);
-});
+authRoute.post(
+  "/admin/users/:id",
+  Permission.require(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
+
+    if (!Number.isInteger(id)) {
+      return c.redirect("/admin/users", 303);
+    }
+
+    const body = await c.req.parseBody({ all: true });
+    const email = formString(body, "email", true);
+    const username = formString(body, "username", true);
+    const labelValue = formString(body, "label", true);
+    const label = labelValue.length > 0 ? labelValue : null;
+    const password = formString(body, "password");
+    const roleIds = formRoleIds(body);
+    const inlineSave = c.req.header("Accept")?.includes("application/json") ??
+      false;
+
+    if (id === c.var.currentUser.id) {
+      const adminRole = await getRoleByName(c.env.DB, ADMIN_ROLE);
+      if (adminRole) roleIds.push(adminRole.id);
+    }
+
+    try {
+      await updateUser(c.env.DB, id, { email, username, label });
+      await setRolesForUser(c.env.DB, id, roleIds);
+
+      const active = formString(body, "active");
+      if (active) {
+        await setUserActive(c.env.DB, id, active === "1");
+      }
+
+      if (password.length > 0) {
+        await setUserPassword(c.env.DB, id, await hashPassword(password));
+      }
+    } catch (error) {
+      if (inlineSave) {
+        return c.json(
+          { saved: false },
+          isUniqueUserError(error) ? 409 : 500,
+        );
+      }
+      throw error;
+    }
+
+    if (inlineSave) return c.json({ saved: true });
+    return c.redirect("/admin/users", 303);
+  },
+);
 
 authRoute.get("/admin/account", async (c) => {
   c.header("Cache-Control", "no-store");

@@ -127,6 +127,61 @@ test("posts:update lets a non-owner reach any post editor", async () => {
   assert.equal(editor.status, 200);
 });
 
+test("users:update guards every user-mutating route (no escalation)", async () => {
+  const db = createTestDb();
+  const attackerId = await seedUser(db, {
+    email: "attacker@example.com",
+    username: "attacker",
+  });
+  const victimId = await seedUser(db, {
+    email: "victim@example.com",
+    username: "victim",
+  });
+  // The attacker has no roles or permissions, like a fresh signup.
+  const token = await createSession(db, attackerId);
+  const headers = { Cookie: `${SESSION_COOKIE_NAME}=${token}` };
+  const form = {
+    ...headers,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+
+  // Cannot grant themselves a role via the user-update endpoint...
+  const escalate = await app.request(
+    `/admin/users/${attackerId}`,
+    {
+      body: new URLSearchParams({
+        email: "attacker@example.com",
+        roleIds: "1",
+        username: "attacker",
+      }).toString(),
+      headers: form,
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(escalate.status, 403);
+
+  // ...cannot open the edit form...
+  const editForm = await app.request(
+    `/admin/users/${victimId}/edit`,
+    { headers },
+    { DB: db } as Env,
+  );
+  assert.equal(editForm.status, 403);
+
+  // ...and cannot toggle another user's active state.
+  const toggle = await app.request(
+    `/admin/users/${victimId}/active`,
+    {
+      body: new URLSearchParams({ active: "0" }).toString(),
+      headers: form,
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(toggle.status, 403);
+});
+
 test("admins can create and toggle permissions for a selected role", async () => {
   const db = createTestDb();
   const userId = await seedUser(db, {
