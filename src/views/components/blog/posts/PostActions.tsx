@@ -3,13 +3,14 @@ import { buttonVariants } from "../../ui/Button.js";
 
 type PostActionsProps = {
   commentCount: number;
+  displayName: string;
   href: string;
   inverse?: boolean;
   title: string;
 };
 
 const sharePost =
-  "var url=new URL(this.dataset.sharePath,window.location.origin).href; if(navigator.share){navigator.share({title:this.dataset.shareTitle,url:url}).catch(function(){})}else if(navigator.clipboard){navigator.clipboard.writeText(url).then(function(){this.title='Link copied'}.bind(this))}";
+  "var url=new URL(this.dataset.sharePath,window.location.origin).href; var text='I just finished reading '+this.dataset.shareTitle+' by '+this.dataset.shareAuthor+' on Shipping Binaries'; var message=text+'\\n\\n'+url; if(navigator.share){navigator.share({title:this.dataset.shareTitle,text:text,url:url}).catch(function(){})}else if(navigator.clipboard){navigator.clipboard.writeText(message).then(function(){this.title='Message copied'}.bind(this))}";
 
 const commentCountFormatter = new Intl.NumberFormat("en-US", {
   compactDisplay: "short",
@@ -22,6 +23,7 @@ export const formatCommentCount = (count: number): string =>
 
 export const PostActions: FC<PostActionsProps> = ({
   commentCount,
+  displayName,
   href,
   inverse = false,
   title,
@@ -39,6 +41,7 @@ export const PostActions: FC<PostActionsProps> = ({
         title="Share"
         type="button"
         {...{
+          "data-share-author": displayName,
           "data-share-path": href,
           "data-share-title": title,
         }}
@@ -59,7 +62,9 @@ export const PostActions: FC<PostActionsProps> = ({
         </svg>
       </button>
       <a
-        aria-label={`${commentCount} ${commentCount === 1 ? "comment" : "comments"} on ${title}`}
+        aria-label={`${commentCount} ${
+          commentCount === 1 ? "comment" : "comments"
+        } on ${title}`}
         class={`${buttonClass} min-w-8 !w-auto gap-1.5 px-2`}
         href={`${href}#comments`}
         title={`${commentCount} ${commentCount === 1 ? "comment" : "comments"}`}

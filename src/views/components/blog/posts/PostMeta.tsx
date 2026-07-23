@@ -9,6 +9,7 @@ type PostMetaProps = {
 };
 
 export const PostMeta: FC<PostMetaProps> = ({ inverse = false, post }) => {
+  const displayName = post.authorLabel ?? `@${post.authorUsername}`;
   const href = `/blog/${post.slug}`;
 
   return (
@@ -17,7 +18,7 @@ export const PostMeta: FC<PostMetaProps> = ({ inverse = false, post }) => {
         class="font-semibold hover:underline"
         href={`/@${encodeURIComponent(post.authorUsername)}`}
       >
-        {post.authorLabel ?? `@${post.authorUsername}`}
+        {displayName}
       </a>
       <span aria-hidden="true" class="opacity-50">•</span>
       <time
@@ -28,6 +29,7 @@ export const PostMeta: FC<PostMetaProps> = ({ inverse = false, post }) => {
       </time>
       <PostActions
         commentCount={post.comments.length}
+        displayName={displayName}
         href={href}
         inverse={inverse}
         title={post.title}

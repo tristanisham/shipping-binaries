@@ -38,6 +38,10 @@ test("PostList defaults to five posts and links author and pagination", () => {
   assert.match(html, /Alice Author/);
   assert.match(html, /Published July 6, 2026/);
   assert.match(html, /aria-label="Share Post 6"/);
+  assert.match(html, /data-share-author="Alice Author"/);
+  assert.match(html, /I just finished reading/);
+  assert.match(html, /navigator\.share/);
+  assert.match(html, /navigator\.clipboard/);
   assert.match(html, /aria-label="0 comments on Post 6"/);
   assert.match(html, /text-xs tabular-nums">0<\/span>/);
   assert.match(html, /href="\/blog\/post-6#comments"/);
