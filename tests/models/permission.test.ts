@@ -76,10 +76,10 @@ test("custom roles can be granted custom permissions", async () => {
     email: "editor@example.com",
     username: "editor",
   });
-  const roleId = await createRole(db, "editor");
+  const roleId = await createRole(db, "contributor");
   await Permission.create(db, "posts:publish");
   await Permission.assignToRole(db, roleId, "posts:publish");
-  await assignRoleToUser(db, userId, "editor");
+  await assignRoleToUser(db, userId, "contributor");
 
   assert.equal(await Permission.can("posts:publish", db, userId), true);
   assert.deepEqual(
