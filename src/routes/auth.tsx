@@ -82,6 +82,7 @@ import { Account } from "../views/Account.js";
 import { AdminHome } from "../views/AdminHome.js";
 import { AdminPosts } from "../views/AdminPosts.js";
 import { AdminRoles } from "../views/AdminRoles.js";
+import { AdminUserAccess } from "../views/AdminUserAccess.js";
 import { AdminUserEdit } from "../views/AdminUserEdit.js";
 import { AdminUsers } from "../views/AdminUsers.js";
 import { ForgotPassword } from "../views/ForgotPassword.js";
@@ -1051,6 +1052,35 @@ authRoute.post(
 
     if (inlineSave) return c.json({ saved: true });
     return c.redirect("/admin/users", 303);
+  },
+);
+
+authRoute.get(
+  "/admin/users/:id/permissions",
+  Permission.require(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
+    const user = Number.isInteger(id) ? await getUserById(c.env.DB, id) : null;
+    if (!user) {
+      return c.notFound();
+    }
+
+    const [roles, permissions, denials] = await Promise.all([
+      getAllRoles(c.env.DB),
+      Permission.forUser(c.env.DB, user.id),
+      Permission.denialsForUser(c.env.DB, user.id),
+    ]);
+
+    return c.html(
+      <AdminUserAccess
+        denials={denials}
+        permissions={permissions}
+        roles={roles}
+        user={user}
+        viewerUsername={c.var.currentUser.username}
+      />,
+    );
   },
 );
 

@@ -391,3 +391,32 @@ test("denial routes require users:update", async () => {
   );
   assert.equal(res.status, 403);
 });
+
+test("GET /admin/users/:id/permissions renders for users:update, 403 otherwise", async () => {
+  const db = createTestDb();
+  const admin = await seedUser(db, {
+    email: "a4@example.com",
+    username: "a4",
+  });
+  const target = await seedUser(db, {
+    email: "t4@example.com",
+    username: "t4",
+  });
+  await assignRoleToUser(db, admin, ADMIN_ROLE);
+  const adminToken = await createSession(db, admin);
+  const ok = await app.request(
+    `/admin/users/${target}/permissions`,
+    { headers: { Cookie: `${SESSION_COOKIE_NAME}=${adminToken}` } },
+    { DB: db } as Env,
+  );
+  assert.equal(ok.status, 200);
+  assert.ok((await ok.text()).includes(`/admin/users/${target}/roles`));
+
+  const nobodyToken = await createSession(db, target);
+  const denied = await app.request(
+    `/admin/users/${target}/permissions`,
+    { headers: { Cookie: `${SESSION_COOKIE_NAME}=${nobodyToken}` } },
+    { DB: db } as Env,
+  );
+  assert.equal(denied.status, 403);
+});
