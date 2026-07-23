@@ -2,7 +2,7 @@ import type { FC } from "hono/jsx";
 import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Layout, LayoutMeta } from "./layouts/MainLayout.js";
-import { PostGrid } from "./components/blog/posts/PostGrid.js";
+import { PostList } from "./components/blog/posts/PostList.js";
 import { toAbsoluteUrl } from "./components/SocialMeta.js";
 import {
   defaultHeaderNav,
@@ -42,7 +42,11 @@ export const Home: FC<HomeProps> = (
         nav={setCurrentNavItem(defaultHeaderNav, "/")}
       />
       <main class="container mx-auto px-4 pb-16">
-        <PostGrid currentPage={currentPage} posts={posts} />
+        <PostList
+          currentPage={currentPage}
+          pageBasePath="/"
+          posts={posts}
+        />
       </main>
     </Layout>
   );
