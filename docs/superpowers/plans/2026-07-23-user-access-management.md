@@ -125,62 +125,48 @@ CREATE INDEX IF NOT EXISTS user_permission_denials_user_id_index
   ON user_permission_denials(user_id);
 ```
 
-- [ ] **Step 2: Write failing tests for the denial methods.**
+- [ ] **Step 2: Write failing tests for the denial methods (CRUD only — no `can` dependency).**
 
-Append to `tests/models/permission.test.ts` (imports: add `Permission` is already imported; add `USERS_READ_PERMISSION` if not present, and `INDEFINITE_DENIAL_EXPIRES_AT`):
+Append to `tests/models/permission.test.ts` (imports: `Permission` is already imported; add `USERS_READ_PERMISSION` if not present, and `INDEFINITE_DENIAL_EXPIRES_AT`):
 
 ```ts
-test("deny suppresses a role-granted permission until cleared", async () => {
+test("deny records a denial (upserting) and restore removes it", async () => {
   const db = createTestDb();
   const userId = await seedUser(db, {
     email: "u@example.com",
     username: "u",
   });
-  await assignRoleToUser(db, userId, "admin"); // admin holds users:read
   const permission = (await Permission.all(db)).find(
     ({ name }) => name === USERS_READ_PERMISSION,
   );
   assert.ok(permission);
-
-  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), true);
 
   await Permission.deny(db, userId, permission.id, INDEFINITE_DENIAL_EXPIRES_AT);
-  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), false);
+  assert.deepEqual(
+    (await Permission.denialsForUser(db, userId)).map((d) => ({
+      expiresAt: d.expiresAt,
+      permissionId: d.permissionId,
+    })),
+    [{ expiresAt: INDEFINITE_DENIAL_EXPIRES_AT, permissionId: permission.id }],
+  );
+
+  // Re-denying upserts: one row, expiry updated.
+  const future = new Date(Date.now() + 60_000).toISOString();
+  await Permission.deny(db, userId, permission.id, future);
+  assert.deepEqual(
+    (await Permission.denialsForUser(db, userId)).map((d) => d.expiresAt),
+    [future],
+  );
 
   await Permission.restore(db, userId, permission.id);
-  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), true);
-});
-
-test("an expired snooze does not suppress a permission", async () => {
-  const db = createTestDb();
-  const userId = await seedUser(db, {
-    email: "u2@example.com",
-    username: "u2",
-  });
-  await assignRoleToUser(db, userId, "admin");
-  const permission = (await Permission.all(db)).find(
-    ({ name }) => name === USERS_READ_PERMISSION,
-  );
-  assert.ok(permission);
-
-  const past = new Date(Date.now() - 60_000).toISOString();
-  await Permission.deny(db, userId, permission.id, past);
-  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), true);
-
-  const future = new Date(Date.now() + 60_000).toISOString();
-  await Permission.deny(db, userId, permission.id, future); // upsert
-  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), false);
-  assert.deepEqual(
-    (await Permission.denialsForUser(db, userId)).map((d) => d.permissionId),
-    [permission.id],
-  );
+  assert.deepEqual(await Permission.denialsForUser(db, userId), []);
 });
 ```
 
 - [ ] **Step 3: Run tests to verify they fail.**
 
-Run: `npm test 2>&1 | grep -E "deny suppresses|expired snooze|fail"`
-Expected: FAIL — `Permission.deny is not a function` (and the denial clause in `can` not yet present).
+Run: `npm test 2>&1 | grep -E "deny records a denial|fail"`
+Expected: FAIL — `Permission.deny is not a function`.
 
 - [ ] **Step 4: Implement the sentinel, type, and methods.**
 
@@ -251,11 +237,11 @@ static async denialsForUser(
 }
 ```
 
-(The `can` denial clause is added in Task 3; the failing `deny`/`restore`/`denialsForUser` tests that don't depend on suppression will pass now, and the two suppression tests pass after Task 3. If running strictly TDD, expect the suppression assertions to remain red until Task 3.)
+(The `can` denial clause is added in Task 3; this task's CRUD test does not exercise `can`, so it goes fully green here.)
 
-- [ ] **Step 5: Typecheck, then commit.**
+- [ ] **Step 5: Typecheck, run the CRUD test, then commit.**
 
-Run: `npm run typecheck` → no errors.
+Run: `npm run typecheck` → no errors. `npm test 2>&1 | grep -E "deny records a denial"` → PASS.
 
 ```bash
 deno fmt src/models/permission.ts tests/models/permission.test.ts
@@ -272,10 +258,63 @@ git commit -m "feat: add user_permission_denials table and denial data-access"
 - Test: `tests/models/permission.test.ts` (Task 2's suppression tests now go green)
 
 **Interfaces:**
-- Consumes: `user_permission_denials` (Task 2).
+- Consumes: `user_permission_denials` (Task 2), `INDEFINITE_DENIAL_EXPIRES_AT`.
 - Produces: `Permission.can` now returns `false` when an active denial exists for `(userId, permissionName)`. Signature unchanged.
 
-- [ ] **Step 1: Add the denial clause and the `now` binding.**
+- [ ] **Step 1: Write failing suppression tests.**
+
+Append to `tests/models/permission.test.ts`:
+
+```ts
+test("deny suppresses a role-granted permission until cleared", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, {
+    email: "s1@example.com",
+    username: "s1",
+  });
+  await assignRoleToUser(db, userId, "admin"); // admin holds users:read
+  const permission = (await Permission.all(db)).find(
+    ({ name }) => name === USERS_READ_PERMISSION,
+  );
+  assert.ok(permission);
+
+  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), true);
+
+  await Permission.deny(db, userId, permission.id, INDEFINITE_DENIAL_EXPIRES_AT);
+  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), false);
+
+  await Permission.restore(db, userId, permission.id);
+  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), true);
+});
+
+test("an expired snooze does not suppress; a future one does", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, {
+    email: "s2@example.com",
+    username: "s2",
+  });
+  await assignRoleToUser(db, userId, "admin");
+  const permission = (await Permission.all(db)).find(
+    ({ name }) => name === USERS_READ_PERMISSION,
+  );
+  assert.ok(permission);
+
+  const past = new Date(Date.now() - 60_000).toISOString();
+  await Permission.deny(db, userId, permission.id, past);
+  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), true);
+
+  const future = new Date(Date.now() + 60_000).toISOString();
+  await Permission.deny(db, userId, permission.id, future);
+  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), false);
+});
+```
+
+- [ ] **Step 2: Run to verify they fail.**
+
+Run: `npm test 2>&1 | grep -E "deny suppresses|expired snooze"`
+Expected: FAIL — `can` does not yet consult denials, so the deny assertions return `true`.
+
+- [ ] **Step 3: Add the denial clause and the `now` binding.**
 
 Replace the body of `Permission.can` with:
 
@@ -313,17 +352,17 @@ static async can(
 }
 ```
 
-- [ ] **Step 2: Run the suppression tests — now passing.**
+- [ ] **Step 4: Run the suppression tests — now passing.**
 
 Run: `npm test 2>&1 | grep -E "deny suppresses|expired snooze"`
 Expected: both PASS.
 
-- [ ] **Step 3: Run the full suite.**
+- [ ] **Step 5: Run the full suite.**
 
 Run: `npm test`
-Expected: all pass (98 tests: 96 prior + 2 new).
+Expected: all pass (99 tests: 96 prior + 1 CRUD (Task 2) + 2 suppression).
 
-- [ ] **Step 4: Format and commit.**
+- [ ] **Step 6: Format and commit.**
 
 ```bash
 deno fmt src/models/permission.ts
