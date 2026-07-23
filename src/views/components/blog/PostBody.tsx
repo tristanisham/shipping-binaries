@@ -13,6 +13,13 @@ type EditorData = {
 
 type PostBodyProps = {
   body: string;
+  headings?: readonly PostHeading[];
+};
+
+export type PostHeading = {
+  id: string;
+  label: string;
+  level: 2 | 3 | 4;
 };
 
 type ListItem = {
@@ -145,6 +152,57 @@ const blockText = (block: EditorBlock, key = "text"): string => {
   return typeof value === "string" ? value : "";
 };
 
+const decodeHeadingText = (value: string): string =>
+  value
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0*39;|&apos;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const headingLevel = (block: EditorBlock): PostHeading["level"] => {
+  const level = Number(block.data?.level);
+  return level === 3 || level === 4 ? level : 2;
+};
+
+const headingSlug = (value: string): string =>
+  value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "section";
+
+export const getPostHeadings = (body: string): PostHeading[] => {
+  const counts = new Map<string, number>();
+
+  return parseBody(body).blocks.flatMap((block) => {
+    if (block.type !== "header") {
+      return [];
+    }
+
+    const label = decodeHeadingText(blockText(block));
+    if (!label) {
+      return [];
+    }
+
+    const baseId = headingSlug(label);
+    const count = (counts.get(baseId) ?? 0) + 1;
+    counts.set(baseId, count);
+
+    return [{
+      id: count === 1 ? baseId : `${baseId}-${count}`,
+      label,
+      level: headingLevel(block),
+    }];
+  });
+};
+
 const InlineText: FC<{
   footnoteReferences?: FootnoteReferenceContext;
   value: string;
@@ -216,7 +274,8 @@ const ListItems: FC<{
 const EditorBlockView: FC<{
   block: EditorBlock;
   footnoteReferences: FootnoteReferenceContext;
-}> = ({ block, footnoteReferences }) => {
+  heading?: PostHeading;
+}> = ({ block, footnoteReferences, heading }) => {
   if (block.type === "legacy") {
     return <p class="whitespace-pre-wrap">{blockText(block)}</p>;
   }
@@ -230,10 +289,19 @@ const EditorBlockView: FC<{
       />
     );
 
-    if (level === 2) return <h2 class="text-2xl font-bold">{content}</h2>;
-    if (level === 3) return <h3 class="text-xl font-bold">{content}</h3>;
-    if (level === 4) return <h4 class="text-lg font-bold">{content}</h4>;
-    return <h2 class="text-2xl font-bold">{content}</h2>;
+    if (level === 3) {
+      return <h3 class="scroll-mt-8 text-xl font-bold" id={heading?.id}>
+        {content}
+      </h3>;
+    }
+    if (level === 4) {
+      return <h4 class="scroll-mt-8 text-lg font-bold" id={heading?.id}>
+        {content}
+      </h4>;
+    }
+    return <h2 class="scroll-mt-8 text-2xl font-bold" id={heading?.id}>
+      {content}
+    </h2>;
   }
 
   if (block.type === "quote") {
@@ -347,7 +415,7 @@ const FootnotesSection: FC<{
   </section>
 );
 
-export const PostBody: FC<PostBodyProps> = ({ body }) => {
+export const PostBody: FC<PostBodyProps> = ({ body, headings }) => {
   const data = parseBody(body);
   const footnotes = collectFootnotes(data.blocks);
   const footnoteReferences: FootnoteReferenceContext = {
@@ -362,15 +430,24 @@ export const PostBody: FC<PostBodyProps> = ({ body }) => {
   const contentBlocks = data.blocks.filter((block) =>
     block.type !== "footnote"
   );
+  let headingIndex = 0;
 
   return (
     <div class="space-y-4 leading-relaxed">
-      {contentBlocks.map((block) => (
-        <EditorBlockView
-          block={block}
-          footnoteReferences={footnoteReferences}
-        />
-      ))}
+      {contentBlocks.map((block) => {
+        const heading = block.type === "header" &&
+            decodeHeadingText(blockText(block))
+          ? headings?.[headingIndex++]
+          : undefined;
+
+        return (
+          <EditorBlockView
+            block={block}
+            footnoteReferences={footnoteReferences}
+            heading={heading}
+          />
+        );
+      })}
       {footnotes.length > 0
         ? (
           <FootnotesSection

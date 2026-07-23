@@ -2,8 +2,12 @@ import type { FC } from "hono/jsx";
 import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
-import { PostBody } from "./components/blog/PostBody.js";
+import {
+  getPostHeadings,
+  PostBody,
+} from "./components/blog/PostBody.js";
 import { PostMeta } from "./components/blog/posts/PostMeta.js";
+import { PostTableOfContents } from "./components/blog/PostTableOfContents.js";
 import { defaultHeaderNav, Header } from "./components/header/Header.js";
 import { toAbsoluteUrl, toIsoTimestamp } from "./components/SocialMeta.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
@@ -19,6 +23,7 @@ export const BlogPost: FC<BlogPostProps> = ({
   viewerUserId = null,
 }) => {
   const postUrl = toAbsoluteUrl(`/blog/${post.slug}`);
+  const headings = getPostHeadings(post.body);
   const meta: LayoutMeta = {
     title: `${post.title} | Shipping Binaries`,
     description: post.description,
@@ -43,6 +48,7 @@ export const BlogPost: FC<BlogPostProps> = ({
         isAuthenticated={isAuthenticated}
         nav={defaultHeaderNav}
       />
+      <PostTableOfContents headings={headings} />
       <main class="container mx-auto max-w-3xl px-4 py-12">
         <article>
           <header class="mb-8">
@@ -65,7 +71,7 @@ export const BlogPost: FC<BlogPostProps> = ({
               />
             )
             : null}
-          <PostBody body={post.body} />
+          <PostBody body={post.body} headings={headings} />
         </article>
 
         <section

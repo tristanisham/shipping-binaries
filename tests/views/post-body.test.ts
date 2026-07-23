@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToString } from "hono/jsx/dom/server";
-import { PostBody } from "../../src/views/components/blog/PostBody.js";
+import {
+  getPostHeadings,
+  PostBody,
+} from "../../src/views/components/blog/PostBody.js";
 
 test("PostBody preserves safe inline formatting and escapes unsafe HTML", () => {
   const html = renderToString(PostBody({
@@ -95,4 +98,30 @@ test("PostBody leaves references visible when no definition exists", () => {
   assert.match(html, /Missing definition\[\^missing\]\./);
   assert.doesNotMatch(html, /href="#footnote-missing"/);
   assert.doesNotMatch(html, /footnotes-heading/);
+});
+
+test("PostBody creates stable, unique anchors for its table of contents", () => {
+  const body = JSON.stringify({
+    blocks: [
+      { type: "header", data: { level: 2, text: "<b>Getting started</b>" } },
+      { type: "header", data: { level: 3, text: "Pens &amp; paper" } },
+      { type: "header", data: { level: 4, text: "Getting started" } },
+      { type: "header", data: { level: 2, text: "" } },
+      { type: "header", data: { level: 2, text: "Don’t be prissy" } },
+    ],
+  });
+  const headings = getPostHeadings(body);
+
+  assert.deepEqual(headings, [
+    { id: "getting-started", label: "Getting started", level: 2 },
+    { id: "pens-paper", label: "Pens & paper", level: 3 },
+    { id: "getting-started-2", label: "Getting started", level: 4 },
+    { id: "dont-be-prissy", label: "Don’t be prissy", level: 2 },
+  ]);
+
+  const html = renderToString(PostBody({ body, headings }));
+  assert.match(html, /<h2[^>]*id="getting-started"/);
+  assert.match(html, /<h3[^>]*id="pens-paper"/);
+  assert.match(html, /<h4[^>]*id="getting-started-2"/);
+  assert.match(html, /<h2[^>]*id="dont-be-prissy"/);
 });

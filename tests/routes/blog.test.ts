@@ -49,8 +49,11 @@ test("published posts render at their slug and drafts stay private", async () =>
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /Public post/);
-  assert.match(html, /<h2[^>]*><span>A heading<\/span><\/h2>/);
+  assert.match(html, /<h2[^>]*id="a-heading"[^>]*><span>A heading<\/span><\/h2>/);
   assert.match(html, /A <strong>public<\/strong> body/);
+  assert.match(html, /id="post-table-of-contents"/);
+  assert.match(html, /aria-controls="post-contents-panel"/);
+  assert.match(html, /href="#a-heading"[^>]*title="A heading"/);
   assert.match(html, /href="\/@owner"/);
   assert.match(html, /Site Owner/);
   assert.match(html, /aria-label="Share Public post"/);

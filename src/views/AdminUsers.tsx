@@ -32,6 +32,7 @@ import {
   panelField,
   panelMuted,
   panelOutlineButton,
+  panelText,
 } from "./components/admin/panel.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
@@ -93,7 +94,7 @@ const RolePicker: FC<RolePickerProps> = ({
             type="checkbox"
             value={role.id}
           />
-          <span>{role.name}</span>
+          <span class={panelText}>{role.name}</span>
         </label>
       );
     })}
