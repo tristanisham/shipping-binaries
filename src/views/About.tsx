@@ -31,8 +31,8 @@ export const About: FC<ViewerProps> = ({
       />
       <main class="container mx-auto max-w-3xl px-4 py-12 sm:py-16">
         <article class="space-y-4 leading-relaxed">
-          Shipping Binaries is a the story of a modern open source software developer creating <a href="https://github.com/tristanisham/zvm">open source</a> software
-          for other developers. 
+          Shipping Binaries is the story of modern software development told through the lives and stories of its creators. Every <em>month</em> 
+          we publish interviews, insights, and updates from across the industry and open source. 
         </article>
       </main>
     </Layout>
