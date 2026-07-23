@@ -12,6 +12,8 @@ import {
   ADMIN_ROLE,
   assignRoleToUser,
   createRole,
+  getRoleByName,
+  getRolesForUser,
 } from "../../src/models/role.js";
 import {
   createSession,
@@ -252,4 +254,36 @@ test("admins can create and toggle permissions for a selected role", async () =>
   assert.equal(removed.status, 200);
   assert.deepEqual(await removed.json(), { assigned: false });
   assert.deepEqual(await Permission.forRole(db, targetRoleId), []);
+});
+
+test("role save moves to /roles and enforces users:update", async () => {
+  const db = createTestDb();
+  const admin = await seedUser(db, {
+    email: "a2@example.com",
+    username: "a2",
+  });
+  const target = await seedUser(db, {
+    email: "t2@example.com",
+    username: "t2",
+  });
+  await assignRoleToUser(db, admin, ADMIN_ROLE);
+  const token = await createSession(db, admin);
+  const form = {
+    Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  const editorRole = await getRoleByName(db, "editor");
+  assert.ok(editorRole);
+
+  const res = await app.request(
+    `/admin/users/${target}/roles`,
+    {
+      body: new URLSearchParams({ roleIds: String(editorRole.id) }).toString(),
+      headers: form,
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(res.status, 303);
+  assert.deepEqual(await getRolesForUser(db, target), ["editor"]);
 });

@@ -303,14 +303,29 @@ test("admins manage roles and assign them from the users view", async () => {
     email: "writer@example.com",
     username: "writer",
   });
-  const assigned = await app.request(
+  const updated = await app.request(
     `/admin/users/${userId}`,
     {
       body: new URLSearchParams({
         email: "writer@example.com",
         label: "Writer",
-        roleIds: String(writerRole.id),
         username: "writer",
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(updated.status, 303);
+
+  const assigned = await app.request(
+    `/admin/users/${userId}/roles`,
+    {
+      body: new URLSearchParams({
+        roleIds: String(writerRole.id),
       }).toString(),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",

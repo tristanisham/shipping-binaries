@@ -1014,18 +1014,11 @@ authRoute.post(
     const labelValue = formString(body, "label", true);
     const label = labelValue.length > 0 ? labelValue : null;
     const password = formString(body, "password");
-    const roleIds = formRoleIds(body);
     const inlineSave = c.req.header("Accept")?.includes("application/json") ??
       false;
 
-    if (id === c.var.currentUser.id) {
-      const adminRole = await getRoleByName(c.env.DB, ADMIN_ROLE);
-      if (adminRole) roleIds.push(adminRole.id);
-    }
-
     try {
       await updateUser(c.env.DB, id, { email, username, label });
-      await setRolesForUser(c.env.DB, id, roleIds);
 
       const active = formString(body, "active");
       if (active) {
@@ -1047,6 +1040,30 @@ authRoute.post(
 
     if (inlineSave) return c.json({ saved: true });
     return c.redirect("/admin/users", 303);
+  },
+);
+
+authRoute.post(
+  "/admin/users/:id/roles",
+  Permission.require(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
+    if (!Number.isInteger(id)) {
+      return c.redirect("/admin/users", 303);
+    }
+
+    const body = await c.req.parseBody({ all: true });
+    const roleIds = formRoleIds(body);
+
+    // A user cannot strip their own admin role.
+    if (id === c.var.currentUser.id) {
+      const adminRole = await getRoleByName(c.env.DB, ADMIN_ROLE);
+      if (adminRole) roleIds.push(adminRole.id);
+    }
+
+    await setRolesForUser(c.env.DB, id, roleIds);
+    return c.redirect(`/admin/users/${id}/permissions`, 303);
   },
 );
 
