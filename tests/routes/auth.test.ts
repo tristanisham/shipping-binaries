@@ -400,7 +400,7 @@ test("non-admin users can access account but not admin management", async () => 
   assert.equal(login.headers.get("Location"), "/admin/account");
 });
 
-test("non-admin post authors cannot access the writing page", async () => {
+test("post authors can edit their own posts but not others' or new ones", async () => {
   const db = createTestDb();
   const authorId = await seedUser(db, {
     email: "author@example.com",
@@ -433,13 +433,15 @@ test("non-admin post authors cannot access the writing page", async () => {
   const token = await createSession(db, authorId);
   const headers = { Cookie: `${SESSION_COOKIE_NAME}=${token}` };
 
+  // The author has no posts permissions, only ownership of their own post.
   const ownEditor = await app.request(
     `/admin/write?id=${ownPostId}`,
     { headers },
     { DB: db } as Env,
   );
-  assert.equal(ownEditor.status, 403);
+  assert.equal(ownEditor.status, 200);
 
+  // Creating a new post needs posts:create, which the author lacks.
   const newEditor = await app.request(
     "/admin/write",
     { headers },
@@ -447,6 +449,7 @@ test("non-admin post authors cannot access the writing page", async () => {
   );
   assert.equal(newEditor.status, 403);
 
+  // Editing someone else's post needs posts:update, which the author lacks.
   const otherEditor = await app.request(
     `/admin/write?id=${otherPostId}`,
     { headers },
@@ -476,10 +479,10 @@ test("non-admin post authors cannot access the writing page", async () => {
     },
     { DB: db } as Env,
   );
-  assert.equal(update.status, 403);
+  assert.equal(update.status, 303);
   assert.equal(
     (await getPostById(db, ownPostId))?.title,
-    "Author's post",
+    "Updated author's post",
   );
 
   const forbiddenUpdate = await app.request(
