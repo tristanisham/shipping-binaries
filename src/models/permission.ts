@@ -1,5 +1,14 @@
 import type { MiddlewareHandler } from "hono";
 
+// Indefinite denials store a far-future expiry rather than NULL, so the
+// permission query never needs an IS NULL branch. Sorts after any real ISO date.
+export const INDEFINITE_DENIAL_EXPIRES_AT = "9999-12-31T23:59:59.999Z";
+
+export interface UserPermissionDenial {
+  permissionId: number;
+  expiresAt: string;
+}
+
 export const POSTS_CREATE_PERMISSION = "posts:create";
 export const POSTS_READ_PERMISSION = "posts:read";
 export const POSTS_UPDATE_PERMISSION = "posts:update";
@@ -226,5 +235,55 @@ export class Permission {
       )
       .bind(roleId, permissionId)
       .run();
+  }
+
+  static async deny(
+    db: D1Database,
+    userId: number,
+    permissionId: number,
+    expiresAt: string,
+  ): Promise<void> {
+    await db
+      .prepare(
+        `INSERT INTO user_permission_denials (user_id, permission_id, expires_at)
+         VALUES (?1, ?2, ?3)
+         ON CONFLICT(user_id, permission_id)
+         DO UPDATE SET expires_at = ?3`,
+      )
+      .bind(userId, permissionId, expiresAt)
+      .run();
+  }
+
+  static async restore(
+    db: D1Database,
+    userId: number,
+    permissionId: number,
+  ): Promise<void> {
+    await db
+      .prepare(
+        `DELETE FROM user_permission_denials
+         WHERE user_id = ?1 AND permission_id = ?2`,
+      )
+      .bind(userId, permissionId)
+      .run();
+  }
+
+  static async denialsForUser(
+    db: D1Database,
+    userId: number,
+  ): Promise<readonly UserPermissionDenial[]> {
+    const result = await db
+      .prepare(
+        `SELECT permission_id, expires_at
+         FROM user_permission_denials
+         WHERE user_id = ?1`,
+      )
+      .bind(userId)
+      .all<{ permission_id: number; expires_at: string }>();
+
+    return result.results.map((row) => ({
+      permissionId: row.permission_id,
+      expiresAt: row.expires_at,
+    }));
   }
 }

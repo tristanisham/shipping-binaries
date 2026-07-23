@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  INDEFINITE_DENIAL_EXPIRES_AT,
   Permission,
   USERS_READ_PERMISSION,
 } from "../../src/models/permission.js";
@@ -85,4 +86,41 @@ test("custom roles can be granted custom permissions", async () => {
     (await Permission.forUser(db, userId)).map(({ name }) => name),
     ["posts:publish"],
   );
+});
+
+test("deny records a denial (upserting) and restore removes it", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, {
+    email: "u@example.com",
+    username: "u",
+  });
+  const permission = (await Permission.all(db)).find(
+    ({ name }) => name === USERS_READ_PERMISSION,
+  );
+  assert.ok(permission);
+
+  await Permission.deny(
+    db,
+    userId,
+    permission.id,
+    INDEFINITE_DENIAL_EXPIRES_AT,
+  );
+  assert.deepEqual(
+    (await Permission.denialsForUser(db, userId)).map((d) => ({
+      expiresAt: d.expiresAt,
+      permissionId: d.permissionId,
+    })),
+    [{ expiresAt: INDEFINITE_DENIAL_EXPIRES_AT, permissionId: permission.id }],
+  );
+
+  // Re-denying upserts: one row, expiry updated.
+  const future = new Date(Date.now() + 60_000).toISOString();
+  await Permission.deny(db, userId, permission.id, future);
+  assert.deepEqual(
+    (await Permission.denialsForUser(db, userId)).map((d) => d.expiresAt),
+    [future],
+  );
+
+  await Permission.restore(db, userId, permission.id);
+  assert.deepEqual(await Permission.denialsForUser(db, userId), []);
 });
