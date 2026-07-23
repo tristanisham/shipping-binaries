@@ -171,3 +171,20 @@ test("an expired snooze does not suppress; a future one does", async () => {
   await Permission.deny(db, userId, permission.id, future);
   assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), false);
 });
+
+test("author and editor roles are seeded with their post permissions", async () => {
+  const db = createTestDb();
+  const author = await getRoleByName(db, "author");
+  const editor = await getRoleByName(db, "editor");
+  assert.ok(author);
+  assert.ok(editor);
+
+  assert.deepEqual(
+    (await Permission.forRole(db, author.id)).map(({ name }) => name),
+    ["posts:create", "posts:read"],
+  );
+  assert.deepEqual(
+    (await Permission.forRole(db, editor.id)).map(({ name }) => name),
+    ["posts:create", "posts:delete", "posts:read", "posts:update"],
+  );
+});
