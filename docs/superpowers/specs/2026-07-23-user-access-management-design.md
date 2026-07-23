@@ -5,6 +5,14 @@
 **Builds on:** the RBAC enforcement work (`feature/rbac-enforcement`, PR #19), which
 made `Permission.can`/`require` govern every `/admin` route per-handler.
 
+> **Amendment (post-implementation):** role/permission administration is
+> **admin-only**, not delegatable. The whole `/admin/roles*` surface is gated on
+> the admin role itself (a `requireAdminRole` guard), and the `roles:read` /
+> `roles:update` permissions were removed (migration 0015) — supersedes the
+> "New `roles:read` / `roles:update` permissions" note below. Rationale: whoever
+> can edit role→permission mappings could otherwise grant their own role any
+> capability (privilege escalation).
+
 ## Summary
 
 Add two seeded roles (`author`, `editor`) and a per-user **permission denial**
