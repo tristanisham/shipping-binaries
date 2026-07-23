@@ -41,7 +41,7 @@ export const Home: FC<HomeProps> = (
         isAuthenticated={isAuthenticated}
         nav={setCurrentNavItem(defaultHeaderNav, "/")}
       />
-      <main class="container mx-auto px-4 pb-16">
+      <main class="mx-auto w-full max-w-4xl px-4 pb-16">
         <PostList
           currentPage={currentPage}
           pageBasePath="/"
