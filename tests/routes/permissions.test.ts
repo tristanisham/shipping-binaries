@@ -287,3 +287,30 @@ test("role save moves to /roles and enforces users:update", async () => {
   assert.equal(res.status, 303);
   assert.deepEqual(await getRolesForUser(db, target), ["editor"]);
 });
+
+test("a user cannot strip their own admin role via /roles", async () => {
+  const db = createTestDb();
+  const adminId = await seedUser(db, {
+    email: "self@example.com",
+    username: "self",
+  });
+  await assignRoleToUser(db, adminId, ADMIN_ROLE);
+  const token = await createSession(db, adminId);
+
+  // Post an empty role set for themselves — admin must be retained.
+  const res = await app.request(
+    `/admin/users/${adminId}/roles`,
+    {
+      body: new URLSearchParams({}).toString(),
+      headers: {
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(res.status, 303);
+  assert.deepEqual(await getRolesForUser(db, adminId), ["admin"]);
+});
