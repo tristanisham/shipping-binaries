@@ -3,6 +3,7 @@ import {
   type SocialMeta,
   SocialMetaTags,
 } from "../components/SocialMeta.js";
+import { ToastViewport } from "../components/Toast.js";
 
 export type LayoutMeta = {
   title?: string;
@@ -55,6 +56,23 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
           />
         )}
         <link rel="icon" type="image/png" href="/favicon.png" />
+        {/* Preload above-the-fold fonts so the download starts before styles.css
+            is parsed, shrinking the font-display: swap flash. crossorigin is
+            required even same-origin: fonts fetch in anonymous-CORS mode. */}
+        <link
+          rel="preload"
+          as="font"
+          type="font/woff2"
+          crossorigin=""
+          href="/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.woff2"
+        />
+        <link
+          rel="preload"
+          as="font"
+          type="font/woff2"
+          crossorigin=""
+          href="/fonts/Black_Ops_One/BlackOpsOne-Regular.woff2"
+        />
         {meta?.alpine && (
           <script
             defer
@@ -71,6 +89,7 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
       </head>
       <body class="bg-amber-50 font-sans text-mist-600 dark:bg-mist-600 dark:text-amber-50">
         {children}
+        <ToastViewport />
       </body>
     </html>
   );

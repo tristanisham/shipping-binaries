@@ -21,6 +21,7 @@ export const BlogIndex: FC<BlogIndexProps> = ({
   isAuthenticated = false,
   posts,
   viewerUserId = null,
+  viewerUsername = null,
 }) => {
   const meta: LayoutMeta = {
     title: "Blog | Shipping Binaries",
@@ -37,6 +38,7 @@ export const BlogIndex: FC<BlogIndexProps> = ({
         isAdmin={isAdmin}
         isAuthenticated={isAuthenticated}
         nav={setCurrentNavItem(defaultHeaderNav, "/blog")}
+        viewerUsername={viewerUsername}
       />
       <main class="container mx-auto px-4 pb-16">
         <PostList

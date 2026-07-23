@@ -375,6 +375,20 @@ export const getPublishedPostBySlug = async (
   return postWithAuthorFromRow(row, comments);
 };
 
+// Resolves a published post's id and slug without loading its comment tree —
+// for write paths (e.g. posting a comment) that only need the reference.
+export const getPublishedPostRefBySlug = async (
+  db: D1Database,
+  slug: string,
+): Promise<{ id: number; slug: string } | null> => {
+  const row = await db
+    .prepare("SELECT id, slug FROM posts WHERE slug = ?1 AND draft = 0 LIMIT 1")
+    .bind(slug)
+    .first<{ id: number; slug: string }>();
+
+  return row ?? null;
+};
+
 export const setPostDraft = async (
   db: D1Database,
   id: number,

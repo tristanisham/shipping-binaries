@@ -2,25 +2,35 @@ import type { FC } from "hono/jsx";
 import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
+<<<<<<< HEAD
 import {
   getPostHeadings,
   PostBody,
 } from "./components/blog/PostBody.js";
 import { PostMeta } from "./components/blog/posts/PostMeta.js";
 import { PostTableOfContents } from "./components/blog/PostTableOfContents.js";
+=======
+import { CommentEditor } from "./components/blog/CommentEditor.js";
+import { PostBody } from "./components/blog/PostBody.js";
+import { PostMeta } from "./components/blog/posts/PostMeta.js";
+import { toIsoTimestamp } from "./components/date.js";
+>>>>>>> 36ef6fa4395f46998adcef079228f7c9d8e46963
 import { defaultHeaderNav, Header } from "./components/header/Header.js";
-import { toAbsoluteUrl, toIsoTimestamp } from "./components/SocialMeta.js";
+import { toAbsoluteUrl } from "./components/SocialMeta.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type BlogPostProps = ViewerProps & {
+  canComment?: boolean;
   post: PostWithAuthor;
 };
 
 export const BlogPost: FC<BlogPostProps> = ({
+  canComment = false,
   isAdmin = false,
   isAuthenticated = false,
   post,
   viewerUserId = null,
+  viewerUsername = null,
 }) => {
   const postUrl = toAbsoluteUrl(`/blog/${post.slug}`);
   const headings = getPostHeadings(post.body);
@@ -47,6 +57,7 @@ export const BlogPost: FC<BlogPostProps> = ({
         isAdmin={isAdmin}
         isAuthenticated={isAuthenticated}
         nav={defaultHeaderNav}
+        viewerUsername={viewerUsername}
       />
       <PostTableOfContents headings={headings} />
       <main class="container mx-auto max-w-3xl px-4 py-12">
@@ -80,8 +91,19 @@ export const BlogPost: FC<BlogPostProps> = ({
           id="comments"
         >
           <h2 class="text-2xl font-bold" id="comments-heading">Comments</h2>
+          {canComment
+            ? (
+              <CommentEditor action={`/blog/${post.slug}/comments`} />
+            )
+            : null}
           {post.comments.length > 0
-            ? post.comments.map((comment) => <Comment comment={comment} />)
+            ? post.comments.map((comment) => (
+              <Comment
+                canReply={canComment}
+                comment={comment}
+                postSlug={post.slug}
+              />
+            ))
             : <p>No comments yet.</p>}
         </section>
       </main>

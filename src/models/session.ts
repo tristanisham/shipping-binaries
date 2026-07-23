@@ -1,32 +1,15 @@
+import { createRandomToken, hashToken } from "../auth/token.js";
 import { parseRoleList, type User } from "./user.js";
 
 export const SESSION_COOKIE_NAME = "shipping_session";
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-const bytesToHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-
-const createSessionToken = (): string => {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return bytesToHex(bytes);
-};
-
-const hashSessionToken = async (token: string): Promise<string> => {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(token),
-  );
-
-  return bytesToHex(new Uint8Array(digest));
-};
-
 export const createSession = async (
   db: D1Database,
   userId: number,
 ): Promise<string> => {
-  const token = createSessionToken();
-  const tokenHash = await hashSessionToken(token);
+  const token = createRandomToken();
+  const tokenHash = await hashToken(token);
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
 
   await db
@@ -44,7 +27,7 @@ export const destroySession = async (
   db: D1Database,
   token: string,
 ): Promise<void> => {
-  const tokenHash = await hashSessionToken(token);
+  const tokenHash = await hashToken(token);
 
   await db
     .prepare("DELETE FROM sessions WHERE token_hash = ?1")
@@ -74,7 +57,7 @@ export const getSessionUser = async (
   db: D1Database,
   token: string,
 ): Promise<User | null> => {
-  const tokenHash = await hashSessionToken(token);
+  const tokenHash = await hashToken(token);
 
   const row = await db
     .prepare(

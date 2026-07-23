@@ -1,9 +1,5 @@
 import type { FC } from "hono/jsx";
-import type {
-  User,
-  UserSort,
-  UserSortDirection,
-} from "../models/user.js";
+import type { User, UserSort, UserSortDirection } from "../models/user.js";
 import { ADMIN_ROLE, type Role } from "../models/role.js";
 import { AdminNav } from "./components/admin/AdminNav.js";
 import {
@@ -42,6 +38,7 @@ type AdminUsersProps = {
   roles: readonly Role[];
   sort?: UserSort;
   users: readonly User[];
+  viewerUsername?: string;
 };
 
 const saveUserInline = `
@@ -81,7 +78,7 @@ const RolePicker: FC<RolePickerProps> = ({
       const locked = lockAdmin && role.name === ADMIN_ROLE;
 
       return (
-        <label class="inline-flex items-center gap-1.5 whitespace-nowrap">
+        <label class="inline-flex select-none items-center gap-1.5 whitespace-nowrap">
           {locked && (
             <input form={form} name="roleIds" type="hidden" value={role.id} />
           )}
@@ -145,6 +142,7 @@ export const AdminUsers: FC<AdminUsersProps> = ({
   roles,
   sort,
   users,
+  viewerUsername,
 }) => {
   const meta: LayoutMeta = {
     alpine: true,
@@ -158,6 +156,7 @@ export const AdminUsers: FC<AdminUsersProps> = ({
         isAdmin
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
+        viewerUsername={viewerUsername}
       />
       <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,4fr)] gap-4 px-4 py-6">
         <AdminNav current="/admin/users" />
@@ -249,7 +248,11 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                     {...{ "x-show": "addingUser" }}
                   >
                     <td class="py-3 pr-4">
-                      <form action="/admin/users" id="new-user-form" method="post">
+                      <form
+                        action="/admin/users"
+                        id="new-user-form"
+                        method="post"
+                      >
                         <Input
                           aria-label="Label for new user"
                           class={panelField}
@@ -451,7 +454,13 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                                   stroke-width="2"
                                   viewBox="0 0 24 24"
                                 >
-                                  <rect height="16" rx="2" width="20" x="2" y="4" />
+                                  <rect
+                                    height="16"
+                                    rx="2"
+                                    width="20"
+                                    x="2"
+                                    y="4"
+                                  />
                                   <path d="m22 7-10 6L2 7" />
                                 </svg>
                               </Button>
@@ -470,7 +479,9 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                               aria-label={user.active
                                 ? `Deactivate ${user.username}`
                                 : `Activate ${user.username}`}
-                              class={user.active ? undefined : panelOutlineButton}
+                              class={user.active
+                                ? undefined
+                                : panelOutlineButton}
                               size="sm"
                               title={user.active
                                 ? `Deactivate ${user.username}`

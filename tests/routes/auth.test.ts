@@ -7,6 +7,7 @@ import {
   getPostById,
   setPostDraft,
 } from "../../src/models/post.js";
+import { getPublicProfileByUsername } from "../../src/models/profile.js";
 import { ADMIN_ROLE, getRoleByName } from "../../src/models/role.js";
 import { findUserByLogin, getUserById } from "../../src/models/user.js";
 import {
@@ -294,6 +295,10 @@ test("admins manage roles and assign them from the users view", async () => {
 
   const writerRole = await getRoleByName(db, "writer");
   assert.ok(writerRole);
+  assert.equal(
+    created.headers.get("location"),
+    `/admin/roles?role=${writerRole.id}`,
+  );
   const userId = await seedUser(db, {
     email: "writer@example.com",
     username: "writer",
@@ -319,7 +324,7 @@ test("admins manage roles and assign them from the users view", async () => {
   assert.deepEqual((await getUserById(db, userId))?.roles, ["writer"]);
 
   const page = await app.request(
-    "/admin/roles",
+    `/admin/roles?role=${writerRole.id}`,
     { headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` } },
     { DB: db } as Env,
   );
@@ -358,8 +363,12 @@ test("non-admin users can access account but not admin management", async () => 
   assert.equal(account.status, 200);
   const accountHtml = await account.text();
   assert.match(accountHtml, /member@example\.com/);
-  assert.match(accountHtml, /aria-label="Open account"/);
-  assert.doesNotMatch(accountHtml, /role="menu"/);
+  assert.match(accountHtml, /aria-label="Open user menu"/);
+  assert.match(accountHtml, /role="menu"/);
+  assert.match(accountHtml, /href="\/@member"/);
+  assert.match(accountHtml, /name="label"/);
+  assert.match(accountHtml, /name="biography"/);
+  assert.doesNotMatch(accountHtml, />Dashboard<\/a>/);
 
   const dashboard = await app.request(
     "/admin",
@@ -391,7 +400,7 @@ test("non-admin users can access account but not admin management", async () => 
   assert.equal(login.headers.get("Location"), "/admin/account");
 });
 
-test("post authors can edit only their own existing posts", async () => {
+test("non-admin post authors cannot access the writing page", async () => {
   const db = createTestDb();
   const authorId = await seedUser(db, {
     email: "author@example.com",
@@ -429,8 +438,7 @@ test("post authors can edit only their own existing posts", async () => {
     { headers },
     { DB: db } as Env,
   );
-  assert.equal(ownEditor.status, 200);
-  assert.match(await ownEditor.text(), /value="authors-post"/);
+  assert.equal(ownEditor.status, 403);
 
   const newEditor = await app.request(
     "/admin/write",
@@ -468,10 +476,10 @@ test("post authors can edit only their own existing posts", async () => {
     },
     { DB: db } as Env,
   );
-  assert.equal(update.status, 303);
+  assert.equal(update.status, 403);
   assert.equal(
     (await getPostById(db, ownPostId))?.title,
-    "Updated author's post",
+    "Author's post",
   );
 
   const forbiddenUpdate = await app.request(
@@ -514,8 +522,10 @@ test("account update verifies the current password and forces sign-in", async ()
     "/admin/account",
     {
       body: new URLSearchParams({
+        biography: "I build useful things.",
         currentPassword: "Old-password!1",
         email: "updated@example.com",
+        label: "Updated Member",
         newPassword: "New-password!2",
         newPasswordConfirmation: "New-password!2",
         username: "updated-member",
@@ -536,6 +546,7 @@ test("account update verifies the current password and forces sign-in", async ()
 
   const updated = await findUserByLogin(db, "updated-member");
   assert.equal(updated?.email, "updated@example.com");
+  assert.equal(updated?.label, "Updated Member");
   assert.equal(
     updated && await verifyPassword("New-password!2", updated.password_hash),
     true,
@@ -544,6 +555,12 @@ test("account update verifies the current password and forces sign-in", async ()
     updated && await verifyPassword("Old-password!1", updated.password_hash),
     false,
   );
+  assert.deepEqual(await getPublicProfileByUsername(db, "updated-member"), {
+    biography: "I build useful things.",
+    id: userId,
+    label: "Updated Member",
+    username: "updated-member",
+  });
 });
 
 test("account update rejects invalid credentials without leaking passwords", async () => {
@@ -617,7 +634,10 @@ test("account update enforces password rules on the server", async () => {
   );
 
   assert.equal(response.status, 422);
-  assert.match(await response.text(), /Include at least one special character\./);
+  assert.match(
+    await response.text(),
+    /Include at least one special character\./,
+  );
   assert.ok(await getSessionUser(db, token));
 });
 
@@ -752,7 +772,8 @@ test("password reset is generic, single-use, and revokes sessions", async () => 
   assert.equal(await getSessionUser(db, session), null);
   const updated = await findUserByLogin(db, "writer");
   assert.equal(
-    updated && await verifyPassword("new password phrase", updated.password_hash),
+    updated &&
+      await verifyPassword("new password phrase", updated.password_hash),
     true,
   );
 

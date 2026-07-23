@@ -1,3 +1,5 @@
+import { createRandomToken, hashToken } from "../auth/token.js";
+
 export type AuthTokenPurpose = "invite" | "password_reset";
 
 export const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -17,23 +19,7 @@ interface AuthTokenRow {
   expires_at: string;
 }
 
-const bytesToHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-
-const createRawToken = (): string => {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return bytesToHex(bytes);
-};
-
-export const hashAuthToken = async (token: string): Promise<string> => {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(token),
-  );
-
-  return bytesToHex(new Uint8Array(digest));
-};
+export const hashAuthToken = hashToken;
 
 const authTokenFromRow = (row: AuthTokenRow): AuthToken => ({
   id: row.id,
@@ -48,7 +34,7 @@ export const createAuthToken = async (
   purpose: AuthTokenPurpose,
   ttlMs: number,
 ): Promise<string> => {
-  const token = createRawToken();
+  const token = createRandomToken();
   const tokenHash = await hashAuthToken(token);
   const expiresAt = new Date(Date.now() + ttlMs).toISOString();
 

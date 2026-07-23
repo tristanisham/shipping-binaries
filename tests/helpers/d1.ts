@@ -35,10 +35,10 @@ class FakeStatement {
     return { results, success: true, meta: {} };
   }
 
-  async run(): Promise<{
+  runSync(): {
     success: true;
     meta: { last_row_id: number; changes: number };
-  }> {
+  } {
     const info = this.#db.prepare(this.#sql).run(...(this.#args as never[]));
     return {
       success: true,
@@ -47,6 +47,13 @@ class FakeStatement {
         changes: Number(info.changes),
       },
     };
+  }
+
+  async run(): Promise<{
+    success: true;
+    meta: { last_row_id: number; changes: number };
+  }> {
+    return this.runSync();
   }
 }
 
@@ -59,6 +66,18 @@ class FakeD1 {
 
   prepare(sql: string): FakeStatement {
     return new FakeStatement(this.#db, sql);
+  }
+
+  async batch(statements: FakeStatement[]) {
+    this.#db.exec("BEGIN");
+    try {
+      const results = statements.map((statement) => statement.runSync());
+      this.#db.exec("COMMIT");
+      return results;
+    } catch (error) {
+      this.#db.exec("ROLLBACK");
+      throw error;
+    }
   }
 }
 
@@ -99,6 +118,11 @@ export const seedUser = async (
       input.active ?? 1,
       input.label ?? null,
     )
+    .run();
+
+  await db
+    .prepare("INSERT INTO profiles (user_id) VALUES (?1)")
+    .bind(result.meta.last_row_id)
     .run();
 
   return result.meta.last_row_id;

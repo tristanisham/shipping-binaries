@@ -148,6 +148,12 @@ export const Login: FC<LoginProps> = ({ error, login = "", notice }) => {
                 >
                   Forgot password?
                 </a>
+                <a
+                  class={`w-fit text-sm underline ${panelMuted}`}
+                  href="/signup"
+                >
+                  Need an account? Sign up
+                </a>
               </form>
             </CardContent>
           </Card>

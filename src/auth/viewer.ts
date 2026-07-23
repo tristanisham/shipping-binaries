@@ -5,6 +5,7 @@ export type ViewerProps = {
   isAdmin?: boolean;
   isAuthenticated?: boolean;
   viewerUserId?: number | null;
+  viewerUsername?: string | null;
 };
 
 export type ViewerState = Required<ViewerProps>;
@@ -25,5 +26,6 @@ export const getViewerState = async (
     isAdmin: user ? hasAdminRole(user.roles) : false,
     isAuthenticated: Boolean(user),
     viewerUserId: user?.id ?? null,
+    viewerUsername: user?.username ?? null,
   };
 };
