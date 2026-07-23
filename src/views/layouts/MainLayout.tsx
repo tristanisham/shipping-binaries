@@ -61,16 +61,16 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         <link
           rel="preload"
           as="font"
-          type="font/ttf"
+          type="font/woff2"
           crossorigin=""
-          href="/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf"
+          href="/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.woff2"
         />
         <link
           rel="preload"
           as="font"
-          type="font/ttf"
+          type="font/woff2"
           crossorigin=""
-          href="/fonts/Black_Ops_One/BlackOpsOne-Regular.ttf"
+          href="/fonts/Black_Ops_One/BlackOpsOne-Regular.woff2"
         />
         {meta?.alpine && (
           <script
