@@ -9,6 +9,7 @@ import {
   setCurrentNavItem,
 } from "./components/header/Header.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
+import { toAbsoluteUrl } from "./components/SocialMeta.js";
 
 type AuthorProps = ViewerProps & {
   author: PublicUser;
@@ -27,6 +28,10 @@ export const Author: FC<AuthorProps> = ({
   const meta: LayoutMeta = {
     title: `${displayName} | Shipping Binaries`,
     description: `Posts by ${displayName} on Shipping Binaries.`,
+    canonical: toAbsoluteUrl(`/@${encodeURIComponent(author.username)}`),
+    social: {
+      title: displayName,
+    },
   };
 
   return (
