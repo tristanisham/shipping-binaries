@@ -105,131 +105,126 @@ export class Permission {
       await next();
     };
   }
-}
 
-export const getAllPermissions = async (
-  db: D1Database,
-): Promise<readonly PermissionRecord[]> => {
-  const result = await db
-    .prepare(
-      `SELECT id, name, created_at, updated_at
-       FROM permissions
-       ORDER BY name ASC`,
-    )
-    .all<PermissionRow>();
+  static async all(db: D1Database): Promise<readonly PermissionRecord[]> {
+    const result = await db
+      .prepare(
+        `SELECT id, name, created_at, updated_at
+         FROM permissions
+         ORDER BY name ASC`,
+      )
+      .all<PermissionRow>();
 
-  return result.results.map(permissionFromRow);
-};
+    return result.results.map(permissionFromRow);
+  }
 
-export const createPermission = async (
-  db: D1Database,
-  name: string,
-): Promise<number> => {
-  const result = await db
-    .prepare("INSERT INTO permissions (name) VALUES (?1)")
-    .bind(name)
-    .run();
+  static async create(db: D1Database, name: string): Promise<number> {
+    const result = await db
+      .prepare("INSERT INTO permissions (name) VALUES (?1)")
+      .bind(name)
+      .run();
 
-  return result.meta.last_row_id;
-};
+    return result.meta.last_row_id;
+  }
 
-export const getPermissionById = async (
-  db: D1Database,
-  id: number,
-): Promise<PermissionRecord | null> => {
-  const row = await db
-    .prepare(
-      `SELECT id, name, created_at, updated_at
-       FROM permissions
-       WHERE id = ?1
-       LIMIT 1`,
-    )
-    .bind(id)
-    .first<PermissionRow>();
+  static async byId(
+    db: D1Database,
+    id: number,
+  ): Promise<PermissionRecord | null> {
+    const row = await db
+      .prepare(
+        `SELECT id, name, created_at, updated_at
+         FROM permissions
+         WHERE id = ?1
+         LIMIT 1`,
+      )
+      .bind(id)
+      .first<PermissionRow>();
 
-  return row ? permissionFromRow(row) : null;
-};
+    return row ? permissionFromRow(row) : null;
+  }
 
-export const getPermissionsForRole = async (
-  db: D1Database,
-  roleId: number,
-): Promise<readonly PermissionRecord[]> => {
-  const result = await db
-    .prepare(
-      `SELECT permissions.id, permissions.name, permissions.created_at,
-              permissions.updated_at
-       FROM role_permissions
-       JOIN permissions
-         ON permissions.id = role_permissions.permission_id
-       WHERE role_permissions.role_id = ?1
-       ORDER BY permissions.name ASC`,
-    )
-    .bind(roleId)
-    .all<PermissionRow>();
+  static async forRole(
+    db: D1Database,
+    roleId: number,
+  ): Promise<readonly PermissionRecord[]> {
+    const result = await db
+      .prepare(
+        `SELECT permissions.id, permissions.name, permissions.created_at,
+                permissions.updated_at
+         FROM role_permissions
+         JOIN permissions
+           ON permissions.id = role_permissions.permission_id
+         WHERE role_permissions.role_id = ?1
+         ORDER BY permissions.name ASC`,
+      )
+      .bind(roleId)
+      .all<PermissionRow>();
 
-  return result.results.map(permissionFromRow);
-};
+    return result.results.map(permissionFromRow);
+  }
 
-export const getPermissionsForUser = async (
-  db: D1Database,
-  userId: number,
-): Promise<readonly PermissionRecord[]> => {
-  const result = await db
-    .prepare(
-      `SELECT DISTINCT permissions.id, permissions.name,
-              permissions.created_at, permissions.updated_at
-       FROM user_roles
-       JOIN role_permissions
-         ON role_permissions.role_id = user_roles.role_id
-       JOIN permissions
-         ON permissions.id = role_permissions.permission_id
-       WHERE user_roles.user_id = ?1
-       ORDER BY permissions.name ASC`,
-    )
-    .bind(userId)
-    .all<PermissionRow>();
+  static async forUser(
+    db: D1Database,
+    userId: number,
+  ): Promise<readonly PermissionRecord[]> {
+    const result = await db
+      .prepare(
+        `SELECT DISTINCT permissions.id, permissions.name,
+                permissions.created_at, permissions.updated_at
+         FROM user_roles
+         JOIN role_permissions
+           ON role_permissions.role_id = user_roles.role_id
+         JOIN permissions
+           ON permissions.id = role_permissions.permission_id
+         WHERE user_roles.user_id = ?1
+         ORDER BY permissions.name ASC`,
+      )
+      .bind(userId)
+      .all<PermissionRow>();
 
-  return result.results.map(permissionFromRow);
-};
+    return result.results.map(permissionFromRow);
+  }
 
-export const assignPermissionToRole = async (
-  db: D1Database,
-  roleId: number,
-  permissionName: string,
-): Promise<void> => {
-  await db
-    .prepare(
-      `INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
-       SELECT ?1, id
-       FROM permissions
-       WHERE name = ?2`,
-    )
-    .bind(roleId, permissionName)
-    .run();
-};
-
-export const setPermissionForRole = async (
-  db: D1Database,
-  roleId: number,
-  permissionId: number,
-  assigned: boolean,
-): Promise<void> => {
-  if (assigned) {
+  static async assignToRole(
+    db: D1Database,
+    roleId: number,
+    permissionName: string,
+  ): Promise<void> {
     await db
       .prepare(
         `INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
-         VALUES (?1, ?2)`,
+         SELECT ?1, id
+         FROM permissions
+         WHERE name = ?2`,
+      )
+      .bind(roleId, permissionName)
+      .run();
+  }
+
+  static async setForRole(
+    db: D1Database,
+    roleId: number,
+    permissionId: number,
+    assigned: boolean,
+  ): Promise<void> {
+    if (assigned) {
+      await db
+        .prepare(
+          `INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
+           VALUES (?1, ?2)`,
+        )
+        .bind(roleId, permissionId)
+        .run();
+      return;
+    }
+
+    await db
+      .prepare(
+        `DELETE FROM role_permissions
+         WHERE role_id = ?1 AND permission_id = ?2`,
       )
       .bind(roleId, permissionId)
       .run();
-    return;
   }
-
-  await db
-    .prepare(
-      `DELETE FROM role_permissions
-       WHERE role_id = ?1 AND permission_id = ?2`,
-    )
-    .bind(roleId, permissionId)
-    .run();
-};
+}

@@ -2,9 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import app from "../../src/index.js";
 import {
-  assignPermissionToRole,
-  getAllPermissions,
-  getPermissionsForRole,
+  Permission,
   POSTS_READ_PERMISSION,
   POSTS_UPDATE_PERMISSION,
   USERS_READ_PERMISSION,
@@ -28,7 +26,7 @@ test("a granted permission opens exactly its own admin page", async () => {
     username: "manager",
   });
   const roleId = await createRole(db, "user-manager");
-  await assignPermissionToRole(db, roleId, USERS_READ_PERMISSION);
+  await Permission.assignToRole(db, roleId, USERS_READ_PERMISSION);
   await assignRoleToUser(db, userId, "user-manager");
   const token = await createSession(db, userId);
   const headers = { Cookie: `${SESSION_COOKIE_NAME}=${token}` };
@@ -76,7 +74,7 @@ test("the dashboard opens for any single admin permission", async () => {
     username: "reader",
   });
   const roleId = await createRole(db, "reader");
-  await assignPermissionToRole(db, roleId, POSTS_READ_PERMISSION);
+  await Permission.assignToRole(db, roleId, POSTS_READ_PERMISSION);
   await assignRoleToUser(db, userId, "reader");
   const token = await createSession(db, userId);
   const headers = { Cookie: `${SESSION_COOKIE_NAME}=${token}` };
@@ -114,7 +112,7 @@ test("posts:update lets a non-owner reach any post editor", async () => {
     userId: ownerId,
   });
   const roleId = await createRole(db, "post-editor");
-  await assignPermissionToRole(db, roleId, POSTS_UPDATE_PERMISSION);
+  await Permission.assignToRole(db, roleId, POSTS_UPDATE_PERMISSION);
   await assignRoleToUser(db, editorId, "post-editor");
   const token = await createSession(db, editorId);
   const headers = { Cookie: `${SESSION_COOKIE_NAME}=${token}` };
@@ -211,7 +209,7 @@ test("admins can create and toggle permissions for a selected role", async () =>
     created.headers.get("location"),
     `/admin/roles?role=${targetRoleId}`,
   );
-  const permission = (await getAllPermissions(db)).find(
+  const permission = (await Permission.all(db)).find(
     ({ name }) => name === "posts:publish",
   );
   assert.ok(permission);
@@ -233,7 +231,7 @@ test("admins can create and toggle permissions for a selected role", async () =>
   assert.equal(assigned.status, 200);
   assert.deepEqual(await assigned.json(), { assigned: true });
   assert.deepEqual(
-    (await getPermissionsForRole(db, targetRoleId)).map(({ name }) => name),
+    (await Permission.forRole(db, targetRoleId)).map(({ name }) => name),
     ["posts:publish"],
   );
 
@@ -253,5 +251,5 @@ test("admins can create and toggle permissions for a selected role", async () =>
 
   assert.equal(removed.status, 200);
   assert.deepEqual(await removed.json(), { assigned: false });
-  assert.deepEqual(await getPermissionsForRole(db, targetRoleId), []);
+  assert.deepEqual(await Permission.forRole(db, targetRoleId), []);
 });

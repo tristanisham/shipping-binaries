@@ -1,11 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  assignPermissionToRole,
-  createPermission,
-  getAllPermissions,
-  getPermissionsForRole,
-  getPermissionsForUser,
   Permission,
   USERS_READ_PERMISSION,
 } from "../../src/models/permission.js";
@@ -47,7 +42,7 @@ test("permissions are inherited through roles", async () => {
     true,
   );
 
-  const adminPermissions = await getPermissionsForRole(db, adminRole.id);
+  const adminPermissions = await Permission.forRole(db, adminRole.id);
   assert.deepEqual(
     adminPermissions.map(({ name }) => name),
     [
@@ -68,10 +63,10 @@ test("permissions are inherited through roles", async () => {
     ],
   );
   assert.deepEqual(
-    (await getAllPermissions(db)).map(({ name }) => name),
+    (await Permission.all(db)).map(({ name }) => name),
     adminPermissions.map(({ name }) => name),
   );
-  assert.deepEqual(await getPermissionsForRole(db, guestRole.id), []);
+  assert.deepEqual(await Permission.forRole(db, guestRole.id), []);
 });
 
 test("custom roles can be granted custom permissions", async () => {
@@ -81,13 +76,13 @@ test("custom roles can be granted custom permissions", async () => {
     username: "editor",
   });
   const roleId = await createRole(db, "editor");
-  await createPermission(db, "posts:publish");
-  await assignPermissionToRole(db, roleId, "posts:publish");
+  await Permission.create(db, "posts:publish");
+  await Permission.assignToRole(db, roleId, "posts:publish");
   await assignRoleToUser(db, userId, "editor");
 
   assert.equal(await Permission.can("posts:publish", db, userId), true);
   assert.deepEqual(
-    (await getPermissionsForUser(db, userId)).map(({ name }) => name),
+    (await Permission.forUser(db, userId)).map(({ name }) => name),
     ["posts:publish"],
   );
 });

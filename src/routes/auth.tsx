@@ -34,17 +34,12 @@ import {
   validatePostSlug,
 } from "../models/post.js";
 import {
-  createPermission,
-  getAllPermissions,
-  getPermissionById,
-  getPermissionsForRole,
   Permission,
   POSTS_CREATE_PERMISSION,
   POSTS_READ_PERMISSION,
   POSTS_UPDATE_PERMISSION,
   ROLES_READ_PERMISSION,
   ROLES_UPDATE_PERMISSION,
-  setPermissionForRole,
   USERS_CREATE_PERMISSION,
   USERS_READ_PERMISSION,
   USERS_UPDATE_PERMISSION,
@@ -689,8 +684,8 @@ const renderRolesPage = async (
     null;
   const [permissions, selectedPermissions] = selectedRole
     ? await Promise.all([
-      getAllPermissions(c.env.DB),
-      getPermissionsForRole(c.env.DB, selectedRole.id),
+      Permission.all(c.env.DB),
+      Permission.forRole(c.env.DB, selectedRole.id),
     ])
     : [[], []];
 
@@ -771,7 +766,7 @@ authRoute.post(
     }
 
     try {
-      await createPermission(c.env.DB, name);
+      await Permission.create(c.env.DB, name);
     } catch (error) {
       if (isUniquePermissionError(error)) {
         return renderRolesPage(c, {
@@ -852,7 +847,7 @@ authRoute.post(
     const [role, permission] = await Promise.all([
       Number.isInteger(roleId) ? getRoleById(c.env.DB, roleId) : null,
       Number.isInteger(permissionId)
-        ? getPermissionById(c.env.DB, permissionId)
+        ? Permission.byId(c.env.DB, permissionId)
         : null,
     ]);
 
@@ -860,7 +855,7 @@ authRoute.post(
 
     const body = await c.req.parseBody();
     const assigned = formString(body, "assigned") === "1";
-    await setPermissionForRole(c.env.DB, role.id, permission.id, assigned);
+    await Permission.setForRole(c.env.DB, role.id, permission.id, assigned);
 
     if (c.req.header("Accept")?.includes("application/json")) {
       return c.json({ assigned });
