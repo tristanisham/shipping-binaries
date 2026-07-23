@@ -1,6 +1,6 @@
 import type { FC } from "hono/jsx";
 import type { PermissionRecord } from "../models/permission.js";
-import { PROTECTED_ROLES, type RoleWithUserCount } from "../models/role.js";
+import { isProtectedRole, type RoleWithUserCount } from "../models/role.js";
 import { AdminNav } from "./components/admin/AdminNav.js";
 import {
   panelDivider,
@@ -171,9 +171,7 @@ export const AdminRoles: FC<AdminRolesProps> = ({
     roles[0];
   const assignedIds = new Set(selectedPermissionIds);
   const protectedRole = selectedRole
-    ? PROTECTED_ROLES.includes(
-      selectedRole.name as (typeof PROTECTED_ROLES)[number],
-    )
+    ? isProtectedRole(selectedRole.name)
     : false;
 
   return (

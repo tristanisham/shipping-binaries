@@ -1,5 +1,6 @@
 import type { FC } from "hono/jsx";
 import type { BlogComment } from "../../../models/comment.js";
+import { toIsoTimestamp } from "../SocialMeta.js";
 import { PostBody } from "./PostBody.js";
 
 type CommentProps = {
@@ -18,11 +19,8 @@ const commentDateFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 export const formatCommentDate = (value: string): string => {
-  const isoValue = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
-    ? `${value.replace(" ", "T")}Z`
-    : value;
-  const date = new Date(isoValue);
-  return Number.isNaN(date.getTime()) ? value : commentDateFormatter.format(date);
+  const iso = toIsoTimestamp(value);
+  return iso ? commentDateFormatter.format(new Date(iso)) : value;
 };
 
 const commentActionClass =
