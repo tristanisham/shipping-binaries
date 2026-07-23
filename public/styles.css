@@ -30,6 +30,8 @@
     --text-3xl--line-height: calc(2.25 / 1.875);
     --text-4xl: 2.25rem;
     --text-4xl--line-height: calc(2.5 / 2.25);
+    --text-6xl: 3.75rem;
+    --text-6xl--line-height: 1;
     --text-8xl: 6rem;
     --text-8xl--line-height: 1;
     --font-weight-normal: 400;
@@ -852,10 +854,6 @@
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 0px;
   }
-  .border-l-2 {
-    border-left-style: var(--tw-border-style);
-    border-left-width: 2px;
-  }
   .border-l-4 {
     border-left-style: var(--tw-border-style);
     border-left-width: 4px;
@@ -1022,12 +1020,6 @@
   }
   .bg-chocolate-500 {
     background-color: var(--color-chocolate-500);
-  }
-  .bg-chocolate-500\/15 {
-    background-color: color-mix(in srgb, #e96a16 15%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in oklab, var(--color-chocolate-500) 15%, transparent);
-    }
   }
   .bg-mist-600 {
     background-color: var(--color-mist-600);
@@ -2048,9 +2040,6 @@
       border-color: color-mix(in oklab, var(--color-chocolate-400) 50%, transparent);
     }
   }
-  .dark\:border-chocolate-500:where(.dark, .dark *) {
-    border-color: var(--color-chocolate-500);
-  }
   .dark\:border-chocolate-700:where(.dark, .dark *) {
     border-color: var(--color-chocolate-700);
   }
@@ -2107,9 +2096,6 @@
   }
   .dark\:bg-burgundy-400:where(.dark, .dark *) {
     background-color: var(--color-burgundy-400);
-  }
-  .dark\:bg-chocolate-500:where(.dark, .dark *) {
-    background-color: var(--color-chocolate-500);
   }
   .dark\:bg-chocolate-900:where(.dark, .dark *) {
     background-color: var(--color-chocolate-900);
@@ -2288,9 +2274,6 @@
         background-color: color-mix(in oklab, var(--color-burgundy-500) 20%, transparent);
       }
     }
-    .dark\:hover\:bg-chocolate-400:where(.dark, .dark *):hover {
-      background-color: var(--color-chocolate-400);
-    }
     .dark\:hover\:bg-chocolate-500:where(.dark, .dark *):hover {
       background-color: var(--color-chocolate-500);
     }
@@ -2415,21 +2398,21 @@
 }
 @font-face {
   font-family: "Black Ops One";
-  src: url("/fonts/Black_Ops_One/BlackOpsOne-Regular.ttf") format("truetype");
+  src: url("/fonts/Black_Ops_One/BlackOpsOne-Regular.woff2") format("woff2"), url("/fonts/Black_Ops_One/BlackOpsOne-Regular.ttf") format("truetype");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
 }
 @font-face {
   font-family: "Noto Sans";
-  src: url("/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf") format("truetype");
+  src: url("/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.woff2") format("woff2"), url("/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf") format("truetype");
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
 }
 @font-face {
   font-family: "Noto Sans";
-  src: url("/fonts/Noto_Sans/NotoSans-Italic-VariableFont_wdth,wght.ttf") format("truetype");
+  src: url("/fonts/Noto_Sans/NotoSans-Italic-VariableFont_wdth,wght.woff2") format("woff2"), url("/fonts/Noto_Sans/NotoSans-Italic-VariableFont_wdth,wght.ttf") format("truetype");
   font-style: italic;
   font-weight: 100 900;
   font-display: swap;
