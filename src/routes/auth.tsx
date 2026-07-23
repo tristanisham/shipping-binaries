@@ -1096,8 +1096,13 @@ authRoute.post(
     const body = await c.req.parseBody({ all: true });
     const roleIds = formRoleIds(body);
 
-    // A user cannot strip their own admin role.
-    if (id === c.var.currentUser.id) {
+    // An admin cannot strip their own admin role. Only re-add it when the
+    // editor is already an admin — otherwise this would grant admin to any
+    // user with users:update editing their own roles (privilege escalation).
+    if (
+      id === c.var.currentUser.id &&
+      c.var.currentUser.roles.includes(ADMIN_ROLE)
+    ) {
       const adminRole = await getRoleByName(c.env.DB, ADMIN_ROLE);
       if (adminRole) roleIds.push(adminRole.id);
     }

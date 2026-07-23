@@ -7,6 +7,7 @@ import {
   POSTS_READ_PERMISSION,
   POSTS_UPDATE_PERMISSION,
   USERS_READ_PERMISSION,
+  USERS_UPDATE_PERMISSION,
 } from "../../src/models/permission.js";
 import { createPost } from "../../src/models/post.js";
 import {
@@ -314,6 +315,35 @@ test("a user cannot strip their own admin role via /roles", async () => {
 
   assert.equal(res.status, 303);
   assert.deepEqual(await getRolesForUser(db, adminId), ["admin"]);
+});
+
+test("a non-admin with users:update cannot self-grant admin via /roles", async () => {
+  const db = createTestDb();
+  const managerId = await seedUser(db, {
+    email: "manager2@example.com",
+    username: "manager2",
+  });
+  const roleId = await createRole(db, "user-manager");
+  await Permission.assignToRole(db, roleId, USERS_UPDATE_PERMISSION);
+  await assignRoleToUser(db, managerId, "user-manager");
+  const token = await createSession(db, managerId);
+
+  // The manager edits their OWN roles — the self-lock must NOT hand them admin.
+  const res = await app.request(
+    `/admin/users/${managerId}/roles`,
+    {
+      body: new URLSearchParams({ roleIds: String(roleId) }).toString(),
+      headers: {
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(res.status, 303);
+  assert.deepEqual(await getRolesForUser(db, managerId), ["user-manager"]);
 });
 
 test("denying comments:create blocks commenting; clearing restores it", async () => {
