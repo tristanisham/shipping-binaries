@@ -1,5 +1,6 @@
 import type { FC } from "hono/jsx";
 import type { PostWithAuthor } from "../../../../models/post.js";
+import { PostBody } from "../PostBody.js";
 import { parseEditorData } from "../../editorData.js";
 import { paginateNewest, Pagination } from "./Pagination.js";
 import { PostMeta } from "./PostMeta.js";
@@ -22,29 +23,35 @@ const excerptBlockText = (block: unknown): string => {
     : "";
 };
 
-// Plain-text preview of the post body: paragraph text with inline markup and
-// footnote markers stripped. Legacy bodies are already plain text.
-const postExcerpt = (body: string): string => {
-  const data = parseEditorData(body);
-  const paragraphs = data
-    ? data.blocks.map(excerptBlockText).filter((text) => text.length > 0)
-    : [body];
+const cleanExcerptText = (text: string): string =>
+  text
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\[\^[A-Za-z0-9_-]+\]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
+// Plain-text preview paragraphs with inline markup and footnote markers
+// stripped. Legacy bodies are separated on blank lines where possible.
+const postExcerptParagraphs = (body: string): string[] => {
+  const data = parseEditorData(body);
+  return (data
+    ? data.blocks.map(excerptBlockText).filter((text) => text.length > 0)
+    : body.split(/\n\s*\n/))
+    .map(cleanExcerptText)
+    .filter((text) => text.length > 0);
+};
+
+const postExcerpt = (body: string): string => {
   let joined = "";
-  for (const paragraph of paragraphs) {
+  for (const paragraph of postExcerptParagraphs(body)) {
     joined = joined.length > 0 ? `${joined} ${paragraph}` : paragraph;
     if (joined.length >= EXCERPT_MAX_LENGTH) {
       break;
     }
   }
 
-  return joined
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/\[\^[A-Za-z0-9_-]+\]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, EXCERPT_MAX_LENGTH);
+  return joined.slice(0, EXCERPT_MAX_LENGTH);
 };
 
 type PostListProps = {
@@ -61,18 +68,26 @@ export const PostList: FC<PostListProps> = ({
   posts,
 }) => {
   const page = paginateNewest(posts, currentPage, pageSize);
+  const showFullBody = posts.length === 1;
+  const showLongPreview = posts.length === 2;
 
   return (
-    <section aria-label="Blog posts" class="mt-16 w-full">
+    <section
+      aria-label="Blog posts"
+      class="mx-auto mt-16 w-full max-w-[60rem]"
+    >
       {page.items.length > 0
         ? (
-          <ul class="flex w-full flex-col gap-16">
+          <ul class="flex w-full flex-col gap-12">
             {page.items.map((post) => {
               const href = `/blog/${post.slug}`;
               const excerpt = postExcerpt(post.body);
+              const previewParagraphs = showLongPreview
+                ? postExcerptParagraphs(post.body).slice(0, 3)
+                : [];
               return (
                 <li class="w-full">
-                  <article class="flex w-full flex-col">
+                  <article class="flex w-full flex-col rounded-b-2xl">
                     {post.image
                       ? (
                         <a class="mb-6 block" href={href}>
@@ -87,20 +102,48 @@ export const PostList: FC<PostListProps> = ({
                       : null}
 
                     <a class="w-fit hover:underline" href={href}>
-                      <h2 class="font-sans text-4xl font-bold sm:text-6xl">
+                      <h2 class="font-sans text-3xl font-bold sm:text-4xl">
                         {post.title}
                       </h2>
                     </a>
 
                     <PostMeta post={post} />
 
-                    {excerpt
+                    {showFullBody
                       ? (
-                        <p class="mt-6 line-clamp-4 leading-relaxed">
-                          {excerpt}
-                        </p>
+                        <div class="mt-6">
+                          <PostBody body={post.body} />
+                        </div>
                       )
-                      : null}
+                      : (
+                        <>
+                          {showLongPreview
+                            ? (
+                              previewParagraphs.length > 0
+                                ? (
+                                  <div class="mt-6 space-y-4 leading-relaxed">
+                                    {previewParagraphs.map((paragraph) => (
+                                      <p>{paragraph}</p>
+                                    ))}
+                                  </div>
+                                )
+                                : null
+                            )
+                            : excerpt
+                            ? (
+                              <p class="mt-6 line-clamp-4 leading-relaxed">
+                                {excerpt}
+                              </p>
+                            )
+                            : null}
+                          <a
+                            class="mt-4 block w-fit font-semibold text-chocolate-500 underline decoration-current underline-offset-2 hover:text-chocolate-400"
+                            href={href}
+                          >
+                            Read more...
+                          </a>
+                        </>
+                      )}
                   </article>
                 </li>
               );

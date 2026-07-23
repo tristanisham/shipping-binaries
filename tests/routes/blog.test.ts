@@ -115,7 +115,7 @@ test("blog index lists published posts and excludes drafts", async () => {
   assert.match(html, /<title>Blog \| Shipping Binaries<\/title>/);
   assert.match(html, /aria-current="page"[^>]*href="\/blog"/);
   assert.match(html, /href="\/blog\/listed-post"/);
-  assert.match(html, /font-sans text-4xl font-bold sm:text-6xl/);
+  assert.match(html, /font-sans text-3xl font-bold sm:text-4xl/);
   assert.match(html, /href="\/@owner"/);
   assert.match(html, /Site Owner/);
   assert.doesNotMatch(html, /Unlisted draft/);

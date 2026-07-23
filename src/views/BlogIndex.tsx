@@ -38,7 +38,6 @@ export const BlogIndex: FC<BlogIndexProps> = ({
         nav={setCurrentNavItem(defaultHeaderNav, "/blog")}
       />
       <main class="container mx-auto px-4 pb-16">
-        <h1 class="mt-12 text-4xl font-bold">Blog</h1>
         <PostList currentPage={currentPage} posts={posts} />
       </main>
     </Layout>
