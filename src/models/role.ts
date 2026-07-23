@@ -2,6 +2,10 @@ export const ADMIN_ROLE = "admin";
 export const GUEST_ROLE = "guest";
 export const PROTECTED_ROLES = [ADMIN_ROLE, GUEST_ROLE] as const;
 
+// Protected roles cannot be renamed or deleted through the admin UI.
+export const isProtectedRole = (name: string): boolean =>
+  (PROTECTED_ROLES as readonly string[]).includes(name);
+
 export interface Role {
   id: number;
   name: string;

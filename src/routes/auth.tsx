@@ -54,14 +54,13 @@ import {
   getRoleByName,
   getRolesForUser,
   GUEST_ROLE,
-  PROTECTED_ROLES,
+  isProtectedRole,
   setRolesForUser,
   updateRole,
 } from "../models/role.js";
 import {
   activateUserWithPassword,
   createUser,
-  createUserWithRole,
   findUserByEmail,
   findUserByLogin,
   getAllUsers,
@@ -263,7 +262,7 @@ authRoute.post("/signup", async (c) => {
   let userId: number;
 
   try {
-    userId = await createUserWithRole(c.env.DB, {
+    userId = await createUser(c.env.DB, {
       email: values.email,
       label: values.label,
       passwordHash,
@@ -760,9 +759,7 @@ authRoute.post("/admin/roles/:id", async (c) => {
   const id = Number.parseInt(c.req.param("id"), 10);
   const role = Number.isInteger(id) ? await getRoleById(c.env.DB, id) : null;
   if (!role) return c.notFound();
-  if (
-    PROTECTED_ROLES.includes(role.name as (typeof PROTECTED_ROLES)[number])
-  ) {
+  if (isProtectedRole(role.name)) {
     return c.text("That role is protected.", 400);
   }
 
@@ -792,9 +789,7 @@ authRoute.post("/admin/roles/:id/delete", async (c) => {
   const id = Number.parseInt(c.req.param("id"), 10);
   const role = Number.isInteger(id) ? await getRoleById(c.env.DB, id) : null;
   if (!role) return c.notFound();
-  if (
-    PROTECTED_ROLES.includes(role.name as (typeof PROTECTED_ROLES)[number])
-  ) {
+  if (isProtectedRole(role.name)) {
     return c.text("That role is protected.", 400);
   }
 

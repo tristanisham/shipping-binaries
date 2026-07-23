@@ -8,6 +8,7 @@ import {
 } from "../models/permission.js";
 import {
   getPublishedPostBySlug,
+  getPublishedPostRefBySlug,
   getPublishedPosts,
   getPublishedPostsForUser,
 } from "../models/post.js";
@@ -19,7 +20,7 @@ import {
 import { Author } from "../views/Author.js";
 import { BlogIndex } from "../views/BlogIndex.js";
 import { BlogPost } from "../views/BlogPost.js";
-import { parseEditorData } from "../views/components/editorData.js";
+import { editorDataHasText } from "../views/components/editorData.js";
 import { parsePageParam } from "./page.js";
 
 export const blogRoute = new Hono<{ Bindings: Env }>();
@@ -64,29 +65,6 @@ blogRoute.get("/blog/:slug", async (c) => {
   );
 });
 
-const hasCommentContent = (value: string): boolean => {
-  const data = parseEditorData(value);
-  if (!data) return false;
-
-  return data.blocks.some((block) => {
-    if (typeof block !== "object" || block === null || !("data" in block)) {
-      return false;
-    }
-
-    const blockData = block.data;
-    if (typeof blockData !== "object" || blockData === null) return false;
-
-    const text = "text" in blockData && typeof blockData.text === "string"
-      ? blockData.text
-      : "";
-    return text
-      .replace(/<[^>]*>/g, "")
-      .replace(/&nbsp;/gi, " ")
-      .trim()
-      .length > 0;
-  });
-};
-
 blogRoute.post("/blog/:slug/comments", async (c) => {
   const slug = c.req.param("slug");
   const token = getCookie(c, SESSION_COOKIE_NAME);
@@ -96,17 +74,15 @@ blogRoute.post("/blog/:slug/comments", async (c) => {
     return c.redirect("/login", 303);
   }
 
-  if (
-    await Permission.cannot(
-      COMMENTS_CREATE_PERMISSION,
-      c.env.DB,
-      user.id,
-    )
-  ) {
+  const [forbidden, post] = await Promise.all([
+    Permission.cannot(COMMENTS_CREATE_PERMISSION, c.env.DB, user.id),
+    getPublishedPostRefBySlug(c.env.DB, slug),
+  ]);
+
+  if (forbidden) {
     return c.text("Forbidden", 403);
   }
 
-  const post = await getPublishedPostBySlug(c.env.DB, slug);
   if (!post) {
     return c.notFound();
   }
@@ -122,7 +98,7 @@ blogRoute.post("/blog/:slug/comments", async (c) => {
 
   if (
     content.length > 50_000 ||
-    !hasCommentContent(content) ||
+    !editorDataHasText(content) ||
     (parentId !== null && (!Number.isInteger(parentId) || parentId < 1))
   ) {
     return c.text("Invalid comment", 422);
