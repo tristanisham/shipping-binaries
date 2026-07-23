@@ -279,13 +279,14 @@ export class Permission {
     db: D1Database,
     userId: number,
   ): Promise<readonly UserPermissionDenial[]> {
+    const now = new Date().toISOString();
     const result = await db
       .prepare(
         `SELECT permission_id, expires_at
          FROM user_permission_denials
-         WHERE user_id = ?1`,
+         WHERE user_id = ?1 AND expires_at > ?2`,
       )
-      .bind(userId)
+      .bind(userId, now)
       .all<{ permission_id: number; expires_at: string }>();
 
     return result.results.map((row) => ({

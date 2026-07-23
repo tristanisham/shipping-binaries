@@ -1,7 +1,8 @@
 import type { FC } from "hono/jsx";
-import type {
-  PermissionRecord,
-  UserPermissionDenial,
+import {
+  INDEFINITE_DENIAL_EXPIRES_AT,
+  type PermissionRecord,
+  type UserPermissionDenial,
 } from "../models/permission.js";
 import type { Role } from "../models/role.js";
 import type { User } from "../models/user.js";
@@ -107,7 +108,7 @@ export const AdminUserAccess: FC<AdminUserAccessProps> = ({
                         {expiresAt
                           ? (
                             <Badge variant="draft">
-                              {expiresAt >= "9999"
+                              {expiresAt === INDEFINITE_DENIAL_EXPIRES_AT
                                 ? "Denied"
                                 : `Snoozed until ${expiresAt}`}
                             </Badge>

@@ -5,7 +5,6 @@ import { AdminUsers } from "../../src/views/AdminUsers.js";
 
 test("users table edits identity fields in place across the full width", () => {
   const html = renderToString(AdminUsers({
-    currentUserId: 1,
     direction: "asc",
     sort: "username",
     users: [{
@@ -64,7 +63,6 @@ test("users table edits identity fields in place across the full width", () => {
 
 test("users table shows role badges and a manage-access link, not checkboxes", () => {
   const html = renderToString(AdminUsers({
-    currentUserId: 1,
     users: [{
       active: true,
       createdAt: "",

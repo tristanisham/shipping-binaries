@@ -899,7 +899,6 @@ authRoute.get(
 
     return c.html(
       <AdminUsers
-        currentUserId={c.var.currentUser.id}
         direction={direction}
         sort={sort}
         users={users}

@@ -33,7 +33,6 @@ import {
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AdminUsersProps = {
-  currentUserId: number;
   direction?: UserSortDirection;
   sort?: UserSort;
   users: readonly User[];
@@ -97,7 +96,6 @@ const SortableHeader: FC<SortableHeaderProps> = ({
 };
 
 export const AdminUsers: FC<AdminUsersProps> = ({
-  currentUserId,
   direction = "asc",
   sort,
   users,
