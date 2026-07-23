@@ -124,3 +124,50 @@ test("deny records a denial (upserting) and restore removes it", async () => {
   await Permission.restore(db, userId, permission.id);
   assert.deepEqual(await Permission.denialsForUser(db, userId), []);
 });
+
+test("deny suppresses a role-granted permission until cleared", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, {
+    email: "s1@example.com",
+    username: "s1",
+  });
+  await assignRoleToUser(db, userId, "admin"); // admin holds users:read
+  const permission = (await Permission.all(db)).find(
+    ({ name }) => name === USERS_READ_PERMISSION,
+  );
+  assert.ok(permission);
+
+  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), true);
+
+  await Permission.deny(
+    db,
+    userId,
+    permission.id,
+    INDEFINITE_DENIAL_EXPIRES_AT,
+  );
+  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), false);
+
+  await Permission.restore(db, userId, permission.id);
+  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), true);
+});
+
+test("an expired snooze does not suppress; a future one does", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, {
+    email: "s2@example.com",
+    username: "s2",
+  });
+  await assignRoleToUser(db, userId, "admin");
+  const permission = (await Permission.all(db)).find(
+    ({ name }) => name === USERS_READ_PERMISSION,
+  );
+  assert.ok(permission);
+
+  const past = new Date(Date.now() - 60_000).toISOString();
+  await Permission.deny(db, userId, permission.id, past);
+  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), true);
+
+  const future = new Date(Date.now() + 60_000).toISOString();
+  await Permission.deny(db, userId, permission.id, future);
+  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), false);
+});

@@ -61,6 +61,7 @@ export class Permission {
   ): Promise<boolean> {
     if (!userId || !name) return false;
 
+    const now = new Date().toISOString();
     const row = await db
       .prepare(
         `SELECT 1 AS allowed
@@ -71,9 +72,15 @@ export class Permission {
            ON permissions.id = role_permissions.permission_id
          WHERE user_roles.user_id = ?1
            AND permissions.name = ?2
+           AND NOT EXISTS (
+             SELECT 1 FROM user_permission_denials d
+             WHERE d.user_id = ?1
+               AND d.permission_id = permissions.id
+               AND d.expires_at > ?3
+           )
          LIMIT 1`,
       )
-      .bind(userId, name)
+      .bind(userId, name, now)
       .first<{ allowed: number }>();
 
     return row?.allowed === 1;
