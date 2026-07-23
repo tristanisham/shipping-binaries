@@ -21,8 +21,6 @@ export const USERS_CREATE_PERMISSION = "users:create";
 export const USERS_READ_PERMISSION = "users:read";
 export const USERS_UPDATE_PERMISSION = "users:update";
 export const USERS_DELETE_PERMISSION = "users:delete";
-export const ROLES_READ_PERMISSION = "roles:read";
-export const ROLES_UPDATE_PERMISSION = "roles:update";
 
 export interface PermissionRecord {
   id: number;

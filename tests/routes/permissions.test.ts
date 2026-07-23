@@ -41,8 +41,8 @@ test("a granted permission opens exactly its own admin page", async () => {
     { headers },
     { DB: db } as Env,
   );
-  // ...but nothing else. The roles page needs roles:read, which this role
-  // does not hold.
+  // ...but nothing else. The roles page is admin-only, and this role is
+  // not admin.
   const forbidden = await app.request(
     "/admin/roles",
     { headers },
@@ -449,4 +449,56 @@ test("GET /admin/users/:id/permissions renders for users:update, 403 otherwise",
     { DB: db } as Env,
   );
   assert.equal(denied.status, 403);
+});
+
+test("role administration is admin-only, not delegatable by permission", async () => {
+  const db = createTestDb();
+  // A highly privileged non-admin: holds every non-roles permission.
+  const userId = await seedUser(db, {
+    email: "super@example.com",
+    username: "super",
+  });
+  const roleId = await createRole(db, "super-manager");
+  for (const permission of await Permission.all(db)) {
+    await Permission.assignToRole(db, roleId, permission.name);
+  }
+  await assignRoleToUser(db, userId, "super-manager");
+  const token = await createSession(db, userId);
+  const cookie = `${SESSION_COOKIE_NAME}=${token}`;
+  const form = {
+    Cookie: cookie,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+
+  // Cannot view the roles page...
+  const view = await app.request(
+    "/admin/roles",
+    { headers: { Cookie: cookie } },
+    { DB: db } as Env,
+  );
+  assert.equal(view.status, 403);
+
+  // ...nor create a role...
+  const create = await app.request(
+    "/admin/roles",
+    {
+      body: new URLSearchParams({ name: "sneaky" }).toString(),
+      headers: form,
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(create.status, 403);
+
+  // ...nor create a permission.
+  const createPerm = await app.request(
+    "/admin/roles/permissions",
+    {
+      body: new URLSearchParams({ name: "posts:sneak" }).toString(),
+      headers: form,
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(createPerm.status, 403);
 });

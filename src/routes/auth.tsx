@@ -39,8 +39,6 @@ import {
   POSTS_CREATE_PERMISSION,
   POSTS_READ_PERMISSION,
   POSTS_UPDATE_PERMISSION,
-  ROLES_READ_PERMISSION,
-  ROLES_UPDATE_PERMISSION,
   USERS_CREATE_PERMISSION,
   USERS_READ_PERMISSION,
   USERS_UPDATE_PERMISSION,
@@ -492,6 +490,16 @@ const canWritePost = async (
   return Permission.can(POSTS_CREATE_PERMISSION, c.env.DB, userId);
 };
 
+// Role and permission administration is reserved to the admin role itself, not
+// delegatable through a permission: whoever can edit role→permission mappings
+// could otherwise grant their own role any capability (privilege escalation).
+const requireAdminRole: MiddlewareHandler<AuthEnv> = async (c, next) => {
+  if (!hasAdminRole(c.var.currentUser.roles)) {
+    return c.text("Forbidden", 403);
+  }
+  await next();
+};
+
 authRoute.use("/admin", requireSession);
 authRoute.use("/admin/*", requireSession);
 
@@ -500,7 +508,6 @@ authRoute.get(
   Permission.requireAny(
     POSTS_READ_PERMISSION,
     USERS_READ_PERMISSION,
-    ROLES_READ_PERMISSION,
   ),
   async (c) => {
     c.header("Cache-Control", "no-store");
@@ -723,7 +730,7 @@ const renderRolesPage = async (
 
 authRoute.get(
   "/admin/roles",
-  Permission.require(ROLES_READ_PERMISSION),
+  requireAdminRole,
   (c) => {
     c.header("Cache-Control", "no-store");
     return renderRolesPage(c);
@@ -732,7 +739,7 @@ authRoute.get(
 
 authRoute.post(
   "/admin/roles",
-  Permission.require(ROLES_UPDATE_PERMISSION),
+  requireAdminRole,
   async (c) => {
     c.header("Cache-Control", "no-store");
     const body = await c.req.parseBody();
@@ -764,7 +771,7 @@ authRoute.post(
 
 authRoute.post(
   "/admin/roles/permissions",
-  Permission.require(ROLES_UPDATE_PERMISSION),
+  requireAdminRole,
   async (c) => {
     c.header("Cache-Control", "no-store");
     const body = await c.req.parseBody();
@@ -804,7 +811,7 @@ authRoute.post(
 
 authRoute.post(
   "/admin/roles/:id",
-  Permission.require(ROLES_UPDATE_PERMISSION),
+  requireAdminRole,
   async (c) => {
     c.header("Cache-Control", "no-store");
     const id = Number.parseInt(c.req.param("id"), 10);
@@ -838,7 +845,7 @@ authRoute.post(
 
 authRoute.post(
   "/admin/roles/:id/delete",
-  Permission.require(ROLES_UPDATE_PERMISSION),
+  requireAdminRole,
   async (c) => {
     c.header("Cache-Control", "no-store");
     const id = Number.parseInt(c.req.param("id"), 10);
@@ -855,7 +862,7 @@ authRoute.post(
 
 authRoute.post(
   "/admin/roles/:roleId/permissions/:permissionId",
-  Permission.require(ROLES_UPDATE_PERMISSION),
+  requireAdminRole,
   async (c) => {
     c.header("Cache-Control", "no-store");
     const roleId = Number.parseInt(c.req.param("roleId"), 10);
