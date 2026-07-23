@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { hashPassword, verifyPassword } from "../../src/auth/password.js";
 import app from "../../src/index.js";
-import { getPostById, setPostDraft } from "../../src/models/post.js";
+import {
+  createPost,
+  getPostById,
+  setPostDraft,
+} from "../../src/models/post.js";
 import { ADMIN_ROLE, getRoleByName } from "../../src/models/role.js";
 import { findUserByLogin, getUserById } from "../../src/models/user.js";
 import {
@@ -385,6 +389,115 @@ test("non-admin users can access account but not admin management", async () => 
   );
   assert.equal(login.status, 303);
   assert.equal(login.headers.get("Location"), "/admin/account");
+});
+
+test("post authors can edit only their own existing posts", async () => {
+  const db = createTestDb();
+  const authorId = await seedUser(db, {
+    email: "author@example.com",
+    username: "author",
+  });
+  const otherId = await seedUser(db, {
+    email: "other@example.com",
+    username: "other",
+  });
+  const ownPostId = await createPost(db, {
+    userId: authorId,
+    slug: "authors-post",
+    title: "Author's post",
+    description: "",
+    keywords: [],
+    image: "",
+    body: "Original body",
+    draft: false,
+  });
+  const otherPostId = await createPost(db, {
+    userId: otherId,
+    slug: "others-post",
+    title: "Other's post",
+    description: "",
+    keywords: [],
+    image: "",
+    body: "Other body",
+    draft: false,
+  });
+  const token = await createSession(db, authorId);
+  const headers = { Cookie: `${SESSION_COOKIE_NAME}=${token}` };
+
+  const ownEditor = await app.request(
+    `/admin/write?id=${ownPostId}`,
+    { headers },
+    { DB: db } as Env,
+  );
+  assert.equal(ownEditor.status, 200);
+  assert.match(await ownEditor.text(), /value="authors-post"/);
+
+  const newEditor = await app.request(
+    "/admin/write",
+    { headers },
+    { DB: db } as Env,
+  );
+  assert.equal(newEditor.status, 403);
+
+  const otherEditor = await app.request(
+    `/admin/write?id=${otherPostId}`,
+    { headers },
+    { DB: db } as Env,
+  );
+  assert.equal(otherEditor.status, 403);
+
+  const update = await app.request(
+    "/admin/write",
+    {
+      body: new URLSearchParams({
+        action: "publish",
+        body: "Updated body",
+        description: "",
+        id: String(ownPostId),
+        image: "",
+        keywords: "",
+        slug: "authors-post",
+        slugMode: "custom",
+        title: "Updated author's post",
+      }).toString(),
+      headers: {
+        ...headers,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(update.status, 303);
+  assert.equal(
+    (await getPostById(db, ownPostId))?.title,
+    "Updated author's post",
+  );
+
+  const forbiddenUpdate = await app.request(
+    "/admin/write",
+    {
+      body: new URLSearchParams({
+        action: "publish",
+        body: "Changed",
+        description: "",
+        id: String(otherPostId),
+        image: "",
+        keywords: "",
+        slug: "others-post",
+        slugMode: "custom",
+        title: "Changed",
+      }).toString(),
+      headers: {
+        ...headers,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(forbiddenUpdate.status, 403);
+  assert.equal((await getPostById(db, otherPostId))?.title, "Other's post");
 });
 
 test("account update verifies the current password and forces sign-in", async () => {

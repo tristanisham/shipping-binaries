@@ -56,16 +56,20 @@ const postExcerpt = (body: string): string => {
 
 type PostListProps = {
   currentPage?: number;
+  isAdmin?: boolean;
   pageBasePath?: string;
   pageSize?: number;
   posts: readonly PostWithAuthor[];
+  viewerUserId?: number | null;
 };
 
 export const PostList: FC<PostListProps> = ({
   currentPage = 1,
+  isAdmin = false,
   pageBasePath = "/blog",
   pageSize = 5,
   posts,
+  viewerUserId = null,
 }) => {
   const page = paginateNewest(posts, currentPage, pageSize);
   const showFullBody = posts.length === 1;
@@ -107,7 +111,10 @@ export const PostList: FC<PostListProps> = ({
                       </h2>
                     </a>
 
-                    <PostMeta post={post} />
+                    <PostMeta
+                      canEdit={isAdmin || viewerUserId === post.userId}
+                      post={post}
+                    />
 
                     {showFullBody
                       ? (

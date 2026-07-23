@@ -349,9 +349,13 @@ const requireSession: MiddlewareHandler<AuthEnv> = async (c, next) => {
 };
 
 // Runs after requireSession, so c.var.currentUser is populated. Gates the
-// admin area to users holding the admin role; everyone else gets 403.
+// admin area to users holding the admin role. Account access and author-owned
+// post editing are authorized by their route handlers.
 const requireAdmin: MiddlewareHandler<AuthEnv> = async (c, next) => {
-  if (c.req.path === "/admin/account") {
+  if (
+    c.req.path === "/admin/account" ||
+    c.req.path === "/admin/write"
+  ) {
     await next();
     return;
   }
@@ -382,6 +386,7 @@ authRoute.get("/admin", async (c) => {
 authRoute.get("/admin/write", async (c) => {
   c.header("Cache-Control", "no-store");
   const idParam = c.req.query("id");
+  const isAdmin = hasAdminRole(c.var.currentUser.roles);
   let post: Post | undefined;
 
   if (idParam) {
@@ -389,6 +394,10 @@ authRoute.get("/admin/write", async (c) => {
     if (Number.isInteger(id)) {
       post = (await getPostById(c.env.DB, id)) ?? undefined;
     }
+  }
+
+  if (!isAdmin && (!post || post.userId !== c.var.currentUser.id)) {
+    return c.text("Forbidden", 403);
   }
 
   return c.html(<Write post={post} />);
@@ -416,6 +425,18 @@ authRoute.post("/admin/write", async (c) => {
   const postBody = typeof body.body === "string" ? body.body : "";
   const draft = isAutosave ? body.currentDraft === "1" : action !== "publish";
   const currentPostId = Number.isInteger(id) ? id : undefined;
+  const currentPost = currentPostId === undefined
+    ? undefined
+    : (await getPostById(c.env.DB, currentPostId)) ?? undefined;
+  const isAdmin = hasAdminRole(c.var.currentUser.roles);
+
+  if (
+    !isAdmin &&
+    (!currentPost || currentPost.userId !== c.var.currentUser.id)
+  ) {
+    return c.text("Forbidden", 403);
+  }
+
   let slug: string;
   let slugError: string | null = null;
 
@@ -450,12 +471,8 @@ authRoute.post("/admin/write", async (c) => {
       slugMode,
       title,
     };
-    const post = currentPostId
-      ? (await getPostById(c.env.DB, currentPostId)) ?? undefined
-      : undefined;
-
     return c.html(
-      <Write post={post} slugError={slugError} values={values} />,
+      <Write post={currentPost} slugError={slugError} values={values} />,
       422,
     );
   }

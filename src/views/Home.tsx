@@ -16,7 +16,13 @@ type HomeProps = ViewerProps & {
 };
 
 export const Home: FC<HomeProps> = (
-  { currentPage = 1, isAdmin = false, isAuthenticated = false, posts = [] },
+  {
+    currentPage = 1,
+    isAdmin = false,
+    isAuthenticated = false,
+    posts = [],
+    viewerUserId = null,
+  },
 ) => {
   const meta: LayoutMeta = {
     title: "Home | Shipping Binaries",
@@ -44,8 +50,10 @@ export const Home: FC<HomeProps> = (
       <main class="w-full px-4 pb-16">
         <PostList
           currentPage={currentPage}
+          isAdmin={isAdmin}
           pageBasePath="/"
           posts={posts}
+          viewerUserId={viewerUserId}
         />
       </main>
     </Layout>

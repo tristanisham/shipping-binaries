@@ -336,6 +336,9 @@
   .-mt-3 {
     margin-top: calc(var(--spacing) * -3);
   }
+  .mt-1 {
+    margin-top: var(--spacing);
+  }
   .mt-2 {
     margin-top: calc(var(--spacing) * 2);
   }

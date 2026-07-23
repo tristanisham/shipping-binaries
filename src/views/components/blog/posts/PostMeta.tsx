@@ -4,11 +4,18 @@ import { formatPublishDate } from "./Pagination.js";
 import { PostActions } from "./PostActions.js";
 
 type PostMetaProps = {
+  canEdit?: boolean;
   inverse?: boolean;
   post: PostWithAuthor;
+  showRead?: boolean;
 };
 
-export const PostMeta: FC<PostMetaProps> = ({ inverse = false, post }) => {
+export const PostMeta: FC<PostMetaProps> = ({
+  canEdit = false,
+  inverse = false,
+  post,
+  showRead = true,
+}) => {
   const displayName = post.authorLabel ?? `@${post.authorUsername}`;
   const href = `/blog/${post.slug}`;
 
@@ -30,8 +37,10 @@ export const PostMeta: FC<PostMetaProps> = ({ inverse = false, post }) => {
       <PostActions
         commentCount={post.comments.length}
         displayName={displayName}
+        editHref={canEdit ? `/admin/write?id=${post.id}` : undefined}
         href={href}
         inverse={inverse}
+        showRead={showRead}
         title={post.title}
       />
     </div>
