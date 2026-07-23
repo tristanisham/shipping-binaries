@@ -30,7 +30,7 @@ export const Author: FC<AuthorProps> = ({
     description: `Posts by ${displayName} on Shipping Binaries.`,
     canonical: toAbsoluteUrl(`/@${encodeURIComponent(author.username)}`),
     social: {
-      title: `${displayName}’s Author Page`,
+      title: `${displayName} Author’s Page`,
     },
   };
 
