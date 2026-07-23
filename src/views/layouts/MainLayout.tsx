@@ -32,10 +32,7 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
           <meta name="description" content={meta.description} />
         )}
         {meta?.keywords && (
-          <meta
-            name="keywords"
-            content={`${meta.keywords}`}
-          />
+          <meta name="keywords" content={`${meta.keywords}`} />
         )}
         {meta?.author && <meta name="author" content={meta.author} />}
         {meta?.robots && <meta name="robots" content={meta.robots} />}

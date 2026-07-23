@@ -29,8 +29,10 @@ export const About: FC<ViewerProps> = ({
         isAuthenticated={isAuthenticated}
         nav={setCurrentNavItem(defaultHeaderNav, "/about")}
       />
-      <main class="container mx-auto h-full w-2/5">
-        <article class="py-8">
+      <main class="container mx-auto max-w-3xl px-4 py-12 sm:py-16">
+        <article class="space-y-4 leading-relaxed">
+          Shipping Binaries is a the story of a modern open source software developer creating <a href="https://github.com/tristanisham/zvm">open source</a> software
+          for other developers. 
         </article>
       </main>
     </Layout>
