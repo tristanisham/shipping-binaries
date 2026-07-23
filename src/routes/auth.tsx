@@ -894,16 +894,12 @@ authRoute.get(
     const direction: UserSortDirection = requestedDirection === "desc"
       ? "desc"
       : "asc";
-    const [roles, users] = await Promise.all([
-      getAllRoles(c.env.DB),
-      getAllUsers(c.env.DB, { direction, sort }),
-    ]);
+    const users = await getAllUsers(c.env.DB, { direction, sort });
 
     return c.html(
       <AdminUsers
         currentUserId={c.var.currentUser.id}
         direction={direction}
-        roles={roles}
         sort={sort}
         users={users}
         viewerUsername={c.var.currentUser.username}
