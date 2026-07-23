@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import app from "../../src/index.js";
 import {
+  COMMENTS_CREATE_PERMISSION,
   Permission,
   POSTS_READ_PERMISSION,
   POSTS_UPDATE_PERMISSION,
@@ -313,4 +314,80 @@ test("a user cannot strip their own admin role via /roles", async () => {
 
   assert.equal(res.status, 303);
   assert.deepEqual(await getRolesForUser(db, adminId), ["admin"]);
+});
+
+test("denying comments:create blocks commenting; clearing restores it", async () => {
+  const db = createTestDb();
+  const admin = await seedUser(db, {
+    email: "a3@example.com",
+    username: "a3",
+  });
+  await assignRoleToUser(db, admin, ADMIN_ROLE);
+  const token = await createSession(db, admin);
+  const form = {
+    Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  const perm = (await Permission.all(db)).find(
+    ({ name }) => name === COMMENTS_CREATE_PERMISSION,
+  );
+  assert.ok(perm);
+
+  // admin holds comments:create by default
+  assert.equal(
+    await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin),
+    true,
+  );
+
+  const deny = await app.request(
+    `/admin/users/${admin}/denials`,
+    {
+      body: new URLSearchParams({
+        duration: "indefinite",
+        permissionId: String(perm.id),
+      }).toString(),
+      headers: form,
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(deny.status, 303);
+  assert.equal(
+    await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin),
+    false,
+  );
+
+  const clear = await app.request(
+    `/admin/users/${admin}/denials/${perm.id}/delete`,
+    { headers: form, method: "POST" },
+    { DB: db } as Env,
+  );
+  assert.equal(clear.status, 303);
+  assert.equal(
+    await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin),
+    true,
+  );
+});
+
+test("denial routes require users:update", async () => {
+  const db = createTestDb();
+  const nobody = await seedUser(db, {
+    email: "n@example.com",
+    username: "nobody",
+  });
+  const token = await createSession(db, nobody);
+  const res = await app.request(
+    `/admin/users/${nobody}/denials`,
+    {
+      body: new URLSearchParams({ duration: "1h", permissionId: "1" })
+        .toString(),
+      headers: {
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(res.status, 403);
 });

@@ -34,6 +34,7 @@ import {
   validatePostSlug,
 } from "../models/post.js";
 import {
+  INDEFINITE_DENIAL_EXPIRES_AT,
   Permission,
   POSTS_CREATE_PERMISSION,
   POSTS_READ_PERMISSION,
@@ -154,6 +155,20 @@ const clearSessionCookie = (c: Context<AuthEnv>): void => {
     path: "/",
     secure: new URL(c.req.url).protocol === "https:",
   });
+};
+
+const SNOOZE_DURATIONS_MS: Record<string, number> = {
+  "1h": 60 * 60 * 1000,
+  "1d": 24 * 60 * 60 * 1000,
+  "1w": 7 * 24 * 60 * 60 * 1000,
+};
+
+// Maps a duration form value to an ISO expiry: a preset window from now, or the
+// far-future sentinel for an indefinite deny. Returns null for anything else.
+const denialExpiresAt = (duration: string): string | null => {
+  if (duration === "indefinite") return INDEFINITE_DENIAL_EXPIRES_AT;
+  const ms = SNOOZE_DURATIONS_MS[duration];
+  return ms ? new Date(Date.now() + ms).toISOString() : null;
 };
 
 const setSessionCookie = (c: Context<AuthEnv>, token: string): void => {
@@ -1063,6 +1078,43 @@ authRoute.post(
     }
 
     await setRolesForUser(c.env.DB, id, roleIds);
+    return c.redirect(`/admin/users/${id}/permissions`, 303);
+  },
+);
+
+authRoute.post(
+  "/admin/users/:id/denials",
+  Permission.require(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
+    const body = await c.req.parseBody();
+    const permissionId = Number.parseInt(formString(body, "permissionId"), 10);
+    const expiresAt = denialExpiresAt(formString(body, "duration"));
+
+    if (Number.isInteger(id) && Number.isInteger(permissionId) && expiresAt) {
+      const permission = await Permission.byId(c.env.DB, permissionId);
+      if (permission) {
+        await Permission.deny(c.env.DB, id, permission.id, expiresAt);
+      }
+    }
+
+    return c.redirect(`/admin/users/${id}/permissions`, 303);
+  },
+);
+
+authRoute.post(
+  "/admin/users/:id/denials/:permissionId/delete",
+  Permission.require(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
+    const permissionId = Number.parseInt(c.req.param("permissionId"), 10);
+
+    if (Number.isInteger(id) && Number.isInteger(permissionId)) {
+      await Permission.restore(c.env.DB, id, permissionId);
+    }
+
     return c.redirect(`/admin/users/${id}/permissions`, 303);
   },
 );
