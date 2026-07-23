@@ -37,6 +37,7 @@ type WriteProps = {
   post?: Post;
   slugError?: string;
   values?: WriteFormValues;
+  viewerUsername?: string;
 };
 
 export type WriteFormValues = {
@@ -216,7 +217,12 @@ window.initKeywordsField = (root) => {
 };
 `;
 
-export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
+export const Write: FC<WriteProps> = ({
+  post,
+  slugError,
+  values,
+  viewerUsername,
+}) => {
   const meta: LayoutMeta = {
     title: post ? "Edit post | Shipping Binaries" : "Write | Shipping Binaries",
     robots: "noindex",
@@ -239,6 +245,7 @@ export const Write: FC<WriteProps> = ({ post, slugError, values }) => {
         isAdmin
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
+        viewerUsername={viewerUsername}
       />
       <form
         action="/admin/write"

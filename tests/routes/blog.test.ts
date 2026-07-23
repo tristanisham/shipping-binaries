@@ -3,6 +3,10 @@ import { test } from "node:test";
 import app from "../../src/index.js";
 import { createPost } from "../../src/models/post.js";
 import {
+  ADMIN_ROLE,
+  assignRoleToUser,
+} from "../../src/models/role.js";
+import {
   createSession,
   SESSION_COOKIE_NAME,
 } from "../../src/models/session.js";
@@ -40,7 +44,6 @@ test("published posts render at their slug and drafts stay private", async () =>
     body: "Not public",
     draft: true,
   });
-
   const response = await app.request(
     "/blog/public-post",
     {},
@@ -128,6 +131,14 @@ test("blog index lists published posts and excludes drafts", async () => {
     body: "",
     draft: true,
   });
+  await db
+    .prepare(
+      `UPDATE profiles
+       SET biography = ?2
+       WHERE user_id = ?1`,
+    )
+    .bind(userId, "I write about software and the people who build it.")
+    .run();
 
   const response = await app.request("/blog", {}, { DB: db } as Env);
   const html = await response.text();
@@ -147,8 +158,28 @@ test("blog index lists published posts and excludes drafts", async () => {
   );
   const authorHtml = await authorResponse.text();
   assert.equal(authorResponse.status, 200);
-  assert.match(authorHtml, /<h1[^>]*>Site Owner<\/h1>/);
-  assert.match(authorHtml, /@owner/);
+  assert.match(
+    authorHtml,
+    /<header class="mt-10">/,
+  );
+  assert.match(
+    authorHtml,
+    /<h1 class="font-black-ops-one text-2xl leading-none">Site Owner<\/h1>/,
+  );
+  assert.match(authorHtml, />\s*@owner\s*<\/p>/);
+  assert.match(
+    authorHtml,
+    /I write about software and the people who build it\./,
+  );
+  assert.match(
+    authorHtml,
+    /<hr class="mt-6 border-mist-600\/25 dark:border-amber-50\/25"\/>/,
+  );
+  assert.match(
+    authorHtml,
+    /aria-label="Blog posts" class="w-full mx-auto mt-8 max-w-\[60rem\]"/,
+  );
+  assert.match(authorHtml, /grid grid-cols-1 gap-6 md:grid-cols-3/);
   assert.match(authorHtml, /href="\/blog\/listed-post"/);
   assert.doesNotMatch(authorHtml, /Unlisted draft/);
 
@@ -160,7 +191,7 @@ test("blog index lists published posts and excludes drafts", async () => {
   assert.equal(missingAuthorResponse.status, 404);
 });
 
-test("public navigation sends a non-admin user directly to account", async () => {
+test("public navigation gives a non-admin user profile and account links", async () => {
   const db = createTestDb();
   const userId = await seedUser(db, {
     email: "member@example.com",
@@ -175,10 +206,163 @@ test("public navigation sends a non-admin user directly to account", async () =>
   const html = await response.text();
 
   assert.equal(response.status, 200);
-  assert.match(
-    html,
-    /aria-label="Open account"[^>]*href="\/admin\/account"/,
+  assert.match(html, /aria-label="Open user menu"/);
+  assert.match(html, /role="menu"/);
+  assert.match(html, /href="\/@member"[^>]*>Profile<\/a>/);
+  assert.match(html, /href="\/admin\/account"[^>]*>Account<\/a>/);
+  assert.doesNotMatch(html, />Dashboard<\/a>/);
+});
+
+test("users with comment permission can post and reply with Editor.js", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, {
+    email: "commenter@example.com",
+    username: "commenter",
+    label: "Comment Author",
+  });
+  await assignRoleToUser(db, userId, ADMIN_ROLE);
+  await createPost(db, {
+    body: JSON.stringify({ blocks: [] }),
+    description: "",
+    draft: false,
+    image: "",
+    keywords: [],
+    slug: "comments-enabled",
+    title: "Comments enabled",
+    userId,
+  });
+  const token = await createSession(db, userId);
+  const cookie = `${SESSION_COOKIE_NAME}=${token}`;
+
+  const editorResponse = await app.request(
+    "/blog/comments-enabled",
+    { headers: { Cookie: cookie } },
+    { DB: db } as Env,
   );
-  assert.doesNotMatch(html, /role="menu"/);
-  assert.doesNotMatch(html, /aria-label="Open admin dashboard"/);
+  const editorHtml = await editorResponse.text();
+  assert.equal(editorResponse.status, 200);
+  assert.match(editorHtml, /data-comment-editor/);
+  assert.match(editorHtml, /textarea[^>]*name="content"/);
+  assert.match(editorHtml, /min-h-32 w-full resize-y/);
+  assert.match(editorHtml, /@editorjs\/editorjs@2\.31\.6/);
+  assert.match(editorHtml, />Cancel<\/button>/);
+  assert.match(editorHtml, />Comment<\/button>/);
+
+  const content = JSON.stringify({
+    blocks: [{
+      type: "paragraph",
+      data: { text: "A <b>useful</b> comment." },
+    }],
+  });
+  const created = await app.request(
+    "/blog/comments-enabled/comments",
+    {
+      body: new URLSearchParams({ content }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: cookie,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(created.status, 303);
+  assert.equal(
+    created.headers.get("location"),
+    "/blog/comments-enabled#comment-1",
+  );
+
+  const reply = await app.request(
+    "/blog/comments-enabled/comments",
+    {
+      body: new URLSearchParams({
+        content: JSON.stringify({
+          blocks: [{
+            type: "paragraph",
+            data: { text: "A reply." },
+          }],
+        }),
+        parentId: "1",
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: cookie,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(reply.status, 303);
+  assert.equal(
+    reply.headers.get("location"),
+    "/blog/comments-enabled#comment-2",
+  );
+
+  const response = await app.request(
+    "/blog/comments-enabled",
+    { headers: { Cookie: cookie } },
+    { DB: db } as Env,
+  );
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(html, /id="comment-1"/);
+  assert.match(html, /id="comment-2"/);
+  assert.match(html, /href="\/@commenter"[^>]*>Comment Author<\/a>/);
+  assert.match(html, /A <strong>useful<\/strong> comment\./);
+  assert.match(html, /A reply\./);
+  assert.match(html, /aria-label="Upvote comment"/);
+  assert.match(html, /aria-label="Downvote comment"/);
+  assert.match(html, />Reply<\/button>/);
+  assert.match(html, /data-comment-path="\/blog\/comments-enabled#comment-1"/);
+  assert.match(html, /Comment link copied/);
+  assert.match(html, /mt-4 ml-6 space-y-4/);
+});
+
+test("comment creation requires a signed-in user with permission", async () => {
+  const db = createTestDb();
+  const ownerId = await seedUser(db, {
+    email: "owner@example.com",
+    username: "owner",
+  });
+  await createPost(db, {
+    body: JSON.stringify({ blocks: [] }),
+    description: "",
+    draft: false,
+    image: "",
+    keywords: [],
+    slug: "protected-comments",
+    title: "Protected comments",
+    userId: ownerId,
+  });
+  const content = JSON.stringify({
+    blocks: [{ type: "paragraph", data: { text: "No access." } }],
+  });
+
+  const anonymous = await app.request(
+    "/blog/protected-comments/comments",
+    {
+      body: new URLSearchParams({ content }).toString(),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(anonymous.status, 303);
+  assert.equal(anonymous.headers.get("location"), "/login");
+
+  const token = await createSession(db, ownerId);
+  const forbidden = await app.request(
+    "/blog/protected-comments/comments",
+    {
+      body: new URLSearchParams({ content }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(forbidden.status, 403);
 });

@@ -7,15 +7,6 @@ export const SITE_NAME = "Shipping Binaries";
 export const toAbsoluteUrl = (pathOrUrl: string): string =>
   new URL(pathOrUrl, SITE_ORIGIN).toString();
 
-// D1 timestamps are "YYYY-MM-DD HH:MM:SS" (UTC); article:* tags want ISO 8601.
-export const toIsoTimestamp = (value: string): string | undefined => {
-  const isoValue = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
-    ? `${value.replace(" ", "T")}Z`
-    : value;
-  const date = new Date(isoValue);
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
-};
-
 export type SocialMeta = {
   title?: string;
   description?: string;

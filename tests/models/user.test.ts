@@ -31,6 +31,30 @@ test("getUserById returns null for a missing user", async () => {
   assert.equal(await getUserById(db, 999), null);
 });
 
+test("user emails have a case-insensitive unique index", async () => {
+  const db = createTestDb();
+  const indexes = await db
+    .prepare("PRAGMA index_list(users)")
+    .all<{ name: string; unique: 0 | 1 }>();
+  const emailIndex = indexes.results.find(
+    ({ name }) => name === "users_email_unique",
+  );
+
+  assert.equal(emailIndex?.unique, 1);
+
+  await seedUser(db, {
+    email: "member@example.com",
+    username: "member-one",
+  });
+  await assert.rejects(
+    seedUser(db, {
+      email: "MEMBER@EXAMPLE.COM",
+      username: "member-two",
+    }),
+    /UNIQUE constraint failed: users\.email/,
+  );
+});
+
 test("getPublicUserByUsername returns only public profile fields", async () => {
   const db = createTestDb();
   const id = await seedUser(db, {

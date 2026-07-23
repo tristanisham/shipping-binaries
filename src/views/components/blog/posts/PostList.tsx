@@ -2,6 +2,7 @@ import type { FC } from "hono/jsx";
 import type { PostWithAuthor } from "../../../../models/post.js";
 import { PostBody } from "../PostBody.js";
 import { parseEditorData } from "../../editorData.js";
+import { cn } from "../../ui/utils.js";
 import { paginateNewest, Pagination } from "./Pagination.js";
 import { PostMeta } from "./PostMeta.js";
 
@@ -55,6 +56,7 @@ const postExcerpt = (body: string): string => {
 };
 
 type PostListProps = {
+  class?: string;
   currentPage?: number;
   isAdmin?: boolean;
   pageBasePath?: string;
@@ -64,6 +66,7 @@ type PostListProps = {
 };
 
 export const PostList: FC<PostListProps> = ({
+  class: className,
   currentPage = 1,
   isAdmin = false,
   pageBasePath = "/blog",
@@ -78,7 +81,7 @@ export const PostList: FC<PostListProps> = ({
   return (
     <section
       aria-label="Blog posts"
-      class="mx-auto mt-16 w-full max-w-[60rem]"
+      class={cn("mx-auto mt-16 w-full max-w-[60rem]", className)}
     >
       {page.items.length > 0
         ? (

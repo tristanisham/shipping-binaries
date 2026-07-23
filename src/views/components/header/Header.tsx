@@ -33,6 +33,7 @@ export const Header: FC<HeaderProps> = ({
   isAdmin = false,
   isAuthenticated = false,
   nav,
+  viewerUsername = null,
 }) => {
   return (
     <header class={""}>
@@ -46,6 +47,7 @@ export const Header: FC<HeaderProps> = ({
                 <UserMenu
                   isAdmin={isAdmin}
                   isAuthenticated={isAuthenticated}
+                  username={viewerUsername}
                 />
               </div>
             </div>

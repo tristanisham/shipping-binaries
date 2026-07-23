@@ -25,9 +25,13 @@ import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AdminUserEditProps = {
   user: User;
+  viewerUsername?: string;
 };
 
-export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
+export const AdminUserEdit: FC<AdminUserEditProps> = ({
+  user,
+  viewerUsername,
+}) => {
   const meta: LayoutMeta = {
     title: "Edit user | Shipping Binaries",
     robots: "noindex",
@@ -39,6 +43,7 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({ user }) => {
         isAdmin
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
+        viewerUsername={viewerUsername}
       />
       <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,4fr)] gap-4 px-4 py-6">
         <AdminNav current="/admin/users" />

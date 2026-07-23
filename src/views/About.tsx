@@ -10,6 +10,7 @@ import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 export const About: FC<ViewerProps> = ({
   isAdmin = false,
   isAuthenticated = false,
+  viewerUsername = null,
 }) => {
   const meta: LayoutMeta = {
     title: "About | Shipping Binaries",
@@ -28,6 +29,7 @@ export const About: FC<ViewerProps> = ({
         isAdmin={isAdmin}
         isAuthenticated={isAuthenticated}
         nav={setCurrentNavItem(defaultHeaderNav, "/about")}
+        viewerUsername={viewerUsername}
       />
       <main class="container mx-auto max-w-3xl px-4 py-12 sm:py-16">
         <article class="space-y-4 leading-relaxed">

@@ -10,6 +10,7 @@ import {
 } from "./components/header/Header.js";
 import { HeaderSlim } from "./components/header/Slim.js";
 import { Badge } from "./components/ui/Badge.js";
+import { EditIcon } from "./components/icons/EditIcon.js";
 import { buttonVariants } from "./components/ui/Button.js";
 import {
   Card,
@@ -33,9 +34,15 @@ type AdminHomeProps = {
   posts: readonly PostListItem[];
   roles: readonly RoleWithUserCount[];
   users: readonly User[];
+  viewerUsername?: string;
 };
 
-export const AdminHome: FC<AdminHomeProps> = ({ posts, roles, users }) => {
+export const AdminHome: FC<AdminHomeProps> = ({
+  posts,
+  roles,
+  users,
+  viewerUsername,
+}) => {
   const meta: LayoutMeta = {
     title: "Admin | Shipping Binaries",
     robots: "noindex",
@@ -48,6 +55,7 @@ export const AdminHome: FC<AdminHomeProps> = ({ posts, roles, users }) => {
         isAdmin
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
+        viewerUsername={viewerUsername}
       />
       <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)] gap-4 px-4 py-6">
         <AdminNav current="/admin" />
@@ -99,19 +107,7 @@ export const AdminHome: FC<AdminHomeProps> = ({ posts, roles, users }) => {
                             aria-label={`Edit ${post.title}`}
                             title={`Edit ${post.title}`}
                           >
-                            <svg
-                              aria-hidden="true"
-                              class="size-4"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                            </svg>
+                            <EditIcon />
                           </a>
                           <Badge variant={post.draft ? "draft" : "published"}>
                             {post.draft ? "Draft" : "Published"}

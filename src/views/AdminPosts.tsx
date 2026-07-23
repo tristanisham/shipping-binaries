@@ -6,6 +6,8 @@ import {
   setCurrentNavItem,
 } from "./components/header/Header.js";
 import { HeaderSlim } from "./components/header/Slim.js";
+import { EditIcon } from "./components/icons/EditIcon.js";
+import { toIsoTimestamp } from "./components/date.js";
 import { Badge } from "./components/ui/Badge.js";
 import { Button, buttonVariants } from "./components/ui/Button.js";
 import {
@@ -26,6 +28,7 @@ import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AdminPostsProps = {
   posts: readonly PostListItem[];
+  viewerUsername?: string;
 };
 
 const estDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -39,19 +42,16 @@ const estDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 const formatUpdatedAt = (timestamp: string): string => {
-  const normalizedTimestamp = /(?:Z|[+-]\d{2}:\d{2})$/.test(timestamp)
-    ? timestamp
-    : `${timestamp.replace(" ", "T")}Z`;
-  const date = new Date(normalizedTimestamp);
-
-  if (Number.isNaN(date.getTime())) {
+  const isoTimestamp = toIsoTimestamp(timestamp);
+  if (!isoTimestamp) {
     return timestamp;
   }
 
+  const date = new Date(isoTimestamp);
   return `${estDateTimeFormatter.format(date).replace(" at ", " ")} EST`;
 };
 
-export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
+export const AdminPosts: FC<AdminPostsProps> = ({ posts, viewerUsername }) => {
   const meta: LayoutMeta = {
     title: "Posts | Shipping Binaries",
     robots: "noindex",
@@ -63,6 +63,7 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
         isAdmin
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
+        viewerUsername={viewerUsername}
       />
       <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,4fr)] gap-4 px-4 py-6">
         <AdminNav current="/admin/posts" />
@@ -152,17 +153,7 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts }) => {
                                 aria-label={`Edit ${post.title}`}
                                 title={`Edit ${post.title}`}
                               >
-                                <svg
-                                  aria-hidden="true"
-                                  class="size-4 fill-none stroke-current"
-                                  stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path d="M12 20h9" />
-                                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                                </svg>
+                                <EditIcon />
                               </a>
                               <form
                                 action={`/admin/posts/${post.id}/draft`}

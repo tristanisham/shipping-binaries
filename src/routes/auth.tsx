@@ -1,4 +1,4 @@
-import { Hono, type Context, type MiddlewareHandler } from "hono";
+import { type Context, Hono, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import {
   hashPassword,
@@ -6,10 +6,7 @@ import {
   verifyPassword,
 } from "../auth/password.js";
 import { getSignedInPath, hasAdminRole } from "../auth/viewer.js";
-import {
-  sendInvitationEmail,
-  sendPasswordResetEmail,
-} from "../email/auth.js";
+import { sendInvitationEmail, sendPasswordResetEmail } from "../email/auth.js";
 import {
   claimAuthToken,
   createAuthToken,
@@ -37,6 +34,18 @@ import {
   validatePostSlug,
 } from "../models/post.js";
 import {
+  createPermission,
+  getAllPermissions,
+  getPermissionById,
+  getPermissionsForRole,
+  setPermissionForRole,
+} from "../models/permission.js";
+import {
+  getProfileForUser,
+  MAX_PROFILE_BIOGRAPHY_LENGTH,
+  updateAccountProfile,
+} from "../models/profile.js";
+import {
   ADMIN_ROLE,
   createRole,
   deleteRole,
@@ -44,6 +53,8 @@ import {
   getRoleById,
   getRoleByName,
   getRolesForUser,
+  GUEST_ROLE,
+  isProtectedRole,
   setRolesForUser,
   updateRole,
 } from "../models/role.js";
@@ -58,7 +69,6 @@ import {
   setUserActive,
   setUserPassword,
   updateUser,
-  updateUserAccount,
   type User,
   type UserSort,
   type UserSortDirection,
@@ -73,6 +83,7 @@ import { ForgotPassword } from "../views/ForgotPassword.js";
 import { Login } from "../views/Login.js";
 import { Logout } from "../views/Logout.js";
 import { SetPassword } from "../views/SetPassword.js";
+import { Signup, type SignupValues } from "../views/Signup.js";
 import { Write, type WriteFormValues } from "../views/Write.js";
 
 type AuthEnv = {
@@ -87,6 +98,8 @@ const INVALID_LOGIN_HASH =
 const INVALID_LOGIN_MESSAGE = "Invalid email, username, or password.";
 const INVALID_PASSWORD_MESSAGE =
   "Use matching passwords between 12 characters and 72 UTF-8 bytes.";
+const PERMISSION_NAME_PATTERN =
+  /^[a-z](?:[a-z0-9]|-(?=[a-z0-9]))*(?::[a-z](?:[a-z0-9]|-(?=[a-z0-9]))*)+$/;
 const ROLE_NAME_PATTERN = /^[a-z](?:[a-z0-9]|-(?=[a-z0-9])){0,31}$/;
 
 const formStrings = (body: Record<string, unknown>, name: string): string[] => {
@@ -109,8 +122,14 @@ const formRoleIds = (body: Record<string, unknown>): number[] =>
     .map((value) => Number.parseInt(value, 10))
     .filter((id) => Number.isInteger(id) && id > 0);
 
-const normalizeRoleName = (value: string): string =>
-  value.trim().toLowerCase();
+const normalizeRoleName = (value: string): string => value.trim().toLowerCase();
+
+const normalizePermissionName = (value: string): string =>
+  value.trim().toLowerCase().replace(/\s*:\s*/g, ":");
+
+const isUniquePermissionError = (error: unknown): boolean =>
+  error instanceof Error &&
+  /UNIQUE constraint failed: permissions\.name/.test(error.message);
 
 const isUniqueRoleError = (error: unknown): boolean =>
   error instanceof Error && /UNIQUE constraint failed: roles\.name/.test(
@@ -129,6 +148,15 @@ const noStore: MiddlewareHandler<AuthEnv> = async (c, next) => {
 const clearSessionCookie = (c: Context<AuthEnv>): void => {
   deleteCookie(c, SESSION_COOKIE_NAME, {
     path: "/",
+    secure: new URL(c.req.url).protocol === "https:",
+  });
+};
+
+const setSessionCookie = (c: Context<AuthEnv>, token: string): void => {
+  setCookie(c, SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    path: "/",
+    sameSite: "Strict",
     secure: new URL(c.req.url).protocol === "https:",
   });
 };
@@ -161,6 +189,7 @@ const validatePassword = (
 export const authRoute = new Hono<AuthEnv>();
 
 authRoute.use("/login", noStore);
+authRoute.use("/signup", noStore);
 authRoute.use("/forgot-password", noStore);
 authRoute.use("/reset-password", noStore);
 authRoute.use("/invite", noStore);
@@ -177,6 +206,84 @@ authRoute.get("/login", async (c) => {
     ? "Your password has been updated. You can log in now."
     : undefined;
   return c.html(<Login notice={notice} />);
+});
+
+authRoute.get("/signup", async (c) => {
+  const token = getCookie(c, SESSION_COOKIE_NAME);
+  const user = token ? await getSessionUser(c.env.DB, token) : null;
+
+  if (user) {
+    return c.redirect(getSignedInPath(user.roles));
+  }
+
+  return c.html(<Signup />);
+});
+
+authRoute.post("/signup", async (c) => {
+  const body = await c.req.parseBody();
+  const values: SignupValues = {
+    email: formString(body, "email", true),
+    label: formString(body, "label", true),
+    username: formString(body, "username", true).toLowerCase(),
+  };
+  const password = formString(body, "password");
+  const passwordConfirmation = formString(body, "passwordConfirmation");
+
+  if (!values.label || !values.username || !values.email) {
+    return c.html(
+      <Signup error="Complete all required fields." values={values} />,
+      400,
+    );
+  }
+
+  if (!/^[^\s@]+@[^\s@]+$/.test(values.email)) {
+    return c.html(
+      <Signup error="Enter a valid email address." values={values} />,
+      422,
+    );
+  }
+
+  const passwordError = validateAccountPassword(password);
+  if (passwordError) {
+    return c.html(
+      <Signup error={passwordError} values={values} />,
+      422,
+    );
+  }
+
+  if (password !== passwordConfirmation) {
+    return c.html(
+      <Signup error="Passwords must match." values={values} />,
+      422,
+    );
+  }
+
+  const passwordHash = await hashPassword(password);
+  let userId: number;
+
+  try {
+    userId = await createUser(c.env.DB, {
+      email: values.email,
+      label: values.label,
+      passwordHash,
+      username: values.username,
+    }, GUEST_ROLE);
+  } catch (error) {
+    if (isUniqueUserError(error)) {
+      return c.html(
+        <Signup
+          error="An account with that email or username already exists."
+          values={values}
+        />,
+        409,
+      );
+    }
+    throw error;
+  }
+
+  const token = await createSession(c.env.DB, userId);
+  setSessionCookie(c, token);
+  return c.redirect(getSignedInPath([GUEST_ROLE]), 303);
 });
 
 authRoute.post("/login", async (c) => {
@@ -212,12 +319,7 @@ authRoute.post("/login", async (c) => {
 
   const token = await createSession(c.env.DB, user.id);
   const roles = await getRolesForUser(c.env.DB, user.id);
-  setCookie(c, SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    path: "/",
-    sameSite: "Strict",
-    secure: new URL(c.req.url).protocol === "https:",
-  });
+  setSessionCookie(c, token);
 
   return c.redirect(getSignedInPath(roles), 303);
 });
@@ -348,14 +450,10 @@ const requireSession: MiddlewareHandler<AuthEnv> = async (c, next) => {
   await next();
 };
 
-// Runs after requireSession, so c.var.currentUser is populated. Gates the
-// admin area to users holding the admin role. Account access and author-owned
-// post editing are authorized by their route handlers.
+// Runs after requireSession, so c.var.currentUser is populated. Only the
+// signed-in user's account page is available without the admin role.
 const requireAdmin: MiddlewareHandler<AuthEnv> = async (c, next) => {
-  if (
-    c.req.path === "/admin/account" ||
-    c.req.path === "/admin/write"
-  ) {
+  if (c.req.path === "/admin/account") {
     await next();
     return;
   }
@@ -380,7 +478,14 @@ authRoute.get("/admin", async (c) => {
     getAllUsers(c.env.DB),
   ]);
 
-  return c.html(<AdminHome posts={posts} roles={roles} users={users} />);
+  return c.html(
+    <AdminHome
+      posts={posts}
+      roles={roles}
+      users={users}
+      viewerUsername={c.var.currentUser.username}
+    />,
+  );
 });
 
 authRoute.get("/admin/write", async (c) => {
@@ -400,7 +505,9 @@ authRoute.get("/admin/write", async (c) => {
     return c.text("Forbidden", 403);
   }
 
-  return c.html(<Write post={post} />);
+  return c.html(
+    <Write post={post} viewerUsername={c.var.currentUser.username} />,
+  );
 });
 
 authRoute.post("/admin/write", async (c) => {
@@ -472,7 +579,12 @@ authRoute.post("/admin/write", async (c) => {
       title,
     };
     return c.html(
-      <Write post={currentPost} slugError={slugError} values={values} />,
+      <Write
+        post={currentPost}
+        slugError={slugError}
+        values={values}
+        viewerUsername={c.var.currentUser.username}
+      />,
       422,
     );
   }
@@ -513,7 +625,12 @@ authRoute.get("/admin/posts", async (c) => {
   c.header("Cache-Control", "no-store");
   const posts = await getAllPosts(c.env.DB);
 
-  return c.html(<AdminPosts posts={posts} />);
+  return c.html(
+    <AdminPosts
+      posts={posts}
+      viewerUsername={c.var.currentUser.username}
+    />,
+  );
 });
 
 authRoute.post("/admin/posts/:id/draft", async (c) => {
@@ -530,14 +647,39 @@ authRoute.post("/admin/posts/:id/draft", async (c) => {
 
 const renderRolesPage = async (
   c: Context<AuthEnv>,
-  options: { error?: string; name?: string; status?: 400 | 409 } = {},
+  options: {
+    error?: string;
+    name?: string;
+    newPermissionName?: string;
+    permissionError?: string;
+    selectedRoleId?: number;
+    status?: 400 | 409;
+  } = {},
 ) => {
   const roles = await getAllRoles(c.env.DB);
+  const requestedRoleId = options.selectedRoleId ??
+    Number.parseInt(c.req.query("role") ?? "", 10);
+  const selectedRole = roles.find((role) => role.id === requestedRoleId) ??
+    roles[0] ??
+    null;
+  const [permissions, selectedPermissions] = selectedRole
+    ? await Promise.all([
+      getAllPermissions(c.env.DB),
+      getPermissionsForRole(c.env.DB, selectedRole.id),
+    ])
+    : [[], []];
+
   return c.html(
     <AdminRoles
       error={options.error}
+      newPermissionName={options.newPermissionName}
       newRoleName={options.name}
+      permissionError={options.permissionError}
+      permissions={permissions}
       roles={roles}
+      selectedPermissionIds={selectedPermissions.map(({ id }) => id)}
+      selectedRoleId={selectedRole?.id}
+      viewerUsername={c.var.currentUser.username}
     />,
     options.status ?? 200,
   );
@@ -562,7 +704,8 @@ authRoute.post("/admin/roles", async (c) => {
   }
 
   try {
-    await createRole(c.env.DB, name);
+    const roleId = await createRole(c.env.DB, name);
+    return c.redirect(`/admin/roles?role=${roleId}`, 303);
   } catch (error) {
     if (isUniqueRoleError(error)) {
       return renderRolesPage(c, {
@@ -573,8 +716,42 @@ authRoute.post("/admin/roles", async (c) => {
     }
     throw error;
   }
+});
 
-  return c.redirect("/admin/roles", 303);
+authRoute.post("/admin/roles/permissions", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const body = await c.req.parseBody();
+  const name = normalizePermissionName(formString(body, "name"));
+  const selectedRoleId = Number.parseInt(c.req.query("role") ?? "", 10);
+
+  if (name.length > 96 || !PERMISSION_NAME_PATTERN.test(name)) {
+    return renderRolesPage(c, {
+      newPermissionName: name,
+      permissionError:
+        "Use lowercase colon-separated names such as posts:publish.",
+      selectedRoleId,
+      status: 400,
+    });
+  }
+
+  try {
+    await createPermission(c.env.DB, name);
+  } catch (error) {
+    if (isUniquePermissionError(error)) {
+      return renderRolesPage(c, {
+        newPermissionName: name,
+        permissionError: "That permission already exists.",
+        selectedRoleId,
+        status: 409,
+      });
+    }
+    throw error;
+  }
+
+  const roleQuery = Number.isInteger(selectedRoleId)
+    ? `?role=${selectedRoleId}`
+    : "";
+  return c.redirect(`/admin/roles${roleQuery}`, 303);
 });
 
 authRoute.post("/admin/roles/:id", async (c) => {
@@ -582,7 +759,9 @@ authRoute.post("/admin/roles/:id", async (c) => {
   const id = Number.parseInt(c.req.param("id"), 10);
   const role = Number.isInteger(id) ? await getRoleById(c.env.DB, id) : null;
   if (!role) return c.notFound();
-  if (role.name === ADMIN_ROLE) return c.text("The admin role is protected.", 400);
+  if (isProtectedRole(role.name)) {
+    return c.text("That role is protected.", 400);
+  }
 
   const body = await c.req.parseBody();
   const name = normalizeRoleName(formString(body, "name"));
@@ -602,7 +781,7 @@ authRoute.post("/admin/roles/:id", async (c) => {
     throw error;
   }
 
-  return c.redirect("/admin/roles", 303);
+  return c.redirect(`/admin/roles?role=${id}`, 303);
 });
 
 authRoute.post("/admin/roles/:id/delete", async (c) => {
@@ -610,11 +789,40 @@ authRoute.post("/admin/roles/:id/delete", async (c) => {
   const id = Number.parseInt(c.req.param("id"), 10);
   const role = Number.isInteger(id) ? await getRoleById(c.env.DB, id) : null;
   if (!role) return c.notFound();
-  if (role.name === ADMIN_ROLE) return c.text("The admin role is protected.", 400);
+  if (isProtectedRole(role.name)) {
+    return c.text("That role is protected.", 400);
+  }
 
   await deleteRole(c.env.DB, id);
   return c.redirect("/admin/roles", 303);
 });
+
+authRoute.post(
+  "/admin/roles/:roleId/permissions/:permissionId",
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const roleId = Number.parseInt(c.req.param("roleId"), 10);
+    const permissionId = Number.parseInt(c.req.param("permissionId"), 10);
+    const [role, permission] = await Promise.all([
+      Number.isInteger(roleId) ? getRoleById(c.env.DB, roleId) : null,
+      Number.isInteger(permissionId)
+        ? getPermissionById(c.env.DB, permissionId)
+        : null,
+    ]);
+
+    if (!role || !permission) return c.notFound();
+
+    const body = await c.req.parseBody();
+    const assigned = formString(body, "assigned") === "1";
+    await setPermissionForRole(c.env.DB, role.id, permission.id, assigned);
+
+    if (c.req.header("Accept")?.includes("application/json")) {
+      return c.json({ assigned });
+    }
+
+    return c.redirect(`/admin/roles?role=${role.id}`, 303);
+  },
+);
 
 authRoute.get("/admin/users", async (c) => {
   c.header("Cache-Control", "no-store");
@@ -639,6 +847,7 @@ authRoute.get("/admin/users", async (c) => {
       roles={roles}
       sort={sort}
       users={users}
+      viewerUsername={c.var.currentUser.username}
     />,
   );
 });
@@ -719,7 +928,12 @@ authRoute.get("/admin/users/:id/edit", async (c) => {
     return c.notFound();
   }
 
-  return c.html(<AdminUserEdit user={user} />);
+  return c.html(
+    <AdminUserEdit
+      user={user}
+      viewerUsername={c.var.currentUser.username}
+    />,
+  );
 });
 
 authRoute.post("/admin/users/:id", async (c) => {
@@ -771,12 +985,15 @@ authRoute.post("/admin/users/:id", async (c) => {
   return c.redirect("/admin/users", 303);
 });
 
-authRoute.get("/admin/account", (c) => {
+authRoute.get("/admin/account", async (c) => {
   c.header("Cache-Control", "no-store");
+  const profile = await getProfileForUser(c.env.DB, c.var.currentUser.id);
   return c.html(
     <Account
+      biography={profile?.biography ?? ""}
       email={c.var.currentUser.email}
       isAdmin={hasAdminRole(c.var.currentUser.roles)}
+      label={c.var.currentUser.label ?? ""}
       username={c.var.currentUser.username}
     />,
   );
@@ -786,7 +1003,9 @@ authRoute.post("/admin/account", async (c) => {
   c.header("Cache-Control", "no-store");
   const currentUser = c.var.currentUser;
   const body = await c.req.parseBody();
+  const biography = formString(body, "biography").trim();
   const email = formString(body, "email", true);
+  const label = formString(body, "label", true);
   const username = formString(body, "username", true);
   const currentPassword = formString(body, "currentPassword");
   const newPassword = formString(body, "newPassword");
@@ -795,9 +1014,11 @@ authRoute.post("/admin/account", async (c) => {
   const renderError = (error: string, status: 400 | 409 | 422) =>
     c.html(
       <Account
+        biography={biography}
         email={email || currentUser.email}
         error={error}
         isAdmin={isAdmin}
+        label={label}
         username={username || currentUser.username}
       />,
       status,
@@ -809,6 +1030,13 @@ authRoute.post("/admin/account", async (c) => {
 
   if (!/^[^\s@]+@[^\s@]+$/.test(email)) {
     return renderError("Enter a valid email address.", 422);
+  }
+
+  if (biography.length > MAX_PROFILE_BIOGRAPHY_LENGTH) {
+    return renderError(
+      `Biography cannot exceed ${MAX_PROFILE_BIOGRAPHY_LENGTH.toLocaleString()} characters.`,
+      422,
+    );
   }
 
   const passwordError = validateAccountPassword(newPassword);
@@ -835,8 +1063,10 @@ authRoute.post("/admin/account", async (c) => {
 
   const passwordHash = await hashPassword(newPassword);
   try {
-    await updateUserAccount(c.env.DB, currentUser.id, {
+    await updateAccountProfile(c.env.DB, currentUser.id, {
+      biography,
       email,
+      label: label || null,
       passwordHash,
       username,
     });

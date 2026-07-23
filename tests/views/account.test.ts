@@ -5,13 +5,17 @@ import { Account } from "../../src/views/Account.js";
 
 test("account form exposes identity fields and password guidance without values", () => {
   const html = renderToString(Account({
+    biography: "Software developer.",
     email: "member@example.com",
+    label: "Member Name",
     username: "member",
   }));
 
   assert.match(html, /action="\/admin\/account"/);
+  assert.match(html, /name="label"[^>]*value="Member Name"/);
   assert.match(html, /name="username"[^>]*value="member"/);
   assert.match(html, /name="email"[^>]*value="member@example\.com"/);
+  assert.match(html, /name="biography"[^>]*>Software developer\.<\/textarea>/);
   assert.match(
     html,
     /<input(?=[^>]*name="currentPassword")(?=[^>]*type="password")[^>]*>/,
