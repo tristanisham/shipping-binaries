@@ -87,7 +87,7 @@ export const updateAccountProfile = async (
     biography: string;
     email: string;
     label: string | null;
-    passwordHash: string;
+    passwordHash?: string;
     username: string;
   },
 ): Promise<void> => {
@@ -95,7 +95,8 @@ export const updateAccountProfile = async (
     db
       .prepare(
         `UPDATE users
-         SET email = ?2, username = ?3, label = ?4, password_hash = ?5,
+         SET email = ?2, username = ?3, label = ?4,
+             password_hash = COALESCE(?5, password_hash),
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?1`,
       )
@@ -104,7 +105,7 @@ export const updateAccountProfile = async (
         input.email,
         input.username,
         input.label,
-        input.passwordHash,
+        input.passwordHash ?? null,
       ),
     db
       .prepare(

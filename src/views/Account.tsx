@@ -117,7 +117,6 @@ export const Account: FC<AccountProps> = ({
                     autocomplete="current-password"
                     class={cn("h-11", panelField)}
                     name="currentPassword"
-                    required
                     type="password"
                   />
                 </label>
@@ -129,6 +128,7 @@ export const Account: FC<AccountProps> = ({
                   label="New password"
                   labelClass="flex flex-col gap-2 text-sm font-semibold"
                   passwordName="newPassword"
+                  required={false}
                   ruleIdPrefix="password-rule"
                 />
                 {error && (

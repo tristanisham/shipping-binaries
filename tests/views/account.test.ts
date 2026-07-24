@@ -43,6 +43,18 @@ test("account form exposes identity fields and password guidance without values"
     html,
     /<input(?=[^>]*name="newPasswordConfirmation")(?=[^>]*type="password")[^>]*>/,
   );
+  for (
+    const name of [
+      "currentPassword",
+      "newPassword",
+      "newPasswordConfirmation",
+    ]
+  ) {
+    const input = html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`));
+    assert.ok(input);
+    assert.doesNotMatch(input[0], /\srequired(?:=|\s|>)/);
+  }
+  assert.match(html, /var optionalAndEmpty = true/);
   assert.match(html, /id="password-rule-length"/);
   assert.match(html, /At least one special character/);
   assert.match(html, /id="password-rule-match"/);

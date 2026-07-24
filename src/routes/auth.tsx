@@ -1390,7 +1390,7 @@ authRoute.post("/admin/account", async (c) => {
       status,
     );
 
-  if (!email || !username || !currentPassword) {
+  if (!email || !username) {
     return renderError("Complete every field.", 400);
   }
 
@@ -1415,29 +1415,43 @@ authRoute.post("/admin/account", async (c) => {
     );
   }
 
-  const passwordError = validateAccountPassword(newPassword);
-  if (passwordError) {
-    return renderError(passwordError, 422);
+  const changingPassword = newPassword.length > 0 ||
+    newPasswordConfirmation.length > 0;
+  let passwordHash: string | undefined;
+
+  if (changingPassword) {
+    if (!currentPassword) {
+      return renderError(
+        "Enter your current password to set a new password.",
+        422,
+      );
+    }
+
+    const passwordError = validateAccountPassword(newPassword);
+    if (passwordError) {
+      return renderError(passwordError, 422);
+    }
+
+    if (newPassword !== newPasswordConfirmation) {
+      return renderError("New passwords must match.", 422);
+    }
+
+    const currentPasswordHash = await getUserPasswordHashById(
+      c.env.DB,
+      currentUser.id,
+    );
+    const currentPasswordMatches = await verifyPassword(
+      currentPassword,
+      currentPasswordHash ?? INVALID_LOGIN_HASH,
+    );
+
+    if (!currentPasswordMatches) {
+      return renderError("Current password is incorrect.", 422);
+    }
+
+    passwordHash = await hashPassword(newPassword);
   }
 
-  if (newPassword !== newPasswordConfirmation) {
-    return renderError("New passwords must match.", 422);
-  }
-
-  const currentPasswordHash = await getUserPasswordHashById(
-    c.env.DB,
-    currentUser.id,
-  );
-  const currentPasswordMatches = await verifyPassword(
-    currentPassword,
-    currentPasswordHash ?? INVALID_LOGIN_HASH,
-  );
-
-  if (!currentPasswordMatches) {
-    return renderError("Current password is incorrect.", 422);
-  }
-
-  const passwordHash = await hashPassword(newPassword);
   try {
     await updateAccountProfile(c.env.DB, currentUser.id, {
       biography,
@@ -1453,9 +1467,13 @@ authRoute.post("/admin/account", async (c) => {
     throw error;
   }
 
-  await destroySessionsForUser(c.env.DB, currentUser.id);
-  clearSessionCookie(c);
-  return c.redirect("/login?password=updated", 303);
+  if (changingPassword) {
+    await destroySessionsForUser(c.env.DB, currentUser.id);
+    clearSessionCookie(c);
+    return c.redirect("/login?password=updated", 303);
+  }
+
+  return c.redirect("/admin/account", 303);
 });
 
 authRoute.get("/logout", async (c) => {

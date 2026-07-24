@@ -14,6 +14,7 @@ type PasswordFieldsProps = {
   label?: string;
   labelClass?: string;
   passwordName: string;
+  required?: boolean;
   ruleIdPrefix?: string;
 };
 
@@ -25,6 +26,7 @@ export const PasswordFields: FC<PasswordFieldsProps> = ({
   label = "Password",
   labelClass = "flex flex-col gap-2 font-bold",
   passwordName,
+  required = true,
   ruleIdPrefix = `${idPrefix}-password-rule`,
 }) => {
   const passwordId = `${idPrefix}-password`;
@@ -45,6 +47,8 @@ export const PasswordFields: FC<PasswordFieldsProps> = ({
 
   function updateGuidance() {
     var value = password.value;
+    var optionalAndEmpty = ${required ? "false" : "true"} &&
+      value.length === 0 && confirmation.value.length === 0;
     var validity = {
       length: value.length >= ${ACCOUNT_PASSWORD_MIN_LENGTH},
       letter: /[A-Za-z]/.test(value),
@@ -57,12 +61,13 @@ export const PasswordFields: FC<PasswordFieldsProps> = ({
     });
 
     password.setCustomValidity(
-      validity.length && validity.letter && validity.special && validity.bytes
+      optionalAndEmpty ||
+        (validity.length && validity.letter && validity.special && validity.bytes)
         ? ""
         : "Password does not meet the requirements."
     );
     confirmation.setCustomValidity(
-      validity.match ? "" : "Passwords must match."
+      optionalAndEmpty || validity.match ? "" : "Passwords must match."
     );
   }
 
@@ -83,7 +88,7 @@ export const PasswordFields: FC<PasswordFieldsProps> = ({
           id={passwordId}
           minlength={ACCOUNT_PASSWORD_MIN_LENGTH}
           name={passwordName}
-          required
+          required={required}
           type="password"
         />
       </label>
@@ -110,7 +115,7 @@ export const PasswordFields: FC<PasswordFieldsProps> = ({
           id={confirmationId}
           minlength={ACCOUNT_PASSWORD_MIN_LENGTH}
           name={confirmationName}
-          required
+          required={required}
           type="password"
         />
       </label>

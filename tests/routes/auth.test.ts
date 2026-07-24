@@ -619,7 +619,97 @@ test("post authors can edit their own posts but not others' or new ones", async 
   assert.equal((await getPostById(db, otherPostId))?.title, "Other's post");
 });
 
-test("account update verifies the current password and forces sign-in", async () => {
+test("account profile update preserves the password and session", async () => {
+  const db = createTestDb();
+  const passwordHash = await hashPassword("Old-password!1");
+  const userId = await seedUser(db, {
+    email: "member@example.com",
+    label: "Original Name",
+    passwordHash,
+    username: "member",
+  });
+  const token = await createSession(db, userId);
+
+  const response = await app.request(
+    "/admin/account",
+    {
+      body: new URLSearchParams({
+        biography: "Updated without a password.",
+        email: "member@example.com",
+        label: "Updated Name",
+        username: "member",
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("Location"), "/admin/account");
+  assert.ok(await getSessionUser(db, token));
+
+  const updated = await findUserByLogin(db, "member");
+  assert.equal(updated?.label, "Updated Name");
+  assert.equal(
+    updated && await verifyPassword("Old-password!1", updated.password_hash),
+    true,
+  );
+  assert.deepEqual(await getPublicProfileByUsername(db, "member"), {
+    biography: "Updated without a password.",
+    id: userId,
+    label: "Updated Name",
+    username: "member",
+  });
+});
+
+test("account password update requires the current password", async () => {
+  const db = createTestDb();
+  const passwordHash = await hashPassword("Old-password!1");
+  const userId = await seedUser(db, {
+    email: "member@example.com",
+    passwordHash,
+    username: "member",
+  });
+  const token = await createSession(db, userId);
+
+  const response = await app.request(
+    "/admin/account",
+    {
+      body: new URLSearchParams({
+        email: "member@example.com",
+        newPassword: "New-password!2",
+        newPasswordConfirmation: "New-password!2",
+        username: "member",
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(response.status, 422);
+  assert.match(
+    await response.text(),
+    /Enter your current password to set a new password\./,
+  );
+  assert.ok(await getSessionUser(db, token));
+
+  const unchanged = await findUserByLogin(db, "member");
+  assert.equal(
+    unchanged &&
+      await verifyPassword("Old-password!1", unchanged.password_hash),
+    true,
+  );
+});
+
+test("account password update verifies the current password and forces sign-in", async () => {
   const db = createTestDb();
   const passwordHash = await hashPassword("Old-password!1");
   const userId = await seedUser(db, {
