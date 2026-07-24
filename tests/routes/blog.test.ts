@@ -219,6 +219,7 @@ test("blog index lists published posts and excludes drafts", async () => {
   );
   assert.match(authorHtml, /grid grid-cols-1 gap-6 md:grid-cols-3/);
   assert.match(authorHtml, /href="\/blog\/listed-post"/);
+  assert.doesNotMatch(authorHtml, /data-edit-label/);
   assert.doesNotMatch(authorHtml, /data-edit-biography/);
   assert.doesNotMatch(authorHtml, /Unlisted draft/);
 
@@ -232,6 +233,16 @@ test("blog index lists published posts and excludes drafts", async () => {
   );
   const ownerProfileHtml = await ownerProfileResponse.text();
   assert.equal(ownerProfileResponse.status, 200);
+  assert.match(ownerProfileHtml, /data-edit-label/);
+  assert.match(
+    ownerProfileHtml,
+    /action="\/admin\/account\/label"[^>]*data-label-form/,
+  );
+  assert.match(
+    ownerProfileHtml,
+    /<input(?=[^>]*name="label")(?=[^>]*value="Site Owner")[^>]*>/,
+  );
+  assert.match(ownerProfileHtml, />Save Label<\/button>/);
   assert.match(ownerProfileHtml, /data-edit-biography/);
   assert.match(
     ownerProfileHtml,
@@ -250,6 +261,27 @@ test("blog index lists published posts and excludes drafts", async () => {
     /<textarea(?=[^>]*name="biography")(?=[^>]*maxlength="5000")[^>]*>/,
   );
   assert.match(ownerProfileHtml, />Save biography<\/button>/);
+
+  const labelUpdate = await app.request(
+    "/admin/account/label",
+    {
+      body: new URLSearchParams({
+        label: "Updated Label",
+      }),
+      headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(labelUpdate.status, 303);
+  assert.equal(labelUpdate.headers.get("location"), "/@owner");
+
+  const relabelledProfile = await app.request(
+    "/@owner",
+    {},
+    { DB: db } as Env,
+  );
+  assert.match(await relabelledProfile.text(), />Updated Label<\/h1>/);
 
   const biographyUpdate = await app.request(
     "/admin/account/biography",

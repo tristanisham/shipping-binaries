@@ -5,6 +5,7 @@ import {
   MAX_PROFILE_BIOGRAPHY_LENGTH,
   type PublicProfile,
 } from "../models/profile.js";
+import { EditIcon } from "./components/icons/EditIcon.js";
 import { PostGrid } from "./components/blog/posts/PostGrid.js";
 import {
   defaultHeaderNav,
@@ -12,6 +13,7 @@ import {
   setCurrentNavItem,
 } from "./components/header/Header.js";
 import { Button } from "./components/ui/Button.js";
+import { Input } from "./components/ui/Input.js";
 import { Textarea } from "./components/ui/Textarea.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 import { toAbsoluteUrl } from "./components/SocialMeta.js";
@@ -31,10 +33,10 @@ export const Author: FC<AuthorProps> = ({
   viewerUsername = null,
 }) => {
   const displayName = author.label ?? author.username;
-  const canEditBiography = isAuthenticated &&
+  const canEditProfile = isAuthenticated &&
     viewerUsername === author.username;
   const meta: LayoutMeta = {
-    alpine: canEditBiography,
+    alpine: canEditProfile,
     title: `${displayName} | Shipping Binaries`,
     description: `Posts by ${displayName} on Shipping Binaries.`,
     canonical: toAbsoluteUrl(`/@${encodeURIComponent(author.username)}`),
@@ -54,30 +56,95 @@ export const Author: FC<AuthorProps> = ({
       <main class="container mx-auto px-4 pb-16">
         <div class="mx-auto max-w-[60rem]">
           <header class="mt-10">
-            <h1 class="font-black-ops-one text-2xl leading-none">
-              {displayName}
-            </h1>
+            <div
+              class="flex flex-wrap items-center gap-2"
+              {...(canEditProfile
+                ? { "x-data": "{ editingLabel: false }" }
+                : {})}
+            >
+              <h1
+                class="font-black-ops-one text-2xl leading-none"
+                {...(canEditProfile
+                  ? { "x-show": "!editingLabel" }
+                  : {})}
+              >
+                {displayName}
+              </h1>
+              {canEditProfile && (
+                <>
+                  <Button
+                    aria-label="Edit Label"
+                    data-edit-label
+                    size="sm"
+                    title="Edit Label"
+                    type="button"
+                    variant="outline"
+                    {...{
+                      "x-on:click":
+                        "editingLabel = true; $nextTick(() => $refs.label.focus())",
+                      "x-show": "!editingLabel",
+                    }}
+                  >
+                    <EditIcon />
+                  </Button>
+                  <form
+                    action="/admin/account/label"
+                    class="flex flex-wrap items-center gap-2"
+                    data-label-form
+                    method="post"
+                    style="display: none"
+                    {...{ "x-show": "editingLabel" }}
+                  >
+                    <label>
+                      <span class="sr-only">Label</span>
+                      <Input
+                        autocomplete="name"
+                        class="h-9"
+                        name="label"
+                        placeholder={author.username}
+                        value={author.label ?? ""}
+                        {...{ "x-ref": "label" }}
+                      />
+                    </label>
+                    <Button size="sm" type="submit" variant="tertiary">
+                      Save Label
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                      {...{
+                        "x-on:click":
+                          "editingLabel = false; $refs.label.value = $refs.label.defaultValue",
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </form>
+                </>
+              )}
+            </div>
             <p class="mt-1 text-sm leading-none opacity-70">
               @{author.username}
             </p>
-            {(author.biography || canEditBiography) && (
+            {(author.biography || canEditProfile) && (
               <div
                 class="mt-4 w-full"
-                {...(canEditBiography
+                {...(canEditProfile
                   ? { "x-data": "{ editingBiography: false }" }
                   : {})}
               >
                 {author.biography && (
                   <p
                     class="whitespace-pre-wrap leading-relaxed"
-                    {...(canEditBiography
+                    {...(canEditProfile
                       ? { "x-show": "!editingBiography" }
                       : {})}
                   >
                     {author.biography}
                   </p>
                 )}
-                {canEditBiography && (
+                {canEditProfile && (
                   <>
                     <Button
                       class={author.biography ? "mt-3" : ""}

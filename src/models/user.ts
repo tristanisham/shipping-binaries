@@ -258,6 +258,21 @@ export const updateUser = async (
     .run();
 };
 
+export const updateUserLabel = async (
+  db: D1Database,
+  id: number,
+  label: string | null,
+): Promise<void> => {
+  await db
+    .prepare(
+      `UPDATE users
+       SET label = ?2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?1`,
+    )
+    .bind(id, label)
+    .run();
+};
+
 export type ManagedUserUpdateInput = {
   active?: boolean;
   email: string;

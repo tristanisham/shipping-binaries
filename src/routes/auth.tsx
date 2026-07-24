@@ -75,6 +75,7 @@ import {
   setUserActive,
   setUserPassword,
   updateManagedUser,
+  updateUserLabel,
   type User,
   type UserSort,
   type UserSortDirection,
@@ -1343,6 +1344,21 @@ authRoute.post("/admin/account/biography", async (c) => {
   }
 
   await updateProfileBiography(c.env.DB, c.var.currentUser.id, biography);
+  return c.redirect(
+    `/@${encodeURIComponent(c.var.currentUser.username)}`,
+    303,
+  );
+});
+
+authRoute.post("/admin/account/label", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const label = formString(await c.req.parseBody(), "label", true);
+
+  await updateUserLabel(
+    c.env.DB,
+    c.var.currentUser.id,
+    label || null,
+  );
   return c.redirect(
     `/@${encodeURIComponent(c.var.currentUser.username)}`,
     303,
