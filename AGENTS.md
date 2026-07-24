@@ -14,7 +14,8 @@
 - Database access belongs in `src/models/`. Schema changes are ordered SQL files
   under `migrations/` and must remain compatible with Cloudflare D1/SQLite.
 - Maintenance commands belong in `src/scripts/`; `src/scripts/create-owner.ts`
-  backs the `account:create` npm script.
+  backs the `account:create` npm script, while `src/scripts/seed-access.ts` and
+  `src/scripts/seed-access.sql` back `db:seed:access`.
 - `src/styles.css` is the Tailwind v4 source. `public/styles.css` is generated
   output owned by the user's running Tailwind watcher; never edit or regenerate
   it as part of agent work.
@@ -78,6 +79,20 @@ Local Wrangler data lives beneath `DATABASE_URL` (or `.wrangler/state` by
 default). Local and remote D1 databases do not synchronize automatically; apply
 each new migration to both environments deliberately. Do not point local
 development at the production binding.
+
+Seed or repair the fixed roles and permissions in local D1 by default.
+`--prod` and `--remote` are equivalent opt-ins to production:
+
+```sh
+npm run db:seed:access
+npm run db:seed:access -- --remote
+```
+
+The access seeder is idempotent and additive: it restores missing fixed roles,
+permissions, and grants without deleting custom assignments. It gives `admin`
+every permission currently present, gives `author` post create/read access,
+gives `editor` all four post permissions, and creates `guest` without assigning
+permissions. Apply migrations before running it.
 
 Create or update the owner interactively in local D1 by default. `--prod` and
 `--remote` are equivalent opt-ins to production:

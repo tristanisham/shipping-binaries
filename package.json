@@ -35,6 +35,7 @@
     "dev:worker": "wrangler dev --persist-to=${DATABASE_URL:-.wrangler/state}",
     "db:migrate:local": "wrangler d1 migrations apply shipping-binaries --local --persist-to=${DATABASE_URL:-.wrangler/state}",
     "db:migrate:remote": "wrangler d1 migrations apply shipping-binaries --remote",
+    "db:seed:access": "node --import=tsx src/scripts/seed-access.ts",
     "deploy": "wrangler deploy",
     "start": "node --import=tsx src/dev.ts",
     "types:worker": "wrangler types src/worker-configuration.d.ts",

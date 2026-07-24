@@ -43,7 +43,7 @@ test("PostList defaults to five posts and links author and pagination", () => {
   assert.match(html, /navigator\.canShare/);
   assert.match(html, /navigator\.share/);
   assert.match(html, /window\.copyWithToast/);
-  assert.match(html, /Share message copied/);
+  assert.match(html, /copyWithToast\(url,&#39;Link copied!&#39;\)/);
   assert.doesNotMatch(html, /data-share-status/);
   assert.match(html, /aria-label="0 comments on Post 6"/);
   assert.match(html, /text-xs tabular-nums">0<\/span>/);
