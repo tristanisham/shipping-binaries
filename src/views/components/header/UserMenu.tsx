@@ -1,4 +1,5 @@
 import type { FC } from "hono/jsx";
+import { LogoutIcon } from "../icons/LogoutIcon.js";
 
 type UserMenuProps = {
   compact?: boolean;
@@ -36,6 +37,20 @@ const AdminIcon: FC = () => (
   </svg>
 );
 
+export const getUserMenuItems = (
+  isAdmin: boolean,
+  username?: string | null,
+) => [
+  ...(isAdmin ? [{ label: "Dashboard", link: "/admin" }] : []),
+  ...(username
+    ? [{
+      label: "Profile",
+      link: `/@${encodeURIComponent(username)}`,
+    }]
+    : []),
+  { label: "Account", link: "/admin/account" },
+];
+
 export const UserMenu: FC<UserMenuProps> = ({
   compact = false,
   isAuthenticated = false,
@@ -45,16 +60,7 @@ export const UserMenu: FC<UserMenuProps> = ({
   const triggerClass = compact
     ? "inline-flex cursor-pointer"
     : "m-4 inline-flex cursor-pointer";
-  const menuItems = [
-    ...(isAdmin ? [{ label: "Dashboard", link: "/admin" }] : []),
-    ...(username
-      ? [{
-        label: "Profile",
-        link: `/@${encodeURIComponent(username)}`,
-      }]
-      : []),
-    { label: "Account", link: "/admin/account" },
-  ];
+  const menuItems = getUserMenuItems(isAdmin, username);
 
   return (
     <div class="group relative flex items-center">
@@ -90,10 +96,11 @@ export const UserMenu: FC<UserMenuProps> = ({
               </a>
             ))}
             <a
-              class="mx-2 mt-1 block rounded-sm bg-burgundy-700 px-2 py-1 text-center text-sm font-medium text-amber-50 hover:bg-burgundy-600 focus:bg-burgundy-600 focus:outline-none dark:bg-burgundy-400 dark:text-amber-50 dark:hover:bg-burgundy-300 dark:focus:bg-burgundy-300"
+              class="mx-2 mt-1 flex items-center justify-center gap-2 rounded-sm bg-burgundy-700 px-2 py-1 text-center text-sm font-medium text-amber-50 hover:bg-burgundy-600 focus:bg-burgundy-600 focus:outline-none dark:bg-burgundy-400 dark:text-amber-50 dark:hover:bg-burgundy-300 dark:focus:bg-burgundy-300"
               href="/logout"
               role="menuitem"
             >
+              <LogoutIcon />
               Log out
             </a>
           </div>

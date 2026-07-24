@@ -2,14 +2,18 @@ import type { FC } from "hono/jsx";
 
 type ThemeToggleProps = {
   compact?: boolean;
+  id?: string;
 };
 
 const toggleTheme =
   'const root = document.documentElement; const isDark = root.classList.toggle("dark"); localStorage.setItem("theme", isDark ? "dark" : "light");';
 
-export const ThemeToggle: FC<ThemeToggleProps> = ({ compact = false }) => (
+export const ThemeToggle: FC<ThemeToggleProps> = ({
+  compact = false,
+  id = "light-dark-toggle",
+}) => (
   <button
-    id="light-dark-toggle"
+    id={id}
     aria-label="Toggle light and dark theme"
     class={compact
       ? "cursor-pointer"

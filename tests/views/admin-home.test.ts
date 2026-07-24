@@ -48,6 +48,8 @@ test("overview includes separate user and role tables", () => {
   assert.match(html, />admin<\/td>/);
   assert.match(html, /Manage users \(1\)/);
   assert.match(html, /Manage roles \(1\)/);
+  assert.match(html, /<path d="m18 15-6-6-6 6"><\/path>/);
+  assert.match(html, /<path d="m6 9 6 6 6-6"><\/path>/);
   assert.match(
     html,
     /class="[^"]*bg-chocolate-500 text-amber-50[^"]*" href="\/admin\/write">New post<\/a>/,

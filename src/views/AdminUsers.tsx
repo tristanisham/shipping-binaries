@@ -115,7 +115,7 @@ export const AdminUsers: FC<AdminUsersProps> = ({
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
         viewerUsername={viewerUsername}
       />
-      <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-[minmax(0,1fr)_minmax(0,4fr)] gap-4 px-4 py-6">
+      <main class="container mx-auto grid min-h-[calc(100vh-5rem)] grid-cols-1 gap-4 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,4fr)]">
         <AdminNav current="/admin/users" />
 
         <Card
