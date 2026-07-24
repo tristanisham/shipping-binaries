@@ -90,7 +90,7 @@ export const UserMenu: FC<UserMenuProps> = ({
               </a>
             ))}
             <a
-              class="mx-2 mt-1 block rounded-sm border border-amber-50/30 px-2 py-1 text-center text-sm font-medium hover:bg-amber-50/15 focus:bg-amber-50/15 focus:outline-none dark:border-mist-600/30 dark:hover:bg-mist-600/15 dark:focus:bg-mist-600/15"
+              class="mx-2 mt-1 block rounded-sm bg-burgundy-700 px-2 py-1 text-center text-sm font-medium text-amber-50 hover:bg-burgundy-600 focus:bg-burgundy-600 focus:outline-none dark:bg-burgundy-400 dark:text-amber-50 dark:hover:bg-burgundy-300 dark:focus:bg-burgundy-300"
               href="/logout"
               role="menuitem"
             >

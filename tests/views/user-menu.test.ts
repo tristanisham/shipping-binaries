@@ -34,6 +34,10 @@ test("non-admin users get a hover menu with profile and account", () => {
     html,
     /href="\/logout"[^>]*role="menuitem">Log out<\/a>/,
   );
+  assert.match(
+    html,
+    /class="[^"]*bg-burgundy-700[^"]*text-amber-50[^"]*dark:bg-burgundy-400[^"]*"[^>]*href="\/logout"/,
+  );
   assert.doesNotMatch(html, />Dashboard<\/a>/);
 });
 

@@ -1884,6 +1884,9 @@
       background-color: color-mix(in oklab, var(--color-amber-50) 15%, transparent);
     }
   }
+  .focus\:bg-burgundy-600:focus {
+    background-color: var(--color-burgundy-600);
+  }
   .focus\:opacity-100:focus {
     opacity: 100%;
   }
@@ -2434,6 +2437,9 @@
     .dark\:hover\:text-mist-600:where(.dark, .dark *):hover {
       color: var(--color-mist-600);
     }
+  }
+  .dark\:focus\:bg-burgundy-300:where(.dark, .dark *):focus {
+    background-color: var(--color-burgundy-300);
   }
   .dark\:focus\:bg-mist-600\/15:where(.dark, .dark *):focus {
     background-color: color-mix(in srgb, oklch(45% 0.017 213.2) 15%, transparent);
