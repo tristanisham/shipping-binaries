@@ -1,50 +1,81 @@
 # User Access Management Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> superpowers:subagent-driven-development (recommended) or
+> superpowers:executing-plans to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add `author`/`editor` roles and a per-user permission-denial layer (permanent or self-expiring "snooze"), managed from a consolidated `/admin/users/:id/permissions` page, and make `Permission` a fully class-based API.
+**Goal:** Add `author`/`editor` roles and a per-user permission-denial layer
+(permanent or self-expiring "snooze"), managed from a consolidated
+`/admin/users/:id/permissions` page, and make `Permission` a fully class-based
+API.
 
-**Architecture:** Denials live in a new `user_permission_denials` table and are folded into the existing `Permission.can` query as a `NOT EXISTS` clause compared against a JS-generated ISO `now` (the `auth_tokens` expiry pattern). Deny-only semantics: `can = roleGrants AND NOT activeDenial`. Indefinite = a far-future sentinel timestamp; snooze = a nearer future timestamp; clear = delete the row. Role assignment moves off the Users table onto the new page.
+**Architecture:** Denials live in a new `user_permission_denials` table and are
+folded into the existing `Permission.can` query as a `NOT EXISTS` clause
+compared against a JS-generated ISO `now` (the `auth_tokens` expiry pattern).
+Deny-only semantics: `can = roleGrants AND NOT activeDenial`. Indefinite = a
+far-future sentinel timestamp; snooze = a nearer future timestamp; clear =
+delete the row. Role assignment moves off the Users table onto the new page.
 
-**Tech Stack:** Hono + Hono JSX (TypeScript), Cloudflare Workers, D1 (SQLite), node:test with the in-memory D1 adapter in `tests/helpers/d1.ts`.
+**Tech Stack:** Hono + Hono JSX (TypeScript), Cloudflare Workers, D1 (SQLite),
+node:test with the in-memory D1 adapter in `tests/helpers/d1.ts`.
 
 ## Global Constraints
 
-- Strict TypeScript, two-space indent; keep `.js` extensions on relative imports.
+- Strict TypeScript, two-space indent; keep `.js` extensions on relative
+  imports.
 - JSX is Hono JSX (`class`, lowercase handlers), not React.
 - D1 prepared statements use `?1`-style bindings; tables are `STRICT`.
-- Timestamps for expiry are ISO 8601 via `new Date(...).toISOString()`, compared against a JS-bound ISO `now` — never `CURRENT_TIMESTAMP` (matches `models/authToken.ts`).
-- Models convention elsewhere is plain functions, but per the approved spec `models/permission.ts` is the deliberate exception: one `Permission` class, all static methods.
-- Run `npm run typecheck` and `npm test` after each task; format touched files with `deno fmt <files>`. Never hand-edit `public/styles.css`.
-- Admin routes are guarded per-handler with `Permission.require(...)`; the blanket admin gate is gone.
+- Timestamps for expiry are ISO 8601 via `new Date(...).toISOString()`, compared
+  against a JS-bound ISO `now` — never `CURRENT_TIMESTAMP` (matches
+  `models/authToken.ts`).
+- Models convention elsewhere is plain functions, but per the approved spec
+  `models/permission.ts` is the deliberate exception: one `Permission` class,
+  all static methods.
+- Run `npm run typecheck` and `npm test` after each task; format touched files
+  with `deno fmt <files>`. Never hand-edit `public/styles.css`.
+- Admin routes are guarded per-handler with `Permission.require(...)`; the
+  blanket admin gate is gone.
 - Spec: `docs/superpowers/specs/2026-07-23-user-access-management-design.md`.
 
 ---
 
 ### Task 1: Refactor `Permission` to a fully class-based API
 
-Mechanical rename: every free function in `models/permission.ts` becomes a static method on `Permission`. No behavior change. This lands first so later tasks add methods to the class directly.
+Mechanical rename: every free function in `models/permission.ts` becomes a
+static method on `Permission`. No behavior change. This lands first so later
+tasks add methods to the class directly.
 
 **Files:**
-- Modify: `src/models/permission.ts` (convert all exported functions to static methods)
+
+- Modify: `src/models/permission.ts` (convert all exported functions to static
+  methods)
 - Modify: `src/routes/auth.tsx` (call sites + import)
-- Modify: `tests/models/permission.test.ts`, `tests/routes/permissions.test.ts` (call sites + import)
+- Modify: `tests/models/permission.test.ts`, `tests/routes/permissions.test.ts`
+  (call sites + import)
 
 **Interfaces:**
+
 - Produces (new static methods, same params/returns as the old functions):
   - `Permission.all(db)` ← `getAllPermissions`
   - `Permission.create(db, name)` ← `createPermission`
   - `Permission.byId(db, id)` ← `getPermissionById`
   - `Permission.forRole(db, roleId)` ← `getPermissionsForRole`
   - `Permission.forUser(db, userId)` ← `getPermissionsForUser`
-  - `Permission.assignToRole(db, roleId, permissionName)` ← `assignPermissionToRole`
-  - `Permission.setForRole(db, roleId, permissionId, assigned)` ← `setPermissionForRole`
+  - `Permission.assignToRole(db, roleId, permissionName)` ←
+    `assignPermissionToRole`
+  - `Permission.setForRole(db, roleId, permissionId, assigned)` ←
+    `setPermissionForRole`
   - unchanged: `Permission.can/.cannot/.require/.requireAny`
-  - `PermissionRecord` type and the `*_PERMISSION` name constants stay exported as before.
+  - `PermissionRecord` type and the `*_PERMISSION` name constants stay exported
+    as before.
 
 - [ ] **Step 1: Convert the free functions into static methods.**
 
-In `src/models/permission.ts`, move each `export const getX = async (...) => {...}` into the `Permission` class as `static async x(...) {...}` with the identical body. Example — `getAllPermissions` becomes:
+In `src/models/permission.ts`, move each
+`export const getX = async (...) => {...}` into the `Permission` class as
+`static async x(...) {...}` with the identical body. Example —
+`getAllPermissions` becomes:
 
 ```ts
 static async all(db: D1Database): Promise<readonly PermissionRecord[]> {
@@ -59,7 +90,10 @@ static async all(db: D1Database): Promise<readonly PermissionRecord[]> {
 }
 ```
 
-Do the same for `create`, `byId`, `forRole`, `forUser`, `assignToRole`, `setForRole` (bodies copied verbatim, only the declaration form changes). Delete the old `export const` versions. Keep `permissionFromRow`/`PermissionRow` as module-private helpers and `PermissionRecord` + the name constants exported.
+Do the same for `create`, `byId`, `forRole`, `forUser`, `assignToRole`,
+`setForRole` (bodies copied verbatim, only the declaration form changes). Delete
+the old `export const` versions. Keep `permissionFromRow`/`PermissionRow` as
+module-private helpers and `PermissionRecord` + the name constants exported.
 
 - [ ] **Step 2: Update every call site.**
 
@@ -69,17 +103,21 @@ Find them:
 grep -rnE "getAllPermissions|createPermission|getPermissionById|getPermissionsForRole|getPermissionsForUser|assignPermissionToRole|setPermissionForRole" src tests
 ```
 
-Rewrite each call to the method form (e.g. `getPermissionsForRole(db, id)` → `Permission.forRole(db, id)`) and drop the now-removed names from each `import { … } from ".../permission.js"` list, keeping `Permission` and any `*_PERMISSION` constants. In `tests/*`, add `Permission` to the import where a renamed function was used.
+Rewrite each call to the method form (e.g. `getPermissionsForRole(db, id)` →
+`Permission.forRole(db, id)`) and drop the now-removed names from each
+`import { … } from ".../permission.js"` list, keeping `Permission` and any
+`*_PERMISSION` constants. In `tests/*`, add `Permission` to the import where a
+renamed function was used.
 
 - [ ] **Step 3: Typecheck.**
 
-Run: `npm run typecheck`
-Expected: no errors (all old names resolved to methods).
+Run: `npm run typecheck` Expected: no errors (all old names resolved to
+methods).
 
 - [ ] **Step 4: Run the full suite — behavior must be unchanged.**
 
-Run: `npm test`
-Expected: same pass count as before this task (96 tests pass, 0 fail).
+Run: `npm test` Expected: same pass count as before this task (96 tests pass, 0
+fail).
 
 - [ ] **Step 5: Format and commit.**
 
@@ -94,15 +132,19 @@ git commit -m "refactor: make Permission a fully class-based API"
 ### Task 2: Denial table migration + denial data-access methods
 
 **Files:**
+
 - Create: `migrations/0013_create_user_permission_denials.sql`
-- Modify: `src/models/permission.ts` (add sentinel constant, `UserPermissionDenial` type, `deny`/`restore`/`denialsForUser`)
+- Modify: `src/models/permission.ts` (add sentinel constant,
+  `UserPermissionDenial` type, `deny`/`restore`/`denialsForUser`)
 - Test: `tests/models/permission.test.ts`
 
 **Interfaces:**
+
 - Produces:
   - `INDEFINITE_DENIAL_EXPIRES_AT = "9999-12-31T23:59:59.999Z"` (exported const)
   - `interface UserPermissionDenial { permissionId: number; expiresAt: string }`
-  - `Permission.deny(db, userId, permissionId, expiresAt: string): Promise<void>` (upsert)
+  - `Permission.deny(db, userId, permissionId, expiresAt: string): Promise<void>`
+    (upsert)
   - `Permission.restore(db, userId, permissionId): Promise<void>`
   - `Permission.denialsForUser(db, userId): Promise<readonly UserPermissionDenial[]>`
 
@@ -125,9 +167,12 @@ CREATE INDEX IF NOT EXISTS user_permission_denials_user_id_index
   ON user_permission_denials(user_id);
 ```
 
-- [ ] **Step 2: Write failing tests for the denial methods (CRUD only — no `can` dependency).**
+- [ ] **Step 2: Write failing tests for the denial methods (CRUD only — no `can`
+      dependency).**
 
-Append to `tests/models/permission.test.ts` (imports: `Permission` is already imported; add `USERS_READ_PERMISSION` if not present, and `INDEFINITE_DENIAL_EXPIRES_AT`):
+Append to `tests/models/permission.test.ts` (imports: `Permission` is already
+imported; add `USERS_READ_PERMISSION` if not present, and
+`INDEFINITE_DENIAL_EXPIRES_AT`):
 
 ```ts
 test("deny records a denial (upserting) and restore removes it", async () => {
@@ -141,7 +186,12 @@ test("deny records a denial (upserting) and restore removes it", async () => {
   );
   assert.ok(permission);
 
-  await Permission.deny(db, userId, permission.id, INDEFINITE_DENIAL_EXPIRES_AT);
+  await Permission.deny(
+    db,
+    userId,
+    permission.id,
+    INDEFINITE_DENIAL_EXPIRES_AT,
+  );
   assert.deepEqual(
     (await Permission.denialsForUser(db, userId)).map((d) => ({
       expiresAt: d.expiresAt,
@@ -165,8 +215,8 @@ test("deny records a denial (upserting) and restore removes it", async () => {
 
 - [ ] **Step 3: Run tests to verify they fail.**
 
-Run: `npm test 2>&1 | grep -E "deny records a denial|fail"`
-Expected: FAIL — `Permission.deny is not a function`.
+Run: `npm test 2>&1 | grep -E "deny records a denial|fail"` Expected: FAIL —
+`Permission.deny is not a function`.
 
 - [ ] **Step 4: Implement the sentinel, type, and methods.**
 
@@ -237,11 +287,13 @@ static async denialsForUser(
 }
 ```
 
-(The `can` denial clause is added in Task 3; this task's CRUD test does not exercise `can`, so it goes fully green here.)
+(The `can` denial clause is added in Task 3; this task's CRUD test does not
+exercise `can`, so it goes fully green here.)
 
 - [ ] **Step 5: Typecheck, run the CRUD test, then commit.**
 
-Run: `npm run typecheck` → no errors. `npm test 2>&1 | grep -E "deny records a denial"` → PASS.
+Run: `npm run typecheck` → no errors.
+`npm test 2>&1 | grep -E "deny records a denial"` → PASS.
 
 ```bash
 deno fmt src/models/permission.ts tests/models/permission.test.ts
@@ -254,12 +306,16 @@ git commit -m "feat: add user_permission_denials table and denial data-access"
 ### Task 3: Fold denials into `Permission.can`
 
 **Files:**
+
 - Modify: `src/models/permission.ts` (`can` query)
-- Test: `tests/models/permission.test.ts` (Task 2's suppression tests now go green)
+- Test: `tests/models/permission.test.ts` (Task 2's suppression tests now go
+  green)
 
 **Interfaces:**
+
 - Consumes: `user_permission_denials` (Task 2), `INDEFINITE_DENIAL_EXPIRES_AT`.
-- Produces: `Permission.can` now returns `false` when an active denial exists for `(userId, permissionName)`. Signature unchanged.
+- Produces: `Permission.can` now returns `false` when an active denial exists
+  for `(userId, permissionName)`. Signature unchanged.
 
 - [ ] **Step 1: Write failing suppression tests.**
 
@@ -280,7 +336,12 @@ test("deny suppresses a role-granted permission until cleared", async () => {
 
   assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), true);
 
-  await Permission.deny(db, userId, permission.id, INDEFINITE_DENIAL_EXPIRES_AT);
+  await Permission.deny(
+    db,
+    userId,
+    permission.id,
+    INDEFINITE_DENIAL_EXPIRES_AT,
+  );
   assert.equal(await Permission.can(USERS_READ_PERMISSION, db, userId), false);
 
   await Permission.restore(db, userId, permission.id);
@@ -311,8 +372,8 @@ test("an expired snooze does not suppress; a future one does", async () => {
 
 - [ ] **Step 2: Run to verify they fail.**
 
-Run: `npm test 2>&1 | grep -E "deny suppresses|expired snooze"`
-Expected: FAIL — `can` does not yet consult denials, so the deny assertions return `true`.
+Run: `npm test 2>&1 | grep -E "deny suppresses|expired snooze"` Expected: FAIL —
+`can` does not yet consult denials, so the deny assertions return `true`.
 
 - [ ] **Step 3: Add the denial clause and the `now` binding.**
 
@@ -354,13 +415,13 @@ static async can(
 
 - [ ] **Step 4: Run the suppression tests — now passing.**
 
-Run: `npm test 2>&1 | grep -E "deny suppresses|expired snooze"`
-Expected: both PASS.
+Run: `npm test 2>&1 | grep -E "deny suppresses|expired snooze"` Expected: both
+PASS.
 
 - [ ] **Step 5: Run the full suite.**
 
-Run: `npm test`
-Expected: all pass (99 tests: 96 prior + 1 CRUD (Task 2) + 2 suppression).
+Run: `npm test` Expected: all pass (99 tests: 96 prior + 1 CRUD (Task 2) + 2
+suppression).
 
 - [ ] **Step 6: Format and commit.**
 
@@ -375,11 +436,14 @@ git commit -m "feat: suppress denied permissions in Permission.can"
 ### Task 4: Seed `author` and `editor` roles
 
 **Files:**
+
 - Create: `migrations/0014_seed_author_editor_roles.sql`
 - Test: `tests/models/permission.test.ts`
 
 **Interfaces:**
-- Produces: roles `author` (`posts:create`, `posts:read`) and `editor` (`posts:create`, `posts:read`, `posts:update`, `posts:delete`).
+
+- Produces: roles `author` (`posts:create`, `posts:read`) and `editor`
+  (`posts:create`, `posts:read`, `posts:update`, `posts:delete`).
 
 - [ ] **Step 1: Write the migration.**
 
@@ -404,7 +468,8 @@ WHERE roles.name = 'editor'
 
 - [ ] **Step 2: Write a failing test for the seeded grants.**
 
-Append to `tests/models/permission.test.ts` (add `getRoleByName` to the role.js import):
+Append to `tests/models/permission.test.ts` (add `getRoleByName` to the role.js
+import):
 
 ```ts
 test("author and editor roles are seeded with their post permissions", async () => {
@@ -425,12 +490,14 @@ test("author and editor roles are seeded with their post permissions", async () 
 });
 ```
 
-(`Permission.forRole` orders by name ASC, hence `posts:delete` before `posts:read`.)
+(`Permission.forRole` orders by name ASC, hence `posts:delete` before
+`posts:read`.)
 
 - [ ] **Step 3: Run it to verify fail, then pass.**
 
-Run: `npm test 2>&1 | grep -E "author and editor"`
-Expected: PASS (migrations apply automatically in `createTestDb`). If it fails on ordering, adjust the expected array to the ASC order.
+Run: `npm test 2>&1 | grep -E "author and editor"` Expected: PASS (migrations
+apply automatically in `createTestDb`). If it fails on ordering, adjust the
+expected array to the ASC order.
 
 - [ ] **Step 4: Commit.**
 
@@ -443,19 +510,27 @@ git commit -m "feat: seed author and editor roles"
 
 ### Task 5: Move role assignment to its own route
 
-Split role saving out of `POST /admin/users/:id` into `POST /admin/users/:id/roles` (the new page will post here). The self-lock rule (a user cannot drop their own `admin`) moves with it.
+Split role saving out of `POST /admin/users/:id` into
+`POST /admin/users/:id/roles` (the new page will post here). The self-lock rule
+(a user cannot drop their own `admin`) moves with it.
 
 **Files:**
-- Modify: `src/routes/auth.tsx` (`POST /admin/users/:id` — remove role handling; add `POST /admin/users/:id/roles`)
+
+- Modify: `src/routes/auth.tsx` (`POST /admin/users/:id` — remove role handling;
+  add `POST /admin/users/:id/roles`)
 - Test: `tests/routes/permissions.test.ts`
 
 **Interfaces:**
-- Consumes: `setRolesForUser`, `getRoleByName`, `ADMIN_ROLE`, `formRoleIds`, `Permission.require`.
-- Produces: `POST /admin/users/:id/roles` (guarded `users:update`) saving role assignment; `POST /admin/users/:id` no longer reads `roleIds`.
+
+- Consumes: `setRolesForUser`, `getRoleByName`, `ADMIN_ROLE`, `formRoleIds`,
+  `Permission.require`.
+- Produces: `POST /admin/users/:id/roles` (guarded `users:update`) saving role
+  assignment; `POST /admin/users/:id` no longer reads `roleIds`.
 
 - [ ] **Step 1: Write failing tests.**
 
-Append to `tests/routes/permissions.test.ts` (imports: add `getRolesForUser` from role.js):
+Append to `tests/routes/permissions.test.ts` (imports: add `getRolesForUser`
+from role.js):
 
 ```ts
 test("role save moves to /roles and enforces users:update", async () => {
@@ -495,12 +570,12 @@ Add `getRoleByName` to the role.js import in this test file.
 
 - [ ] **Step 2: Run to verify fail.**
 
-Run: `npm test 2>&1 | grep -E "role save moves"`
-Expected: FAIL (404/no route).
+Run: `npm test 2>&1 | grep -E "role save moves"` Expected: FAIL (404/no route).
 
 - [ ] **Step 3: Remove role handling from `POST /admin/users/:id`.**
 
-In `src/routes/auth.tsx`, in the `POST /admin/users/:id` handler, delete the role block:
+In `src/routes/auth.tsx`, in the `POST /admin/users/:id` handler, delete the
+role block:
 
 ```ts
 // DELETE these lines:
@@ -548,7 +623,8 @@ authRoute.post(
 
 - [ ] **Step 5: Typecheck, test, format, commit.**
 
-Run: `npm run typecheck` → clean. `npm test 2>&1 | grep -E "role save moves"` → PASS.
+Run: `npm run typecheck` → clean. `npm test 2>&1 | grep -E "role save moves"` →
+PASS.
 
 ```bash
 deno fmt src/routes/auth.tsx tests/routes/permissions.test.ts
@@ -561,19 +637,26 @@ git commit -m "feat: move user role assignment to /admin/users/:id/roles"
 ### Task 6: Denial routes (deny/snooze + clear)
 
 **Files:**
+
 - Modify: `src/routes/auth.tsx` (`denialExpiresAt` helper; two routes)
 - Test: `tests/routes/permissions.test.ts`
 
 **Interfaces:**
-- Consumes: `Permission.deny`, `Permission.restore`, `Permission.byId`, `INDEFINITE_DENIAL_EXPIRES_AT`, `Permission.require`.
+
+- Consumes: `Permission.deny`, `Permission.restore`, `Permission.byId`,
+  `INDEFINITE_DENIAL_EXPIRES_AT`, `Permission.require`.
 - Produces:
-  - `POST /admin/users/:id/denials` — body `permissionId`, `duration` (`"1h"|"1d"|"1w"|"indefinite"`); guarded `users:update`.
-  - `POST /admin/users/:id/denials/:permissionId/delete` — clear; guarded `users:update`.
-  - `denialExpiresAt(duration: string): string | null` — maps a duration key to an ISO expiry (sentinel for `"indefinite"`), `null` if invalid.
+  - `POST /admin/users/:id/denials` — body `permissionId`, `duration`
+    (`"1h"|"1d"|"1w"|"indefinite"`); guarded `users:update`.
+  - `POST /admin/users/:id/denials/:permissionId/delete` — clear; guarded
+    `users:update`.
+  - `denialExpiresAt(duration: string): string | null` — maps a duration key to
+    an ISO expiry (sentinel for `"indefinite"`), `null` if invalid.
 
 - [ ] **Step 1: Write failing tests.**
 
-Append to `tests/routes/permissions.test.ts` (add `COMMENTS_CREATE_PERMISSION` to the permission.js import):
+Append to `tests/routes/permissions.test.ts` (add `COMMENTS_CREATE_PERMISSION`
+to the permission.js import):
 
 ```ts
 test("denying comments:create blocks commenting; clearing restores it", async () => {
@@ -594,7 +677,10 @@ test("denying comments:create blocks commenting; clearing restores it", async ()
   assert.ok(perm);
 
   // admin holds comments:create by default
-  assert.equal(await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin), true);
+  assert.equal(
+    await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin),
+    true,
+  );
 
   const deny = await app.request(
     `/admin/users/${admin}/denials`,
@@ -609,7 +695,10 @@ test("denying comments:create blocks commenting; clearing restores it", async ()
     { DB: db } as Env,
   );
   assert.equal(deny.status, 303);
-  assert.equal(await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin), false);
+  assert.equal(
+    await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin),
+    false,
+  );
 
   const clear = await app.request(
     `/admin/users/${admin}/denials/${perm.id}/delete`,
@@ -617,7 +706,10 @@ test("denying comments:create blocks commenting; clearing restores it", async ()
     { DB: db } as Env,
   );
   assert.equal(clear.status, 303);
-  assert.equal(await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin), true);
+  assert.equal(
+    await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin),
+    true,
+  );
 });
 
 test("denial routes require users:update", async () => {
@@ -669,7 +761,8 @@ const denialExpiresAt = (duration: string): string | null => {
 };
 ```
 
-Add `INDEFINITE_DENIAL_EXPIRES_AT` to the permission.js import. Add the routes after the `/roles` route:
+Add `INDEFINITE_DENIAL_EXPIRES_AT` to the permission.js import. Add the routes
+after the `/roles` route:
 
 ```ts
 authRoute.post(
@@ -712,7 +805,8 @@ authRoute.post(
 
 - [ ] **Step 4: Typecheck, test.**
 
-Run: `npm run typecheck` → clean. `npm test 2>&1 | grep -E "blocks commenting|denial routes require"` → PASS.
+Run: `npm run typecheck` → clean.
+`npm test 2>&1 | grep -E "blocks commenting|denial routes require"` → PASS.
 
 - [ ] **Step 5: Format and commit.**
 
@@ -726,16 +820,25 @@ git commit -m "feat: add per-user permission denial routes"
 
 ### Task 7: Icon components + Users-table changes
 
-Swap the Add-user icon to circle-plus, replace the inline role checkboxes with read-only badges, and add a per-row "Manage access" button linking to the new page.
+Swap the Add-user icon to circle-plus, replace the inline role checkboxes with
+read-only badges, and add a per-row "Manage access" button linking to the new
+page.
 
 **Files:**
-- Create: `src/views/components/icons/CirclePlusIcon.tsx`, `src/views/components/icons/UserPenIcon.tsx`
+
+- Create: `src/views/components/icons/CirclePlusIcon.tsx`,
+  `src/views/components/icons/UserPenIcon.tsx`
 - Modify: `src/views/AdminUsers.tsx`
 - Test: `tests/views/admin-users.test.ts`
 
 **Interfaces:**
-- Consumes: existing `Badge`, `Button` components; `user.roles` (already on `User`).
-- Produces: `CirclePlusIcon`, `UserPenIcon` FCs (no props); a Users table with role badges, a circle-plus Add button, and a `/admin/users/:id/permissions` link per row. The `RolePicker` component and the `roles` prop are removed from `AdminUsers`.
+
+- Consumes: existing `Badge`, `Button` components; `user.roles` (already on
+  `User`).
+- Produces: `CirclePlusIcon`, `UserPenIcon` FCs (no props); a Users table with
+  role badges, a circle-plus Add button, and a `/admin/users/:id/permissions`
+  link per row. The `RolePicker` component and the `roles` prop are removed from
+  `AdminUsers`.
 
 - [ ] **Step 1: Create the icon components.**
 
@@ -760,7 +863,8 @@ export const CirclePlusIcon: FC = () => (
 );
 ```
 
-`src/views/components/icons/UserPenIcon.tsx` — the SVG currently inlined in the Add-user button (`AdminUsers.tsx`):
+`src/views/components/icons/UserPenIcon.tsx` — the SVG currently inlined in the
+Add-user button (`AdminUsers.tsx`):
 
 ```tsx
 import type { FC } from "hono/jsx";
@@ -783,7 +887,8 @@ export const UserPenIcon: FC = () => (
 
 - [ ] **Step 2: Write a failing view test.**
 
-Add to `tests/views/admin-users.test.ts` (follow the file's existing render-and-assert pattern):
+Add to `tests/views/admin-users.test.ts` (follow the file's existing
+render-and-assert pattern):
 
 ```ts
 test("users table shows role badges and a manage-access link, not checkboxes", () => {
@@ -809,19 +914,26 @@ test("users table shows role badges and a manage-access link, not checkboxes", (
 });
 ```
 
-Match the import style already used in `tests/views/admin-users.test.ts` (it will show how `AdminUsers`, `renderToString`, and `User` are imported and how props are built — mirror it; drop the now-removed `roles` prop).
+Match the import style already used in `tests/views/admin-users.test.ts` (it
+will show how `AdminUsers`, `renderToString`, and `User` are imported and how
+props are built — mirror it; drop the now-removed `roles` prop).
 
 - [ ] **Step 3: Run to verify fail.**
 
-Run: `npm test 2>&1 | grep -E "role badges and a manage-access"`
-Expected: FAIL.
+Run: `npm test 2>&1 | grep -E "role badges and a manage-access"` Expected: FAIL.
 
 - [ ] **Step 4: Update `AdminUsers.tsx`.**
 
-1. Remove the `RolePicker` component and its usages; remove `roles` from `AdminUsersProps` and the destructure; remove the now-unused `Role`/`ADMIN_ROLE` and `RolePicker`-only imports.
-2. Import the icons: `import { CirclePlusIcon } from "./components/icons/CirclePlusIcon.js";` and `import { UserPenIcon } from "./components/icons/UserPenIcon.js";`.
+1. Remove the `RolePicker` component and its usages; remove `roles` from
+   `AdminUsersProps` and the destructure; remove the now-unused
+   `Role`/`ADMIN_ROLE` and `RolePicker`-only imports.
+2. Import the icons:
+   `import { CirclePlusIcon } from "./components/icons/CirclePlusIcon.js";` and
+   `import { UserPenIcon } from "./components/icons/UserPenIcon.js";`.
 3. Add-user button: replace the inline `<svg>…</svg>` with `<CirclePlusIcon />`.
-4. New-user row: remove the `<RolePicker form="new-user-form" roles={roles} />` cell content (leave an empty `<td class="py-3 pr-4" />` so the column count is unchanged).
+4. New-user row: remove the `<RolePicker form="new-user-form" roles={roles} />`
+   cell content (leave an empty `<td class="py-3 pr-4" />` so the column count
+   is unchanged).
 5. Per-user Roles cell: replace `<RolePicker … />` with read-only badges:
 
 ```tsx
@@ -831,10 +943,11 @@ Expected: FAIL.
       ? <span class={panelMuted}>No roles</span>
       : user.roles.map((role) => <Badge variant="default">{role}</Badge>)}
   </div>
-</td>
+</td>;
 ```
 
-6. Per-user Actions cell: add, before the Save button, a link styled as the outline button to the access page:
+6. Per-user Actions cell: add, before the Save button, a link styled as the
+   outline button to the access page:
 
 ```tsx
 <a
@@ -844,14 +957,17 @@ Expected: FAIL.
   title={`Manage access for ${user.username}`}
 >
   <UserPenIcon />
-</a>
+</a>;
 ```
 
-(If `Badge` has no `default` variant, use the neutral variant already used elsewhere — check `components/ui/Badge.tsx`.)
+(If `Badge` has no `default` variant, use the neutral variant already used
+elsewhere — check `components/ui/Badge.tsx`.)
 
 - [ ] **Step 5: Typecheck, test, format, commit.**
 
-Run: `npm run typecheck` → clean. `npm test 2>&1 | grep -E "role badges"` → PASS. Then full `npm test` (fix any other admin-users test that passed a `roles` prop or asserted checkboxes).
+Run: `npm run typecheck` → clean. `npm test 2>&1 | grep -E "role badges"` →
+PASS. Then full `npm test` (fix any other admin-users test that passed a `roles`
+prop or asserted checkboxes).
 
 ```bash
 deno fmt src/views/AdminUsers.tsx src/views/components/icons/CirclePlusIcon.tsx src/views/components/icons/UserPenIcon.tsx tests/views/admin-users.test.ts
@@ -863,20 +979,25 @@ git commit -m "feat: circle-plus add button, role badges, manage-access link"
 
 ### Task 8: `AdminUserAccess` page component
 
-The view rendered by the new page: role checkboxes (moved here) + a per-permission denial panel.
+The view rendered by the new page: role checkboxes (moved here) + a
+per-permission denial panel.
 
 **Files:**
+
 - Create: `src/views/AdminUserAccess.tsx`
 - Test: `tests/views/admin-user-access.test.ts`
 
 **Interfaces:**
-- Consumes: `User`, `Role`, `PermissionRecord`, `UserPermissionDenial`, `Layout`, `HeaderSlim`, `AdminNav`, `Button`, `Badge`, panel styles.
+
+- Consumes: `User`, `Role`, `PermissionRecord`, `UserPermissionDenial`,
+  `Layout`, `HeaderSlim`, `AdminNav`, `Button`, `Badge`, panel styles.
 - Produces:
+
 ```ts
 type AdminUserAccessProps = {
   denials: readonly UserPermissionDenial[];
   permissions: readonly PermissionRecord[]; // permissions the user gets via roles
-  roles: readonly Role[];                   // all roles (for the picker)
+  roles: readonly Role[]; // all roles (for the picker)
   user: User;
   viewerUsername?: string;
 };
@@ -885,7 +1006,8 @@ export const AdminUserAccess: FC<AdminUserAccessProps>;
 
 - [ ] **Step 1: Write a failing view test.**
 
-`tests/views/admin-user-access.test.ts` (mirror imports/`renderToString` usage from `tests/views/admin-users.test.ts`):
+`tests/views/admin-user-access.test.ts` (mirror imports/`renderToString` usage
+from `tests/views/admin-users.test.ts`):
 
 ```ts
 import assert from "node:assert/strict";
@@ -915,7 +1037,12 @@ test("access page posts roles, denials, and clears to the right routes", () => {
         { id: 10, name: "comments:create", createdAt: "", updatedAt: "" },
         { id: 11, name: "comments:read", createdAt: "", updatedAt: "" },
       ]}
-      roles={[{ id: 1, name: "editor", createdAt: "", updatedAt: "" }] as Role[]}
+      roles={[{
+        id: 1,
+        name: "editor",
+        createdAt: "",
+        updatedAt: "",
+      }] as Role[]}
       user={user}
     />,
   );
@@ -928,12 +1055,13 @@ test("access page posts roles, denials, and clears to the right routes", () => {
 
 - [ ] **Step 2: Run to verify fail.**
 
-Run: `npm test 2>&1 | grep -E "access page posts roles"`
-Expected: FAIL (module not found).
+Run: `npm test 2>&1 | grep -E "access page posts roles"` Expected: FAIL (module
+not found).
 
 - [ ] **Step 3: Implement `AdminUserAccess.tsx`.**
 
-Use `AdminUsers.tsx` and `AdminRoles.tsx` as structural references (Layout + HeaderSlim + AdminNav grid). Core body:
+Use `AdminUsers.tsx` and `AdminRoles.tsx` as structural references (Layout +
+HeaderSlim + AdminNav grid). Core body:
 
 ```tsx
 import type { FC } from "hono/jsx";
@@ -955,7 +1083,11 @@ import {
   CardHeader,
   CardTitle,
 } from "./components/ui/Card.js";
-import { panelMuted, panelOutlineButton, panelText } from "./components/admin/panel.js";
+import {
+  panelMuted,
+  panelOutlineButton,
+  panelText,
+} from "./components/admin/panel.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 const DURATIONS = [
@@ -1086,7 +1218,9 @@ export const AdminUserAccess: FC<AdminUserAccessProps> = ({
                 })}
               </ul>
               {permissions.length === 0 && (
-                <p class={panelMuted}>This user's roles grant no permissions.</p>
+                <p class={panelMuted}>
+                  This user's roles grant no permissions.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -1097,11 +1231,15 @@ export const AdminUserAccess: FC<AdminUserAccessProps> = ({
 };
 ```
 
-(Verify `Badge` variant names against `components/ui/Badge.tsx`; adjust `variant` values if `draft`/`published`/`default` differ. The `expiresAt >= "9999"` check distinguishes the indefinite sentinel from a real snooze date.)
+(Verify `Badge` variant names against `components/ui/Badge.tsx`; adjust
+`variant` values if `draft`/`published`/`default` differ. The
+`expiresAt >= "9999"` check distinguishes the indefinite sentinel from a real
+snooze date.)
 
 - [ ] **Step 4: Run to verify pass.**
 
-Run: `npm run typecheck` → clean. `npm test 2>&1 | grep -E "access page posts roles"` → PASS.
+Run: `npm run typecheck` → clean.
+`npm test 2>&1 | grep -E "access page posts roles"` → PASS.
 
 - [ ] **Step 5: Format and commit.**
 
@@ -1118,12 +1256,16 @@ git commit -m "feat: add AdminUserAccess page component"
 Wire the page: load the user, their role-derived permissions, and their denials.
 
 **Files:**
+
 - Modify: `src/routes/auth.tsx` (new GET route + import `AdminUserAccess`)
 - Test: `tests/routes/permissions.test.ts`
 
 **Interfaces:**
-- Consumes: `getUserById`, `getAllRoles`, `Permission.forUser`, `Permission.denialsForUser`, `AdminUserAccess`, `Permission.require`.
-- Produces: `GET /admin/users/:id/permissions` (guarded `users:update`) rendering `AdminUserAccess`.
+
+- Consumes: `getUserById`, `getAllRoles`, `Permission.forUser`,
+  `Permission.denialsForUser`, `AdminUserAccess`, `Permission.require`.
+- Produces: `GET /admin/users/:id/permissions` (guarded `users:update`)
+  rendering `AdminUserAccess`.
 
 - [ ] **Step 1: Write a failing test.**
 
@@ -1162,8 +1304,8 @@ test("GET /admin/users/:id/permissions renders for users:update, 403 otherwise",
 
 - [ ] **Step 2: Run to verify fail.**
 
-Run: `npm test 2>&1 | grep -E "renders for users:update"`
-Expected: FAIL (404 for the 200 case).
+Run: `npm test 2>&1 | grep -E "renders for users:update"` Expected: FAIL (404
+for the 200 case).
 
 - [ ] **Step 3: Add the route.**
 
@@ -1208,11 +1350,13 @@ authRoute.get(
 
 - [ ] **Step 4: Typecheck, test.**
 
-Run: `npm run typecheck` → clean. `npm test 2>&1 | grep -E "renders for users:update"` → PASS.
+Run: `npm run typecheck` → clean.
+`npm test 2>&1 | grep -E "renders for users:update"` → PASS.
 
 - [ ] **Step 5: Full suite, format, commit.**
 
-Run: `npm test` → all pass. `npm run build` → clean; then `git checkout public/styles.css` (generated).
+Run: `npm test` → all pass. `npm run build` → clean; then
+`git checkout public/styles.css` (generated).
 
 ```bash
 deno fmt src/routes/auth.tsx tests/routes/permissions.test.ts
@@ -1228,24 +1372,42 @@ git commit -m "feat: add access-management page route"
 
 - [ ] **Step 1: Apply migrations locally.**
 
-Run: `npm run db:migrate:local`
-Expected: `0013` and `0014` apply cleanly.
+Run: `npm run db:migrate:local` Expected: `0013` and `0014` apply cleanly.
 
 - [ ] **Step 2: Full gates.**
 
 Run: `npm run typecheck && npm test && npm run build && git diff --check`
-Expected: typecheck clean; all tests pass; build succeeds; no whitespace errors. Restore generated CSS: `git checkout public/styles.css`.
+Expected: typecheck clean; all tests pass; build succeeds; no whitespace errors.
+Restore generated CSS: `git checkout public/styles.css`.
 
 - [ ] **Step 3: Exercise in the browser (`npm run dev:worker`).**
 
-Verify: Users table shows the circle-plus Add button, role badges, and a Manage-access button per row → opens `/admin/users/:id/permissions`; saving roles works; Deny with each preset shows "Snoozed until…", Indefinite shows "Denied", Clear removes it; a snoozed `comments:create` blocks commenting for that user until it lapses.
+Verify: Users table shows the circle-plus Add button, role badges, and a
+Manage-access button per row → opens `/admin/users/:id/permissions`; saving
+roles works; Deny with each preset shows "Snoozed until…", Indefinite shows
+"Denied", Clear removes it; a snoozed `comments:create` blocks commenting for
+that user until it lapses.
 
 ---
 
 ## Self-Review
 
-**Spec coverage:** author/editor roles (Task 4) · deny-only denial table (Task 2) · read-time expiry via `NOT EXISTS` + ISO `now` (Task 3) · indefinite sentinel (Task 2, used Tasks 6/8) · snooze presets (Task 6) · fully class-based Permission (Task 1, new methods Tasks 2–3) · icon swap + roles-to-badges + manage-access link (Task 7) · consolidated roles+denials page (Tasks 8–9) · route split for role save (Task 5) · all new routes gated `users:update` (Tasks 5,6,9). No uncovered spec section.
+**Spec coverage:** author/editor roles (Task 4) · deny-only denial table
+(Task 2) · read-time expiry via `NOT EXISTS` + ISO `now` (Task 3) · indefinite
+sentinel (Task 2, used Tasks 6/8) · snooze presets (Task 6) · fully class-based
+Permission (Task 1, new methods Tasks 2–3) · icon swap + roles-to-badges +
+manage-access link (Task 7) · consolidated roles+denials page (Tasks 8–9) ·
+route split for role save (Task 5) · all new routes gated `users:update` (Tasks
+5,6,9). No uncovered spec section.
 
-**Placeholder scan:** every code step shows complete code; commands have expected output. Two soft references — "match the file's existing test import pattern" (Tasks 7,8) and "verify Badge variant names" (Tasks 7,8) — are deliberate: the exact `renderToString` import path and `Badge` variant strings must be read from the repo, not invented. No `TODO`/`TBD`.
+**Placeholder scan:** every code step shows complete code; commands have
+expected output. Two soft references — "match the file's existing test import
+pattern" (Tasks 7,8) and "verify Badge variant names" (Tasks 7,8) — are
+deliberate: the exact `renderToString` import path and `Badge` variant strings
+must be read from the repo, not invented. No `TODO`/`TBD`.
 
-**Type consistency:** `Permission.deny/restore/denialsForUser`, `UserPermissionDenial {permissionId, expiresAt}`, `INDEFINITE_DENIAL_EXPIRES_AT`, `denialExpiresAt`, and the route paths (`/roles`, `/denials`, `/denials/:permissionId/delete`, `/permissions`) are used identically across the tasks that define and consume them.
+**Type consistency:** `Permission.deny/restore/denialsForUser`,
+`UserPermissionDenial {permissionId, expiresAt}`,
+`INDEFINITE_DENIAL_EXPIRES_AT`, `denialExpiresAt`, and the route paths
+(`/roles`, `/denials`, `/denials/:permissionId/delete`, `/permissions`) are used
+identically across the tasks that define and consume them.

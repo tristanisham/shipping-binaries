@@ -549,16 +549,13 @@ export const AdminRoles: FC<AdminRolesProps> = ({
                                 {...{
                                   "x-bind:aria-pressed":
                                     `has(${permission.id}).toString()`,
-                                  "x-bind:disabled":
-                                    `isBusy(${permission.id})`,
+                                  "x-bind:disabled": `isBusy(${permission.id})`,
                                 }}
                               >
                                 <PermissionName name={permission.name} />
                                 <span
                                   aria-hidden="true"
-                                  style={assigned
-                                    ? undefined
-                                    : "display: none"}
+                                  style={assigned ? undefined : "display: none"}
                                   {...{ "x-show": `has(${permission.id})` }}
                                 >
                                   <CheckIcon />
@@ -577,8 +574,7 @@ export const AdminRoles: FC<AdminRolesProps> = ({
                         class={`text-sm ${panelMuted}`}
                         style="display: none"
                         {...{
-                          "x-show":
-                            "query.trim() && !hasMatches()",
+                          "x-show": "query.trim() && !hasMatches()",
                         }}
                       >
                         No permissions match that search.

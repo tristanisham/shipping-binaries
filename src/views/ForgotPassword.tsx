@@ -1,8 +1,5 @@
 import type { FC } from "hono/jsx";
-import {
-  defaultHeaderNav,
-  Header,
-} from "./components/header/Header.js";
+import { defaultHeaderNav, Header } from "./components/header/Header.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type ForgotPasswordProps = {

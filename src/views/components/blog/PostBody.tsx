@@ -82,9 +82,7 @@ const sanitizeInlineHtml = (
         const external = /^https?:\/\//.test(safeHref);
         links.push({
           close: external ? `${externalLinkIcon}</a>` : "</a>",
-          open: `<a class="${publicLinkClass}" href="${
-            escapeHtml(safeHref)
-          }"${
+          open: `<a class="${publicLinkClass}" href="${escapeHtml(safeHref)}"${
             external ? ' rel="noopener noreferrer" target="_blank"' : ""
           }>`,
         });
@@ -295,18 +293,24 @@ const EditorBlockView: FC<{
     );
 
     if (level === 3) {
-      return <h3 class="scroll-mt-8 text-xl font-bold" id={heading?.id}>
-        {content}
-      </h3>;
+      return (
+        <h3 class="scroll-mt-8 text-xl font-bold" id={heading?.id}>
+          {content}
+        </h3>
+      );
     }
     if (level === 4) {
-      return <h4 class="scroll-mt-8 text-lg font-bold" id={heading?.id}>
-        {content}
-      </h4>;
+      return (
+        <h4 class="scroll-mt-8 text-lg font-bold" id={heading?.id}>
+          {content}
+        </h4>
+      );
     }
-    return <h2 class="scroll-mt-8 text-2xl font-bold" id={heading?.id}>
-      {content}
-    </h2>;
+    return (
+      <h2 class="scroll-mt-8 text-2xl font-bold" id={heading?.id}>
+        {content}
+      </h2>
+    );
   }
 
   if (block.type === "quote") {

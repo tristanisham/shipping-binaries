@@ -96,7 +96,11 @@ export const AdminNav: FC<AdminNavProps> = ({ current }) => {
           </Button>
         </CardAction>
       </CardHeader>
-      <CardContent id="admin-navigation" class="lg:block" data-admin-nav-content>
+      <CardContent
+        id="admin-navigation"
+        class="lg:block"
+        data-admin-nav-content
+      >
         <nav aria-label="Admin">
           <ul class="flex flex-col gap-3">
             {adminNavItems.map((item) => {

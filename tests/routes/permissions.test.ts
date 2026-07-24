@@ -400,7 +400,10 @@ test("a non-admin with users:update cannot grant admin via /roles", async () => 
 
   assert.equal(res.status, 303);
   assert.deepEqual(await getRolesForUser(db, managerId), ["user-manager5"]);
-  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, managerId), false);
+  assert.equal(
+    await Permission.can(USERS_READ_PERMISSION, db, managerId),
+    false,
+  );
 });
 
 test("a non-admin with users:update cannot strip admin from an admin", async () => {
@@ -645,7 +648,10 @@ test("a user cannot self-restore a denial an admin placed on them", async () => 
 
   // An admin has denied this user's comments:create.
   await Permission.deny(db, managerId, perm.id, INDEFINITE_DENIAL_EXPIRES_AT);
-  assert.equal(await Permission.can(COMMENTS_CREATE_PERMISSION, db, managerId), false);
+  assert.equal(
+    await Permission.can(COMMENTS_CREATE_PERMISSION, db, managerId),
+    false,
+  );
 
   const res = await app.request(
     `/admin/users/${managerId}/denials/${perm.id}/delete`,
@@ -661,7 +667,10 @@ test("a user cannot self-restore a denial an admin placed on them", async () => 
 
   // The self-restore is refused; the denial stands.
   assert.equal(res.status, 303);
-  assert.equal(await Permission.can(COMMENTS_CREATE_PERMISSION, db, managerId), false);
+  assert.equal(
+    await Permission.can(COMMENTS_CREATE_PERMISSION, db, managerId),
+    false,
+  );
 });
 
 test("GET /admin/users/:id/permissions renders for users:update, 403 otherwise", async () => {

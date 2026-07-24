@@ -52,7 +52,10 @@ export const SocialMetaTags: FC<{ social: SocialMeta }> = ({ social }) => {
         <meta property="article:author" content={social.author} />
       )}
       {isArticle && social.publishedTime && (
-        <meta property="article:published_time" content={social.publishedTime} />
+        <meta
+          property="article:published_time"
+          content={social.publishedTime}
+        />
       )}
       {isArticle && social.modifiedTime && (
         <meta property="article:modified_time" content={social.modifiedTime} />

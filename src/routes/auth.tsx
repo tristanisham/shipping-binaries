@@ -558,7 +558,8 @@ const requireAdminRole: MiddlewareHandler<AuthEnv> = async (c, next) => {
 
 const requirePermission = (
   permission: string,
-): MiddlewareHandler<AuthEnv> => async (c, next) => {
+): MiddlewareHandler<AuthEnv> =>
+async (c, next) => {
   if (
     await Permission.cannot(
       permission,

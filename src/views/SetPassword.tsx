@@ -51,8 +51,8 @@ export const SetPassword: FC<SetPasswordProps> = ({
                 <p>
                   {invite
                     ? "Set a password to activate your account."
-                    : "Set a new password for your account."}
-                  {" "}Use at least 12 characters.
+                    : "Set a new password for your account."}{" "}
+                  Use at least 12 characters.
                 </p>
                 <input name="token" type="hidden" value={token} />
                 <label class="flex flex-col gap-2 font-bold">

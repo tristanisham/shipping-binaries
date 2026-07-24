@@ -13,8 +13,10 @@
 
 @font-face {
   font-family: "Noto Sans";
-  src: url("/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.woff2") format("woff2"),
-    url("/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf") format("truetype");
+  src: url("/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.woff2")
+    format("woff2"),
+    url("/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf")
+    format("truetype");
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
@@ -22,8 +24,10 @@
 
 @font-face {
   font-family: "Noto Sans";
-  src: url("/fonts/Noto_Sans/NotoSans-Italic-VariableFont_wdth,wght.woff2") format("woff2"),
-    url("/fonts/Noto_Sans/NotoSans-Italic-VariableFont_wdth,wght.ttf") format("truetype");
+  src: url("/fonts/Noto_Sans/NotoSans-Italic-VariableFont_wdth,wght.woff2")
+    format("woff2"),
+    url("/fonts/Noto_Sans/NotoSans-Italic-VariableFont_wdth,wght.ttf")
+    format("truetype");
   font-style: italic;
   font-weight: 100 900;
   font-display: swap;

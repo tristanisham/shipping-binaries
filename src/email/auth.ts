@@ -4,13 +4,14 @@ const FROM_ADDRESS: EmailAddress = {
 };
 
 const escapeHtml = (value: string): string =>
-  value.replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  })[character] ?? character);
+  value.replace(/[&<>"']/g, (character) =>
+    ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[character] ?? character);
 
 const actionEmailHtml = (
   heading: string,
@@ -19,7 +20,8 @@ const actionEmailHtml = (
   actionLabel: string,
   actionUrl: string,
   expiration: string,
-): string => `<!doctype html>
+): string =>
+  `<!doctype html>
 <html lang="en">
   <body style="background:#fffbeb;color:#465457;font-family:Arial,sans-serif;margin:0;padding:32px">
     <main style="margin:0 auto;max-width:560px">
@@ -27,7 +29,11 @@ const actionEmailHtml = (
       <p>${escapeHtml(greeting)}</p>
       <p>${escapeHtml(message)}</p>
       <p style="margin:28px 0">
-        <a href="${escapeHtml(actionUrl)}" style="background:#7c2d12;border-radius:6px;color:#fef3c7;display:inline-block;font-weight:700;padding:12px 18px;text-decoration:none">${escapeHtml(actionLabel)}</a>
+        <a href="${
+    escapeHtml(actionUrl)
+  }" style="background:#7c2d12;border-radius:6px;color:#fef3c7;display:inline-block;font-weight:700;padding:12px 18px;text-decoration:none">${
+    escapeHtml(actionLabel)
+  }</a>
       </p>
       <p>${escapeHtml(expiration)}</p>
       <p>If you did not expect this email, you can safely ignore it.</p>

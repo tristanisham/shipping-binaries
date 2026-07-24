@@ -22,7 +22,10 @@ test("auth tokens store only a hash and can be claimed once", async () => {
   assert.ok(row);
   assert.notEqual(row.token_hash, token);
   assert.equal(row.token_hash, await hashAuthToken(token));
-  assert.equal((await claimAuthToken(db, token, "password_reset"))?.userId, userId);
+  assert.equal(
+    (await claimAuthToken(db, token, "password_reset"))?.userId,
+    userId,
+  );
   assert.equal(await claimAuthToken(db, token, "password_reset"), null);
   assert.equal(await getValidAuthToken(db, token, "password_reset"), null);
 });

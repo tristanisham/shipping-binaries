@@ -26,18 +26,18 @@
 
 ## Authentication and admin
 
-- Authentication supports multiple users. Roles use the `roles` and
-  `user_roles` tables; only users assigned the protected `admin` role may open
-  management routes, while every authenticated user may open `/admin/account`.
+- Authentication supports multiple users. Roles use the `roles` and `user_roles`
+  tables; only users assigned the protected `admin` role may open management
+  routes, while every authenticated user may open `/admin/account`.
 - Passwords are hashed and verified with `bcryptjs` in `src/auth/password.ts`;
   never store or log plaintext credentials.
 - Sessions are stored in D1, use SHA-256 hashes of random bearer tokens, expire
   after seven days, and are referenced by the HTTP-only `shipping_session`
   cookie. Keep token hashing and cookie behavior centralized in
   `src/models/session.ts` and `src/routes/auth.tsx`.
-- `requireSession` protects both `/admin` and `/admin/*`; `requireAdmin` protects
-  every admin route except `/admin/account`. Unauthenticated requests redirect
-  to `/login`; `/logout` deletes the D1 session and clears the cookie.
+- `requireSession` protects both `/admin` and `/admin/*`; `requireAdmin`
+  protects every admin route except `/admin/account`. Unauthenticated requests
+  redirect to `/login`; `/logout` deletes the D1 session and clears the cookie.
 - `/admin` is the writing/content dashboard, `/admin/roles` manages assignable
   roles, and `/admin/account` is the signed-in user's account page. The built-in
   `admin` role cannot be renamed or deleted, and the Users form must not let an
@@ -130,12 +130,11 @@ that depends on D1.
 - Preserve the site palette exactly: light mode uses `bg-amber-50` with
   `text-mist-600`; dark mode reverses that to `dark:bg-mist-600` with
   `dark:text-amber-50`.
-- Treat the current page background as the primary button color: amber in
-  light mode and mist in dark mode. Primary buttons use
+- Treat the current page background as the primary button color: amber in light
+  mode and mist in dark mode. Primary buttons use
   `bg-amber-50 text-mist-600 dark:bg-mist-600 dark:text-amber-50` so their
-  background and contrasting text follow the light/dark toggle. Tertiary
-  buttons use `bg-chocolate-500 text-amber-50` with
-  `hover:bg-chocolate-400`.
+  background and contrasting text follow the light/dark toggle. Tertiary buttons
+  use `bg-chocolate-500 text-amber-50` with `hover:bg-chocolate-400`.
 - Inverse-color UI such as the header control bar mirrors the page palette:
   `bg-mist-600 text-amber-50` in light mode and
   `dark:bg-amber-50 dark:text-mist-600` in dark mode.

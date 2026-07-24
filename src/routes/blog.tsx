@@ -13,10 +13,7 @@ import {
   getPublishedPostsForUser,
 } from "../models/post.js";
 import { getPublicProfileByUsername } from "../models/profile.js";
-import {
-  getSessionUser,
-  SESSION_COOKIE_NAME,
-} from "../models/session.js";
+import { getSessionUser, SESSION_COOKIE_NAME } from "../models/session.js";
 import { Author } from "../views/Author.js";
 import { BlogIndex } from "../views/BlogIndex.js";
 import { BlogPost } from "../views/BlogPost.js";
@@ -92,9 +89,7 @@ blogRoute.post("/blog/:slug/comments", async (c) => {
   const parentIdValue = typeof body.parentId === "string"
     ? body.parentId.trim()
     : "";
-  const parentId = parentIdValue
-    ? Number.parseInt(parentIdValue, 10)
-    : null;
+  const parentId = parentIdValue ? Number.parseInt(parentIdValue, 10) : null;
 
   if (
     content.length > 50_000 ||

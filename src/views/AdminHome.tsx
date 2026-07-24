@@ -67,7 +67,9 @@ export const AdminHome: FC<AdminHomeProps> = ({
           </CardHeader>
           <CardContent class="flex flex-col gap-8">
             <section aria-labelledby="overview-posts-title">
-              <div class={`mb-3 flex items-center justify-between border-b pb-2 ${panelDivider}`}>
+              <div
+                class={`mb-3 flex items-center justify-between border-b pb-2 ${panelDivider}`}
+              >
                 <h2 class="font-semibold" id="overview-posts-title">
                   Recent posts
                 </h2>
@@ -92,7 +94,9 @@ export const AdminHome: FC<AdminHomeProps> = ({
                         class={`flex items-center justify-between gap-3 rounded-lg p-3 ${panelRow}`}
                       >
                         <div class="min-w-0">
-                          <p class="truncate text-sm font-medium">{post.title}</p>
+                          <p class="truncate text-sm font-medium">
+                            {post.title}
+                          </p>
                           <p class={`truncate text-xs ${panelMuted}`}>
                             by {post.authorUsername}
                           </p>
@@ -100,7 +104,10 @@ export const AdminHome: FC<AdminHomeProps> = ({
                         <div class="flex shrink-0 items-center gap-2">
                           <a
                             class={cn(
-                              buttonVariants({ size: "sm", variant: "outline" }),
+                              buttonVariants({
+                                size: "sm",
+                                variant: "outline",
+                              }),
                               panelOutlineButton,
                             )}
                             href={`/admin/write?id=${post.id}`}
@@ -120,7 +127,9 @@ export const AdminHome: FC<AdminHomeProps> = ({
             </section>
 
             <section aria-labelledby="overview-users-title">
-              <div class={`mb-3 flex items-center justify-between border-b pb-2 ${panelDivider}`}>
+              <div
+                class={`mb-3 flex items-center justify-between border-b pb-2 ${panelDivider}`}
+              >
                 <h2 class="font-semibold" id="overview-users-title">Users</h2>
                 <a class="text-sm underline" href="/admin/users">Manage</a>
               </div>
@@ -157,7 +166,9 @@ export const AdminHome: FC<AdminHomeProps> = ({
             </section>
 
             <section aria-labelledby="overview-roles-title">
-              <div class={`mb-3 flex items-center justify-between border-b pb-2 ${panelDivider}`}>
+              <div
+                class={`mb-3 flex items-center justify-between border-b pb-2 ${panelDivider}`}
+              >
                 <h2 class="font-semibold" id="overview-roles-title">Roles</h2>
                 <a class="text-sm underline" href="/admin/roles">Manage</a>
               </div>

@@ -5,7 +5,10 @@ export const BCRYPT_MAX_BYTES = 72;
 export const ACCOUNT_PASSWORD_MIN_LENGTH = 9;
 
 export const ACCOUNT_PASSWORD_RULES = [
-  { key: "length", label: `At least ${ACCOUNT_PASSWORD_MIN_LENGTH} characters` },
+  {
+    key: "length",
+    label: `At least ${ACCOUNT_PASSWORD_MIN_LENGTH} characters`,
+  },
   { key: "letter", label: "At least one letter" },
   { key: "special", label: "At least one special character" },
   { key: "bytes", label: `No more than ${BCRYPT_MAX_BYTES} UTF-8 bytes` },

@@ -206,7 +206,9 @@ export const HeaderSlim: FC<HeaderSlimProps> = ({
                 </div>
               </div>
             </div>
-            <script dangerouslySetInnerHTML={{ __html: slimMobileMenuScript }} />
+            <script
+              dangerouslySetInnerHTML={{ __html: slimMobileMenuScript }}
+            />
           </details>
         </div>
       </nav>

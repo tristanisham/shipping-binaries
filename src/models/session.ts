@@ -39,7 +39,8 @@ export const destroySessionsForUser = async (
   db: D1Database,
   userId: number,
 ): Promise<void> => {
-  await db.prepare("DELETE FROM sessions WHERE user_id = ?1").bind(userId).run();
+  await db.prepare("DELETE FROM sessions WHERE user_id = ?1").bind(userId)
+    .run();
 };
 
 interface SessionUserRow {

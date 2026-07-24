@@ -1,24 +1,23 @@
 # User access management — roles, per-user permission denials, and snooze
 
-**Date:** 2026-07-23
-**Status:** Design — awaiting review
-**Builds on:** the RBAC enforcement work (`feature/rbac-enforcement`, PR #19), which
-made `Permission.can`/`require` govern every `/admin` route per-handler.
+**Date:** 2026-07-23 **Status:** Design — awaiting review **Builds on:** the
+RBAC enforcement work (`feature/rbac-enforcement`, PR #19), which made
+`Permission.can`/`require` govern every `/admin` route per-handler.
 
 > **Amendment (post-implementation):** role/permission administration is
 > **admin-only**, not delegatable. The whole `/admin/roles*` surface is gated on
 > the admin role itself (a `requireAdminRole` guard), and the `roles:read` /
-> `roles:update` permissions were removed (migration 0015) — supersedes the
-> "New `roles:read` / `roles:update` permissions" note below. Rationale: whoever
-> can edit role→permission mappings could otherwise grant their own role any
+> `roles:update` permissions were removed (migration 0015) — supersedes the "New
+> `roles:read` / `roles:update` permissions" note below. Rationale: whoever can
+> edit role→permission mappings could otherwise grant their own role any
 > capability (privilege escalation).
 
 ## Summary
 
 Add two seeded roles (`author`, `editor`) and a per-user **permission denial**
 layer that lets an admin revoke a specific permission from an individual user —
-permanently or on a self-expiring **snooze** — without changing the user's roles.
-Consolidate role assignment and denial management onto one page,
+permanently or on a self-expiring **snooze** — without changing the user's
+roles. Consolidate role assignment and denial management onto one page,
 `/admin/users/:id/permissions`. As part of this, make the `Permission` model a
 single cohesive class API (all functions become static methods).
 
@@ -42,11 +41,12 @@ while keeping `comments:read`.
 
 ## Decisions
 
-1. **Deny-only overrides.** A user override can only *remove* a permission the
+1. **Deny-only overrides.** A user override can only _remove_ a permission the
    user's roles grant, never add one. Resolution:
    `can = roleGrants(user, perm) AND NOT activeDenial(user, perm)`.
-2. **Read-time expiry, no scheduler.** A denial carries an `expires_at`; it stops
-   applying the instant it lapses, evaluated in the permission query. No cron.
+2. **Read-time expiry, no scheduler.** A denial carries an `expires_at`; it
+   stops applying the instant it lapses, evaluated in the permission query. No
+   cron.
 3. **Indefinite = far-future sentinel, not NULL.** `expires_at` is always set.
    Indefinite deny → `INDEFINITE_DENIAL_EXPIRES_AT = "9999-12-31T23:59:59.999Z"`
    (sorts after any real ISO date). Snooze → nearer future ISO date. "Clear" →
@@ -110,17 +110,17 @@ WHERE roles.name = 'editor'
 `models/permission.ts` exports the name constants and one `Permission` class.
 Method map (old free function → new static method):
 
-| Old function | New method |
-| --- | --- |
-| `getAllPermissions` | `Permission.all` |
-| `createPermission` | `Permission.create` |
-| `getPermissionById` | `Permission.byId` |
-| `getPermissionsForRole` | `Permission.forRole` |
-| `getPermissionsForUser` | `Permission.forUser` |
-| `assignPermissionToRole` | `Permission.assignToRole` |
-| `setPermissionForRole` | `Permission.setForRole` |
-| (existing) | `Permission.can` / `.cannot` / `.require` / `.requireAny` |
-| **new** | `Permission.deny` / `.restore` / `.denialsForUser` |
+| Old function             | New method                                                |
+| ------------------------ | --------------------------------------------------------- |
+| `getAllPermissions`      | `Permission.all`                                          |
+| `createPermission`       | `Permission.create`                                       |
+| `getPermissionById`      | `Permission.byId`                                         |
+| `getPermissionsForRole`  | `Permission.forRole`                                      |
+| `getPermissionsForUser`  | `Permission.forUser`                                      |
+| `assignPermissionToRole` | `Permission.assignToRole`                                 |
+| `setPermissionForRole`   | `Permission.setForRole`                                   |
+| (existing)               | `Permission.can` / `.cannot` / `.require` / `.requireAny` |
+| **new**                  | `Permission.deny` / `.restore` / `.denialsForUser`        |
 
 Call sites to migrate: `routes/auth.tsx`, `routes/blog.tsx`, and the tests
 (`tests/models/permission.test.ts`, `tests/routes/permissions.test.ts`). This is
@@ -167,34 +167,37 @@ change — the abuse case falls out for free.
 ## Admin UI
 
 ### Users table (`AdminUsers.tsx`)
+
 - **Add-user button:** replace the user-pen SVG with the **circle-plus** icon.
 - **Roles column:** replace the inline `RolePicker` checkboxes with read-only
   role badges (display only). Role editing moves to the new page.
-- **New per-row action button** using the extracted **user-pen** icon, linking to
-  `/admin/users/:id/permissions` (label/title "Manage access").
+- **New per-row action button** using the extracted **user-pen** icon, linking
+  to `/admin/users/:id/permissions` (label/title "Manage access").
 - Extract both icons into `components/icons/` (`CirclePlusIcon`, `UserPenIcon`).
 - The inline identity form (label/username/email + Save) and the invite/active
   actions are unchanged.
 
 ### New page `/admin/users/:id/permissions` (`AdminUserAccess.tsx`)
+
 One page, two sections for the selected user:
+
 1. **Roles** — the `RolePicker` checkboxes (moved here), saved via
    `POST /admin/users/:id/roles`. The self-lock rule (a user cannot remove their
    own `admin` role) moves here.
 2. **Permissions** — list every permission the user gets from their roles, each
    showing its state (Active / Snoozed until `T` / Denied) and controls:
-   **Snooze** (presets: 1 hour, 1 day, 1 week), **Deny indefinitely**, **Clear**.
-   Snooze/Deny → `POST /admin/users/:id/denials`; Clear →
+   **Snooze** (presets: 1 hour, 1 day, 1 week), **Deny indefinitely**,
+   **Clear**. Snooze/Deny → `POST /admin/users/:id/denials`; Clear →
    `POST /admin/users/:id/denials/:permissionId/delete`.
 
 ## Routes (all gated `users:update` via `Permission.require`)
 
-| Method + path | Purpose |
-| --- | --- |
-| `GET  /admin/users/:id/permissions` | render the access page |
-| `POST /admin/users/:id/roles` | save role assignment (moved off `POST /admin/users/:id`) |
-| `POST /admin/users/:id/denials` | deny or snooze (`permissionId`, `duration`) |
-| `POST /admin/users/:id/denials/:permissionId/delete` | clear a denial |
+| Method + path                                        | Purpose                                                  |
+| ---------------------------------------------------- | -------------------------------------------------------- |
+| `GET  /admin/users/:id/permissions`                  | render the access page                                   |
+| `POST /admin/users/:id/roles`                        | save role assignment (moved off `POST /admin/users/:id`) |
+| `POST /admin/users/:id/denials`                      | deny or snooze (`permissionId`, `duration`)              |
+| `POST /admin/users/:id/denials/:permissionId/delete` | clear a denial                                           |
 
 `POST /admin/users/:id` keeps identity/active/password handling and stops
 handling `roleIds`. Duration input maps: preset key → `ttlMs`; "indefinite" →
@@ -213,10 +216,10 @@ permission is introduced for this surface.
   keeps existing behavior (existing model tests pass under new method names).
 - **Routes:** denying `comments:create` makes `POST /blog/:slug/comments` return
   403; a future snooze blocks and a past one allows; role save + self-admin-lock
-  work on the new page; all `/admin/users/:id/{permissions,roles,denials}` routes
-  return 403 without `users:update`.
-- **Seed:** `author` can create + edit own but not others'; `editor` can edit and
-  delete any post.
+  work on the new page; all `/admin/users/:id/{permissions,roles,denials}`
+  routes return 403 without `users:update`.
+- **Seed:** `author` can create + edit own but not others'; `editor` can edit
+  and delete any post.
 
 ## Migrations summary
 

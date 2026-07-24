@@ -1,8 +1,5 @@
 import type { Child, FC } from "hono/jsx";
-import {
-  type SocialMeta,
-  SocialMetaTags,
-} from "../components/SocialMeta.js";
+import { type SocialMeta, SocialMetaTags } from "../components/SocialMeta.js";
 import { ToastViewport } from "../components/Toast.js";
 
 export type LayoutMeta = {
@@ -40,7 +37,10 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
           <meta name="description" content={meta.description} />
         )}
         {meta?.keywords && (
-          <meta name="keywords" content={`${meta.keywords}`} />
+          <meta
+            name="keywords"
+            content={`${meta.keywords}`}
+          />
         )}
         {meta?.author && <meta name="author" content={meta.author} />}
         {meta?.robots && <meta name="robots" content={meta.robots} />}
@@ -56,9 +56,11 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
           />
         )}
         <link rel="icon" type="image/png" href="/favicon.png" />
-        {/* Preload above-the-fold fonts so the download starts before styles.css
+        {
+          /* Preload above-the-fold fonts so the download starts before styles.css
             is parsed, shrinking the font-display: swap flash. crossorigin is
-            required even same-origin: fonts fetch in anonymous-CORS mode. */}
+            required even same-origin: fonts fetch in anonymous-CORS mode. */
+        }
         <link
           rel="preload"
           as="font"

@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import app from "../../src/index.js";
 import { createPost } from "../../src/models/post.js";
-import {
-  ADMIN_ROLE,
-  assignRoleToUser,
-} from "../../src/models/role.js";
+import { ADMIN_ROLE, assignRoleToUser } from "../../src/models/role.js";
 import {
   createSession,
   SESSION_COOKIE_NAME,
@@ -54,7 +51,10 @@ test("published posts render at their slug and drafts stay private", async () =>
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /Public post/);
-  assert.match(html, /<h2[^>]*id="a-heading"[^>]*><span>A heading<\/span><\/h2>/);
+  assert.match(
+    html,
+    /<h2[^>]*id="a-heading"[^>]*><span>A heading<\/span><\/h2>/,
+  );
   assert.match(html, /A <strong>public<\/strong> body/);
   assert.match(html, /id="post-table-of-contents"/);
   assert.match(html, /aria-controls="post-contents-panel"/);

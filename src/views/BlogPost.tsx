@@ -3,10 +3,7 @@ import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
 import { CommentEditor } from "./components/blog/CommentEditor.js";
-import {
-  getPostHeadings,
-  PostBody,
-} from "./components/blog/PostBody.js";
+import { getPostHeadings, PostBody } from "./components/blog/PostBody.js";
 import { PostMeta } from "./components/blog/posts/PostMeta.js";
 import { PostTableOfContents } from "./components/blog/PostTableOfContents.js";
 import { toIsoTimestamp } from "./components/date.js";
@@ -87,9 +84,7 @@ export const BlogPost: FC<BlogPostProps> = ({
         >
           <h2 class="text-2xl font-bold" id="comments-heading">Comments</h2>
           {canComment
-            ? (
-              <CommentEditor action={`/blog/${post.slug}/comments`} />
-            )
+            ? <CommentEditor action={`/blog/${post.slug}/comments`} />
             : null}
           {post.comments.length > 0
             ? post.comments.map((comment) => (
