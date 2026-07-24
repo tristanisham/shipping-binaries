@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { validateAccountPassword } from "../../src/auth/password.js";
+import {
+  hashPassword,
+  validateAccountPassword,
+} from "../../src/auth/password.js";
 
 test("account password validation enforces length, letters, and special characters", () => {
   assert.equal(
@@ -22,9 +25,28 @@ test("account password validation enforces length, letters, and special characte
   assert.equal(validateAccountPassword("Valid-pass!"), null);
 });
 
-test("account passwords cannot exceed the bcrypt byte limit", () => {
+test("account passwords cannot exceed 64 UTF-8 bytes", async () => {
   assert.equal(
-    validateAccountPassword(`a!${"x".repeat(71)}`),
-    "Password cannot exceed 72 UTF-8 bytes.",
+    validateAccountPassword(`a!${"x".repeat(62)}`),
+    null,
+  );
+  assert.equal(
+    validateAccountPassword(`a!${"x".repeat(63)}`),
+    "Password cannot exceed 64 UTF-8 bytes.",
+  );
+  assert.equal(
+    validateAccountPassword(`a!${"é".repeat(31)}`),
+    null,
+  );
+  assert.equal(
+    validateAccountPassword(`a!${"é".repeat(32)}`),
+    "Password cannot exceed 64 UTF-8 bytes.",
+  );
+  await assert.rejects(
+    hashPassword(`a!${"x".repeat(63)}`),
+    {
+      message: "Password cannot exceed 64 UTF-8 bytes.",
+      name: "RangeError",
+    },
   );
 });

@@ -1,10 +1,12 @@
 import { type Context, Hono, type MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import {
+  ACCOUNT_PASSWORD_MAX_BYTES,
   hashPassword,
   validateAccountPassword,
   verifyPassword,
 } from "../auth/password.js";
+import { createRandomToken } from "../auth/token.js";
 import { getSignedInPath, hasAdminRole } from "../auth/viewer.js";
 import { sendInvitationEmail, sendPasswordResetEmail } from "../email/auth.js";
 import {
@@ -105,7 +107,7 @@ const INVALID_LOGIN_HASH =
   "$2b$10$5Ke5raq.wTNcQYIzdbmwu.jqOhEFvUpOFy08jNOAbk5ausJSJy5Py";
 const INVALID_LOGIN_MESSAGE = "Invalid email, username, or password.";
 const INVALID_PASSWORD_MESSAGE =
-  "Use matching passwords between 12 characters and 72 UTF-8 bytes.";
+  `Use matching passwords between 12 characters and ${ACCOUNT_PASSWORD_MAX_BYTES} UTF-8 bytes.`;
 const PERMISSION_NAME_PATTERN =
   /^[a-z](?:[a-z0-9]|-(?=[a-z0-9]))*(?::[a-z](?:[a-z0-9]|-(?=[a-z0-9]))*)+$/;
 const ROLE_NAME_PATTERN = /^[a-z](?:[a-z0-9]|-(?=[a-z0-9])){0,31}$/;
@@ -242,7 +244,9 @@ const validatePassword = (
   password: string,
   passwordConfirmation: string,
 ): string | null =>
-  password.length >= 12 && password === passwordConfirmation
+  password.length >= 12 &&
+    new TextEncoder().encode(password).length <= ACCOUNT_PASSWORD_MAX_BYTES &&
+    password === passwordConfirmation
     ? null
     : INVALID_PASSWORD_MESSAGE;
 
@@ -1013,9 +1017,7 @@ authRoute.post(
         active: false,
         email,
         label: labelValue || null,
-        passwordHash: await hashPassword(
-          `${crypto.randomUUID()}${crypto.randomUUID()}`,
-        ),
+        passwordHash: await hashPassword(createRandomToken()),
         username,
       });
     } catch (error) {

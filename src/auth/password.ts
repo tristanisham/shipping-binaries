@@ -1,8 +1,14 @@
-import { compare, hash, truncates } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 
 export const BCRYPT_COST = 10;
-export const BCRYPT_MAX_BYTES = 72;
+export const ACCOUNT_PASSWORD_MAX_BYTES = 64;
 export const ACCOUNT_PASSWORD_MIN_LENGTH = 9;
+
+const passwordByteLength = (password: string): number =>
+  new TextEncoder().encode(password).length;
+
+const exceedsPasswordByteLimit = (password: string): boolean =>
+  passwordByteLength(password) > ACCOUNT_PASSWORD_MAX_BYTES;
 
 export const ACCOUNT_PASSWORD_RULES = [
   {
@@ -11,7 +17,6 @@ export const ACCOUNT_PASSWORD_RULES = [
   },
   { key: "letter", label: "At least one letter" },
   { key: "special", label: "At least one special character" },
-  { key: "bytes", label: `No more than ${BCRYPT_MAX_BYTES} UTF-8 bytes` },
   { key: "match", label: "Passwords match" },
 ] as const;
 
@@ -28,8 +33,8 @@ export const validateAccountPassword = (password: string): string | null => {
     return "Include at least one special character.";
   }
 
-  if (truncates(password)) {
-    return `Password cannot exceed ${BCRYPT_MAX_BYTES} UTF-8 bytes.`;
+  if (exceedsPasswordByteLimit(password)) {
+    return `Password cannot exceed ${ACCOUNT_PASSWORD_MAX_BYTES} UTF-8 bytes.`;
   }
 
   return null;
@@ -40,9 +45,9 @@ export const hashPassword = async (password: string): Promise<string> => {
     throw new RangeError("Password cannot be empty.");
   }
 
-  if (truncates(password)) {
+  if (exceedsPasswordByteLimit(password)) {
     throw new RangeError(
-      `Password cannot exceed ${BCRYPT_MAX_BYTES} UTF-8 bytes.`,
+      `Password cannot exceed ${ACCOUNT_PASSWORD_MAX_BYTES} UTF-8 bytes.`,
     );
   }
 
@@ -53,7 +58,7 @@ export const verifyPassword = async (
   password: string,
   passwordHash: string,
 ): Promise<boolean> => {
-  if (password.length === 0 || truncates(password)) {
+  if (password.length === 0 || exceedsPasswordByteLimit(password)) {
     return false;
   }
 

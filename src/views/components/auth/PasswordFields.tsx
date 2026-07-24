@@ -1,8 +1,8 @@
 import type { FC } from "hono/jsx";
 import {
+  ACCOUNT_PASSWORD_MAX_BYTES,
   ACCOUNT_PASSWORD_MIN_LENGTH,
   ACCOUNT_PASSWORD_RULES,
-  BCRYPT_MAX_BYTES,
 } from "../../../auth/password.js";
 import { Input } from "../ui/Input.js";
 
@@ -53,7 +53,7 @@ export const PasswordFields: FC<PasswordFieldsProps> = ({
       length: value.length >= ${ACCOUNT_PASSWORD_MIN_LENGTH},
       letter: /[A-Za-z]/.test(value),
       special: /[^A-Za-z0-9\\s]/.test(value),
-      bytes: new TextEncoder().encode(value).length <= ${BCRYPT_MAX_BYTES},
+      bytes: new TextEncoder().encode(value).length <= ${ACCOUNT_PASSWORD_MAX_BYTES},
       match: confirmation.value.length > 0 && value === confirmation.value
     };
     rules.querySelectorAll("[data-password-rule]").forEach(function (rule) {

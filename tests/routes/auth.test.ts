@@ -883,6 +883,24 @@ test("admin can invite a user who activates their account", async () => {
   ).bind(writer?.id).first<{ token_hash: string }>();
   assert.notEqual(stored?.token_hash, inviteToken);
 
+  const oversizedPassword = `a!${"x".repeat(63)}`;
+  const oversizedAccept = await app.request(
+    "/invite",
+    {
+      body: new URLSearchParams({
+        password: oversizedPassword,
+        passwordConfirmation: oversizedPassword,
+        token: inviteToken,
+      }).toString(),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: "POST",
+    },
+    { DB: db, EMAIL: email.binding } as Env,
+  );
+  assert.equal(oversizedAccept.status, 422);
+  assert.match(await oversizedAccept.text(), /64 UTF-8 bytes/);
+  assert.equal((await findUserByLogin(db, "writer"))?.active, 0);
+
   const accept = await app.request(
     "/invite",
     {

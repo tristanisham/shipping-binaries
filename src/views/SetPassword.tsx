@@ -1,4 +1,5 @@
 import type { FC } from "hono/jsx";
+import { ACCOUNT_PASSWORD_MAX_BYTES } from "../auth/password.js";
 import { defaultHeaderNav, Header } from "./components/header/Header.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
@@ -52,7 +53,8 @@ export const SetPassword: FC<SetPasswordProps> = ({
                   {invite
                     ? "Set a password to activate your account."
                     : "Set a new password for your account."}{" "}
-                  Use at least 12 characters.
+                  Use at least 12 characters and no more than{" "}
+                  {ACCOUNT_PASSWORD_MAX_BYTES} UTF-8 bytes.
                 </p>
                 <input name="token" type="hidden" value={token} />
                 <label class="flex flex-col gap-2 font-bold">
