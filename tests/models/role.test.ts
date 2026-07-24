@@ -66,11 +66,11 @@ test("roles can be created, renamed, counted, assigned, and deleted", async () =
     1,
   );
 
-  await updateRole(db, roleId, "editor");
-  assert.deepEqual(await getRolesForUser(db, userId), ["editor"]);
+  await updateRole(db, roleId, "publisher");
+  assert.deepEqual(await getRolesForUser(db, userId), ["publisher"]);
 
   await setRolesForUser(db, userId, []);
   assert.deepEqual(await getRolesForUser(db, userId), []);
   await deleteRole(db, roleId);
-  assert.equal(await getRoleByName(db, "editor"), null);
+  assert.equal(await getRoleByName(db, "publisher"), null);
 });

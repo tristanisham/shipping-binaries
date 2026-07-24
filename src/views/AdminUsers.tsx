@@ -1,17 +1,18 @@
 import type { FC } from "hono/jsx";
 import type { User, UserSort, UserSortDirection } from "../models/user.js";
-import { ADMIN_ROLE, type Role } from "../models/role.js";
 import { AdminNav } from "./components/admin/AdminNav.js";
 import {
   defaultHeaderNav,
   setCurrentNavItem,
 } from "./components/header/Header.js";
 import { HeaderSlim } from "./components/header/Slim.js";
+import { CirclePlusIcon } from "./components/icons/CirclePlusIcon.js";
 import {
   SaveCheckIcon,
   SaveIcon,
   SaveXIcon,
 } from "./components/icons/SaveIcon.js";
+import { UserPenIcon } from "./components/icons/UserPenIcon.js";
 import { Badge } from "./components/ui/Badge.js";
 import { Button } from "./components/ui/Button.js";
 import {
@@ -28,14 +29,11 @@ import {
   panelField,
   panelMuted,
   panelOutlineButton,
-  panelText,
 } from "./components/admin/panel.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AdminUsersProps = {
-  currentUserId: number;
   direction?: UserSortDirection;
-  roles: readonly Role[];
   sort?: UserSort;
   users: readonly User[];
   viewerUsername?: string;
@@ -58,45 +56,6 @@ const saveUserInline = `
       resetTimer = window.setTimeout(() => { saveState = "idle"; }, 1600);
     });
 `;
-
-type RolePickerProps = {
-  form: string;
-  lockAdmin?: boolean;
-  roles: readonly Role[];
-  selectedRoles?: readonly string[];
-};
-
-const RolePicker: FC<RolePickerProps> = ({
-  form,
-  lockAdmin = false,
-  roles,
-  selectedRoles = [],
-}) => (
-  <div class="flex flex-wrap gap-x-3 gap-y-2">
-    {roles.map((role) => {
-      const checked = selectedRoles.includes(role.name);
-      const locked = lockAdmin && role.name === ADMIN_ROLE;
-
-      return (
-        <label class="inline-flex select-none items-center gap-1.5 whitespace-nowrap">
-          {locked && (
-            <input form={form} name="roleIds" type="hidden" value={role.id} />
-          )}
-          <input
-            checked={checked}
-            class="size-4 accent-chocolate-500"
-            disabled={locked}
-            form={form}
-            name="roleIds"
-            type="checkbox"
-            value={role.id}
-          />
-          <span class={panelText}>{role.name}</span>
-        </label>
-      );
-    })}
-  </div>
-);
 
 type SortableHeaderProps = {
   class?: string;
@@ -137,9 +96,7 @@ const SortableHeader: FC<SortableHeaderProps> = ({
 };
 
 export const AdminUsers: FC<AdminUsersProps> = ({
-  currentUserId,
   direction = "asc",
-  roles,
   sort,
   users,
   viewerUsername,
@@ -186,18 +143,7 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                     "addingUser = !addingUser; if (addingUser) $nextTick(() => $refs.newUsername.focus())",
                 }}
               >
-                <svg
-                  aria-hidden="true"
-                  class="size-4 fill-none stroke-current"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
-                >
-                  <circle cx="10" cy="7" r="4" />
-                  <path d="M11.5 15H7a4 4 0 0 0-4 4v2" />
-                  <path d="M21.4 16.6a1 1 0 0 0-3-3l-4 4a2 2 0 0 0-.5.9l-.9 2.9a.5.5 0 0 0 .6.6l2.9-.9a2 2 0 0 0 .9-.5Z" />
-                </svg>
+                <CirclePlusIcon />
               </Button>
             </CardAction>
           </CardHeader>
@@ -286,9 +232,7 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                     <td class="py-3 pr-4">
                       <Badge variant="draft">Invitation</Badge>
                     </td>
-                    <td class="py-3 pr-4">
-                      <RolePicker form="new-user-form" roles={roles} />
-                    </td>
+                    <td class="py-3 pr-4" />
                     <td class="py-3 text-right">
                       <div class="flex items-center justify-end gap-2">
                         <Button
@@ -375,15 +319,24 @@ export const AdminUsers: FC<AdminUsersProps> = ({
                         </Badge>
                       </td>
                       <td class="py-3 pr-4">
-                        <RolePicker
-                          form={`user-${user.id}-identity`}
-                          lockAdmin={user.id === currentUserId}
-                          roles={roles}
-                          selectedRoles={user.roles}
-                        />
+                        <div class="flex flex-wrap gap-1">
+                          {user.roles.length === 0
+                            ? <span class={panelMuted}>No roles</span>
+                            : user.roles.map((role) => (
+                              <Badge variant="outline">{role}</Badge>
+                            ))}
+                        </div>
                       </td>
                       <td class="py-3 text-right">
                         <div class="flex items-center justify-end gap-2">
+                          <a
+                            aria-label={`Manage access for ${user.username}`}
+                            class={panelOutlineButton}
+                            href={`/admin/users/${user.id}/permissions`}
+                            title={`Manage access for ${user.username}`}
+                          >
+                            <UserPenIcon />
+                          </a>
                           <Button
                             aria-label={`Save ${user.username}`}
                             class="capitalize disabled:opacity-100"
