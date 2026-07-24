@@ -5,11 +5,13 @@ import {
   getAllUsers,
   getPublicUserByUsername,
   getUserById,
+  hasUserIdentifierCollision,
   setUserActive,
   setUserPassword,
   updateUser,
   updateUserAccount,
 } from "../../src/models/user.js";
+import { ADMIN_ROLE, assignRoleToUser } from "../../src/models/role.js";
 import { createTestDb, seedUser } from "../helpers/d1.js";
 
 test("getUserById maps active to a boolean", async () => {
@@ -52,6 +54,29 @@ test("user emails have a case-insensitive unique index", async () => {
       username: "member-two",
     }),
     /UNIQUE constraint failed: users\.email/,
+  );
+});
+
+test("user identifiers cannot collide across login columns", async () => {
+  const db = createTestDb();
+  await seedUser(db, {
+    email: "victim@example.com",
+    username: "victim",
+  });
+
+  assert.equal(
+    await hasUserIdentifierCollision(db, {
+      email: "other@example.com",
+      username: "VICTIM@EXAMPLE.COM",
+    }),
+    true,
+  );
+  await assert.rejects(
+    seedUser(db, {
+      email: "other@example.com",
+      username: "VICTIM@EXAMPLE.COM",
+    }),
+    /login identifier collision/,
   );
 });
 
@@ -161,6 +186,28 @@ test("setUserActive toggles the active flag", async () => {
   assert.equal((await getUserById(db, id))?.active, false);
   await setUserActive(db, id, true);
   assert.equal((await getUserById(db, id))?.active, true);
+});
+
+test("the database keeps at least one administrator active", async () => {
+  const db = createTestDb();
+  const firstAdminId = await seedUser(db, {
+    email: "first@example.com",
+    username: "first-admin",
+  });
+  await assignRoleToUser(db, firstAdminId, ADMIN_ROLE);
+
+  await assert.rejects(
+    setUserActive(db, firstAdminId, false),
+    /cannot deactivate last active admin/,
+  );
+
+  const secondAdminId = await seedUser(db, {
+    email: "second@example.com",
+    username: "second-admin",
+  });
+  await assignRoleToUser(db, secondAdminId, ADMIN_ROLE);
+  await setUserActive(db, firstAdminId, false);
+  assert.equal((await getUserById(db, firstAdminId))?.active, false);
 });
 
 test("setUserPassword updates the stored hash", async () => {

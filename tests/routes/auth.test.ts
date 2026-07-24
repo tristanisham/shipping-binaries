@@ -8,7 +8,12 @@ import {
   setPostDraft,
 } from "../../src/models/post.js";
 import { getPublicProfileByUsername } from "../../src/models/profile.js";
-import { ADMIN_ROLE, getRoleByName } from "../../src/models/role.js";
+import {
+  ADMIN_ROLE,
+  assignRoleToUser,
+  getRoleByName,
+  GUEST_ROLE,
+} from "../../src/models/role.js";
 import { findUserByLogin, getUserById } from "../../src/models/user.js";
 import {
   createSession,
@@ -275,6 +280,86 @@ test("inline user saves return JSON success and failure states", async () => {
   assert.deepEqual(await failure.json(), { saved: false });
 });
 
+test("admin password changes validate first, preserve roles, and revoke sessions", async () => {
+  const db = createTestDb();
+  const adminToken = await createAdminSession(db);
+  const oldPassword = "Old-password!1";
+  const userId = await seedUser(db, {
+    email: "member@example.com",
+    passwordHash: await hashPassword(oldPassword),
+    username: "member",
+  });
+  await assignRoleToUser(db, userId, GUEST_ROLE);
+  const memberToken = await createSession(db, userId);
+  const request = (password: string, email: string) =>
+    app.request(
+      `/admin/users/${userId}`,
+      {
+        body: new URLSearchParams({
+          active: "1",
+          activePresent: "1",
+          email,
+          label: "Member",
+          password,
+          username: "member",
+        }).toString(),
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Cookie: `${SESSION_COOKIE_NAME}=${adminToken}`,
+        },
+        method: "POST",
+      },
+      { DB: db } as Env,
+    );
+
+  const invalid = await request("weak", "changed@example.com");
+  assert.equal(invalid.status, 422);
+  const unchanged = await findUserByLogin(db, "member");
+  assert.equal(unchanged?.email, "member@example.com");
+  assert.equal(
+    unchanged && await verifyPassword(oldPassword, unchanged.password_hash),
+    true,
+  );
+  assert.ok(await getSessionUser(db, memberToken));
+  assert.deepEqual((await getUserById(db, userId))?.roles, [GUEST_ROLE]);
+
+  const valid = await request("New-password!2", "changed@example.com");
+  assert.equal(valid.status, 303);
+  const updated = await findUserByLogin(db, "member");
+  assert.equal(updated?.email, "changed@example.com");
+  assert.equal(
+    updated &&
+      await verifyPassword("New-password!2", updated.password_hash),
+    true,
+  );
+  assert.equal(await getSessionUser(db, memberToken), null);
+  assert.deepEqual((await getUserById(db, userId))?.roles, [GUEST_ROLE]);
+});
+
+test("an administrator cannot deactivate their own account", async () => {
+  const db = createTestDb();
+  const token = await createAdminSession(db);
+  const owner = await findUserByLogin(db, "owner");
+  assert.ok(owner);
+
+  const response = await app.request(
+    `/admin/users/${owner.id}/active`,
+    {
+      body: new URLSearchParams({ active: "0" }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(response.status, 400);
+  assert.equal((await getUserById(db, owner.id))?.active, true);
+  assert.ok(await getSessionUser(db, token));
+});
+
 test("admins manage roles and assign them from the users view", async () => {
   const db = createTestDb();
   const token = await createAdminSession(db);
@@ -310,6 +395,7 @@ test("admins manage roles and assign them from the users view", async () => {
         email: "writer@example.com",
         label: "Writer",
         roleIds: String(writerRole.id),
+        rolesPresent: "1",
         username: "writer",
       }).toString(),
       headers: {
@@ -322,6 +408,14 @@ test("admins manage roles and assign them from the users view", async () => {
   );
   assert.equal(assigned.status, 303);
   assert.deepEqual((await getUserById(db, userId))?.roles, ["writer"]);
+
+  const editUser = await app.request(
+    `/admin/users/${userId}/edit`,
+    { headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` } },
+    { DB: db } as Env,
+  );
+  assert.equal(editUser.status, 200);
+  assert.match(await editUser.text(), /name="activePresent"[^>]*value="1"/);
 
   const page = await app.request(
     `/admin/roles?role=${writerRole.id}`,

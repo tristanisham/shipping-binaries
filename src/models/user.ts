@@ -58,16 +58,19 @@ export const userFromRow = (row: UserRow, roles: string[] = []): User => ({
 export const findUserByLogin = async (
   db: D1Database,
   login: string,
-): Promise<UserRow | null> =>
-  db
+): Promise<UserRow | null> => {
+  const result = await db
     .prepare(
       `SELECT id, email, username, password_hash, label, active, created_at, updated_at
        FROM users
        WHERE email = ?1 OR username = ?1
-       LIMIT 1`,
+       LIMIT 2`,
     )
     .bind(login)
-    .first<UserRow>();
+    .all<UserRow>();
+
+  return result.results.length === 1 ? result.results[0] : null;
+};
 
 export const findUserByEmail = async (
   db: D1Database,
@@ -82,6 +85,27 @@ export const findUserByEmail = async (
     )
     .bind(email)
     .first<UserRow>();
+
+export const hasUserIdentifierCollision = async (
+  db: D1Database,
+  input: { email: string; excludeUserId?: number; username: string },
+): Promise<boolean> => {
+  const row = await db
+    .prepare(
+      `SELECT 1 AS collision
+       FROM users
+       WHERE id != ?3
+         AND (
+           email IN (?1, ?2)
+           OR username IN (?1, ?2)
+         )
+       LIMIT 1`,
+    )
+    .bind(input.email, input.username, input.excludeUserId ?? -1)
+    .first<{ collision: number }>();
+
+  return row?.collision === 1;
+};
 
 export const getUserPasswordHashById = async (
   db: D1Database,
@@ -232,6 +256,78 @@ export const updateUser = async (
     )
     .bind(id, input.email, input.username, input.label)
     .run();
+};
+
+export type ManagedUserUpdateInput = {
+  active?: boolean;
+  email: string;
+  label: string | null;
+  passwordHash?: string;
+  roleIds?: readonly number[];
+  username: string;
+};
+
+export const updateManagedUser = async (
+  db: D1Database,
+  id: number,
+  input: ManagedUserUpdateInput,
+): Promise<void> => {
+  const statements = [
+    db
+      .prepare(
+        `UPDATE users
+         SET email = ?2,
+             username = ?3,
+             label = ?4,
+             active = COALESCE(?5, active),
+             password_hash = COALESCE(?6, password_hash),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?1`,
+      )
+      .bind(
+        id,
+        input.email,
+        input.username,
+        input.label,
+        input.active === undefined ? null : input.active ? 1 : 0,
+        input.passwordHash ?? null,
+      ),
+  ];
+
+  if (input.roleIds !== undefined) {
+    const roleIds = [
+      ...new Set(
+        input.roleIds.filter((roleId) =>
+          Number.isInteger(roleId) && roleId > 0
+        ),
+      ),
+    ];
+    statements.push(
+      db.prepare("DELETE FROM user_roles WHERE user_id = ?1").bind(id),
+    );
+
+    if (roleIds.length > 0) {
+      const placeholders = roleIds.map((_, index) => `?${index + 2}`);
+      statements.push(
+        db
+          .prepare(
+            `INSERT OR IGNORE INTO user_roles (user_id, role_id)
+             SELECT ?1, id
+             FROM roles
+             WHERE id IN (${placeholders.join(", ")})`,
+          )
+          .bind(id, ...roleIds),
+      );
+    }
+  }
+
+  if (input.passwordHash !== undefined) {
+    statements.push(
+      db.prepare("DELETE FROM sessions WHERE user_id = ?1").bind(id),
+    );
+  }
+
+  await db.batch(statements);
 };
 
 export const updateUserAccount = async (

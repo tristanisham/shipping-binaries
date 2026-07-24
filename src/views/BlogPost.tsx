@@ -2,19 +2,14 @@ import type { FC } from "hono/jsx";
 import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
-<<<<<<< HEAD
+import { CommentEditor } from "./components/blog/CommentEditor.js";
 import {
   getPostHeadings,
   PostBody,
 } from "./components/blog/PostBody.js";
 import { PostMeta } from "./components/blog/posts/PostMeta.js";
 import { PostTableOfContents } from "./components/blog/PostTableOfContents.js";
-=======
-import { CommentEditor } from "./components/blog/CommentEditor.js";
-import { PostBody } from "./components/blog/PostBody.js";
-import { PostMeta } from "./components/blog/posts/PostMeta.js";
 import { toIsoTimestamp } from "./components/date.js";
->>>>>>> 36ef6fa4395f46998adcef079228f7c9d8e46963
 import { defaultHeaderNav, Header } from "./components/header/Header.js";
 import { toAbsoluteUrl } from "./components/SocialMeta.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";

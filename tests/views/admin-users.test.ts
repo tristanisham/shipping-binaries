@@ -44,6 +44,7 @@ test("users table edits identity fields in place across the full width", () => {
   assert.match(html, /name="label"[^>]*value="Site Owner"/);
   assert.match(html, /form="user-1-identity"[^>]*name="username"/);
   assert.match(html, /form="user-1-identity"[^>]*name="email"/);
+  assert.match(html, /form="user-1-identity"[^>]*name="rolesPresent"/);
   assert.match(html, /form="user-1-identity"[^>]*name="roleIds"/);
   assert.match(html, /inline-flex select-none items-center/);
   assert.match(html, />admin<\/span>/);

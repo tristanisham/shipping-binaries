@@ -56,6 +56,7 @@ export const AdminUserEdit: FC<AdminUserEditProps> = ({
             </CardDescription>
           </CardHeader>
           <form action={`/admin/users/${user.id}`} method="post">
+            <input name="activePresent" type="hidden" value="1" />
             <CardContent class="flex flex-col gap-5 pt-6">
               <label class="flex flex-col gap-2 text-sm font-medium">
                 Email

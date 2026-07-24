@@ -5,7 +5,7 @@ import app from "../../src/index.js";
 import { getProfileForUser } from "../../src/models/profile.js";
 import { findUserByLogin, getUserById } from "../../src/models/user.js";
 import { SESSION_COOKIE_NAME } from "../../src/models/session.js";
-import { createTestDb } from "../helpers/d1.js";
+import { createTestDb, seedUser } from "../helpers/d1.js";
 
 const signup = (
   db: D1Database,
@@ -80,4 +80,33 @@ test("signup reports duplicate usernames without creating another user", async (
     .prepare("SELECT COUNT(*) AS count FROM users")
     .first<{ count: number }>();
   assert.equal(count?.count, 1);
+});
+
+test("signup rejects identifiers that collide across email and username", async () => {
+  const db = createTestDb();
+  await seedUser(db, {
+    email: "victim@example.com",
+    username: "victim",
+  });
+  await seedUser(db, {
+    email: "author@example.com",
+    username: "alias@example.com",
+  });
+
+  const usernameCollision = await signup(db, {
+    email: "other@example.com",
+    username: "VICTIM@EXAMPLE.COM",
+  });
+  assert.equal(usernameCollision.status, 409);
+
+  const emailCollision = await signup(db, {
+    email: "ALIAS@EXAMPLE.COM",
+    username: "other",
+  });
+  assert.equal(emailCollision.status, 409);
+
+  const count = await db
+    .prepare("SELECT COUNT(*) AS count FROM users")
+    .first<{ count: number }>();
+  assert.equal(count?.count, 2);
 });

@@ -38,7 +38,13 @@ import {
   getAllPermissions,
   getPermissionById,
   getPermissionsForRole,
+  Permission,
+  POSTS_CREATE_PERMISSION,
+  POSTS_UPDATE_PERMISSION,
   setPermissionForRole,
+  USERS_CREATE_PERMISSION,
+  USERS_DELETE_PERMISSION,
+  USERS_UPDATE_PERMISSION,
 } from "../models/permission.js";
 import {
   getProfileForUser,
@@ -66,9 +72,10 @@ import {
   getAllUsers,
   getUserById,
   getUserPasswordHashById,
+  hasUserIdentifierCollision,
   setUserActive,
   setUserPassword,
-  updateUser,
+  updateManagedUser,
   type User,
   type UserSort,
   type UserSortDirection,
@@ -138,7 +145,12 @@ const isUniqueRoleError = (error: unknown): boolean =>
 
 const isUniqueUserError = (error: unknown): boolean =>
   error instanceof Error &&
-  /UNIQUE constraint failed: users\.(email|username)/.test(error.message);
+  /UNIQUE constraint failed: users\.(email|username)|login identifier collision/
+    .test(error.message);
+
+const isLastActiveAdminError = (error: unknown): boolean =>
+  error instanceof Error &&
+  /cannot deactivate last active admin/.test(error.message);
 
 const noStore: MiddlewareHandler<AuthEnv> = async (c, next) => {
   await next();
@@ -255,6 +267,21 @@ authRoute.post("/signup", async (c) => {
     return c.html(
       <Signup error="Passwords must match." values={values} />,
       422,
+    );
+  }
+
+  if (
+    await hasUserIdentifierCollision(c.env.DB, {
+      email: values.email,
+      username: values.username,
+    })
+  ) {
+    return c.html(
+      <Signup
+        error="An account with that email or username already exists."
+        values={values}
+      />,
+      409,
     );
   }
 
@@ -465,6 +492,22 @@ const requireAdmin: MiddlewareHandler<AuthEnv> = async (c, next) => {
   await next();
 };
 
+const requirePermission = (
+  permission: string,
+): MiddlewareHandler<AuthEnv> => async (c, next) => {
+  if (
+    await Permission.cannot(
+      permission,
+      c.env.DB,
+      c.var.currentUser.id,
+    )
+  ) {
+    return c.text("Forbidden", 403);
+  }
+
+  await next();
+};
+
 authRoute.use("/admin", requireSession);
 authRoute.use("/admin", requireAdmin);
 authRoute.use("/admin/*", requireSession);
@@ -536,6 +579,19 @@ authRoute.post("/admin/write", async (c) => {
     ? undefined
     : (await getPostById(c.env.DB, currentPostId)) ?? undefined;
   const isAdmin = hasAdminRole(c.var.currentUser.roles);
+  const requiredPermission = currentPostId === undefined
+    ? POSTS_CREATE_PERMISSION
+    : POSTS_UPDATE_PERMISSION;
+
+  if (
+    await Permission.cannot(
+      requiredPermission,
+      c.env.DB,
+      c.var.currentUser.id,
+    )
+  ) {
+    return c.text("Forbidden", 403);
+  }
 
   if (
     !isAdmin &&
@@ -633,17 +689,21 @@ authRoute.get("/admin/posts", async (c) => {
   );
 });
 
-authRoute.post("/admin/posts/:id/draft", async (c) => {
-  c.header("Cache-Control", "no-store");
-  const id = Number.parseInt(c.req.param("id"), 10);
+authRoute.post(
+  "/admin/posts/:id/draft",
+  requirePermission(POSTS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
 
-  if (Number.isInteger(id)) {
-    const body = await c.req.parseBody();
-    await setPostDraft(c.env.DB, id, body.draft === "1");
-  }
+    if (Number.isInteger(id)) {
+      const body = await c.req.parseBody();
+      await setPostDraft(c.env.DB, id, body.draft === "1");
+    }
 
-  return c.redirect("/admin/posts", 303);
-});
+    return c.redirect("/admin/posts", 303);
+  },
+);
 
 const renderRolesPage = async (
   c: Context<AuthEnv>,
@@ -690,115 +750,132 @@ authRoute.get("/admin/roles", (c) => {
   return renderRolesPage(c);
 });
 
-authRoute.post("/admin/roles", async (c) => {
-  c.header("Cache-Control", "no-store");
-  const body = await c.req.parseBody();
-  const name = normalizeRoleName(formString(body, "name"));
+authRoute.post(
+  "/admin/roles",
+  requirePermission(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const body = await c.req.parseBody();
+    const name = normalizeRoleName(formString(body, "name"));
 
-  if (!ROLE_NAME_PATTERN.test(name)) {
-    return renderRolesPage(c, {
-      error: "Use 1–32 lowercase letters, numbers, and single hyphens.",
-      name,
-      status: 400,
-    });
-  }
-
-  try {
-    const roleId = await createRole(c.env.DB, name);
-    return c.redirect(`/admin/roles?role=${roleId}`, 303);
-  } catch (error) {
-    if (isUniqueRoleError(error)) {
+    if (!ROLE_NAME_PATTERN.test(name)) {
       return renderRolesPage(c, {
-        error: "That role already exists.",
+        error: "Use 1–32 lowercase letters, numbers, and single hyphens.",
         name,
-        status: 409,
+        status: 400,
       });
     }
-    throw error;
-  }
-});
 
-authRoute.post("/admin/roles/permissions", async (c) => {
-  c.header("Cache-Control", "no-store");
-  const body = await c.req.parseBody();
-  const name = normalizePermissionName(formString(body, "name"));
-  const selectedRoleId = Number.parseInt(c.req.query("role") ?? "", 10);
+    try {
+      const roleId = await createRole(c.env.DB, name);
+      return c.redirect(`/admin/roles?role=${roleId}`, 303);
+    } catch (error) {
+      if (isUniqueRoleError(error)) {
+        return renderRolesPage(c, {
+          error: "That role already exists.",
+          name,
+          status: 409,
+        });
+      }
+      throw error;
+    }
+  },
+);
 
-  if (name.length > 96 || !PERMISSION_NAME_PATTERN.test(name)) {
-    return renderRolesPage(c, {
-      newPermissionName: name,
-      permissionError:
-        "Use lowercase colon-separated names such as posts:publish.",
-      selectedRoleId,
-      status: 400,
-    });
-  }
+authRoute.post(
+  "/admin/roles/permissions",
+  requirePermission(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const body = await c.req.parseBody();
+    const name = normalizePermissionName(formString(body, "name"));
+    const selectedRoleId = Number.parseInt(c.req.query("role") ?? "", 10);
 
-  try {
-    await createPermission(c.env.DB, name);
-  } catch (error) {
-    if (isUniquePermissionError(error)) {
+    if (name.length > 96 || !PERMISSION_NAME_PATTERN.test(name)) {
       return renderRolesPage(c, {
         newPermissionName: name,
-        permissionError: "That permission already exists.",
+        permissionError:
+          "Use lowercase colon-separated names such as posts:publish.",
         selectedRoleId,
-        status: 409,
+        status: 400,
       });
     }
-    throw error;
-  }
 
-  const roleQuery = Number.isInteger(selectedRoleId)
-    ? `?role=${selectedRoleId}`
-    : "";
-  return c.redirect(`/admin/roles${roleQuery}`, 303);
-});
-
-authRoute.post("/admin/roles/:id", async (c) => {
-  c.header("Cache-Control", "no-store");
-  const id = Number.parseInt(c.req.param("id"), 10);
-  const role = Number.isInteger(id) ? await getRoleById(c.env.DB, id) : null;
-  if (!role) return c.notFound();
-  if (isProtectedRole(role.name)) {
-    return c.text("That role is protected.", 400);
-  }
-
-  const body = await c.req.parseBody();
-  const name = normalizeRoleName(formString(body, "name"));
-  if (!ROLE_NAME_PATTERN.test(name)) {
-    return c.text(
-      "Use 1–32 lowercase letters, numbers, and single hyphens.",
-      400,
-    );
-  }
-
-  try {
-    await updateRole(c.env.DB, id, name);
-  } catch (error) {
-    if (isUniqueRoleError(error)) {
-      return c.text("That role already exists.", 409);
+    try {
+      await createPermission(c.env.DB, name);
+    } catch (error) {
+      if (isUniquePermissionError(error)) {
+        return renderRolesPage(c, {
+          newPermissionName: name,
+          permissionError: "That permission already exists.",
+          selectedRoleId,
+          status: 409,
+        });
+      }
+      throw error;
     }
-    throw error;
-  }
 
-  return c.redirect(`/admin/roles?role=${id}`, 303);
-});
+    const roleQuery = Number.isInteger(selectedRoleId)
+      ? `?role=${selectedRoleId}`
+      : "";
+    return c.redirect(`/admin/roles${roleQuery}`, 303);
+  },
+);
 
-authRoute.post("/admin/roles/:id/delete", async (c) => {
-  c.header("Cache-Control", "no-store");
-  const id = Number.parseInt(c.req.param("id"), 10);
-  const role = Number.isInteger(id) ? await getRoleById(c.env.DB, id) : null;
-  if (!role) return c.notFound();
-  if (isProtectedRole(role.name)) {
-    return c.text("That role is protected.", 400);
-  }
+authRoute.post(
+  "/admin/roles/:id",
+  requirePermission(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
+    const role = Number.isInteger(id) ? await getRoleById(c.env.DB, id) : null;
+    if (!role) return c.notFound();
+    if (isProtectedRole(role.name)) {
+      return c.text("That role is protected.", 400);
+    }
 
-  await deleteRole(c.env.DB, id);
-  return c.redirect("/admin/roles", 303);
-});
+    const body = await c.req.parseBody();
+    const name = normalizeRoleName(formString(body, "name"));
+    if (!ROLE_NAME_PATTERN.test(name)) {
+      return c.text(
+        "Use 1–32 lowercase letters, numbers, and single hyphens.",
+        400,
+      );
+    }
+
+    try {
+      await updateRole(c.env.DB, id, name);
+    } catch (error) {
+      if (isUniqueRoleError(error)) {
+        return c.text("That role already exists.", 409);
+      }
+      throw error;
+    }
+
+    return c.redirect(`/admin/roles?role=${id}`, 303);
+  },
+);
+
+authRoute.post(
+  "/admin/roles/:id/delete",
+  requirePermission(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
+    const role = Number.isInteger(id) ? await getRoleById(c.env.DB, id) : null;
+    if (!role) return c.notFound();
+    if (isProtectedRole(role.name)) {
+      return c.text("That role is protected.", 400);
+    }
+
+    await deleteRole(c.env.DB, id);
+    return c.redirect("/admin/roles", 303);
+  },
+);
 
 authRoute.post(
   "/admin/roles/:roleId/permissions/:permissionId",
+  requirePermission(USERS_UPDATE_PERMISSION),
   async (c) => {
     c.header("Cache-Control", "no-store");
     const roleId = Number.parseInt(c.req.param("roleId"), 10);
@@ -852,22 +929,44 @@ authRoute.get("/admin/users", async (c) => {
   );
 });
 
-authRoute.post("/admin/users", async (c) => {
-  c.header("Cache-Control", "no-store");
-  const body = await c.req.parseBody({ all: true });
-  const email = formString(body, "email", true);
-  const username = formString(body, "username", true);
-  const labelValue = formString(body, "label", true);
-  if (email && username) {
-    const userId = await createUser(c.env.DB, {
-      active: false,
-      email,
-      label: labelValue || null,
-      passwordHash: await hashPassword(
-        `${crypto.randomUUID()}${crypto.randomUUID()}`,
-      ),
-      username,
-    });
+authRoute.post(
+  "/admin/users",
+  requirePermission(USERS_CREATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const body = await c.req.parseBody({ all: true });
+    const email = formString(body, "email", true);
+    const username = formString(body, "username", true);
+    const labelValue = formString(body, "label", true);
+
+    if (!email || !username) {
+      return c.text("Email and username are required.", 400);
+    }
+
+    if (
+      await hasUserIdentifierCollision(c.env.DB, { email, username })
+    ) {
+      return c.text("That username or email is already in use.", 409);
+    }
+
+    let userId: number;
+    try {
+      userId = await createUser(c.env.DB, {
+        active: false,
+        email,
+        label: labelValue || null,
+        passwordHash: await hashPassword(
+          `${crypto.randomUUID()}${crypto.randomUUID()}`,
+        ),
+        username,
+      });
+    } catch (error) {
+      if (isUniqueUserError(error)) {
+        return c.text("That username or email is already in use.", 409);
+      }
+      throw error;
+    }
+
     await setRolesForUser(c.env.DB, userId, formRoleIds(body));
     const token = await createAuthToken(
       c.env.DB,
@@ -880,40 +979,74 @@ authRoute.post("/admin/users", async (c) => {
       displayName: labelValue || username,
       to: email,
     });
-  }
 
-  return c.redirect("/admin/users", 303);
-});
+    return c.redirect("/admin/users", 303);
+  },
+);
 
-authRoute.post("/admin/users/:id/invite", async (c) => {
-  c.header("Cache-Control", "no-store");
-  const id = Number.parseInt(c.req.param("id"), 10);
-  const user = Number.isInteger(id) ? await getUserById(c.env.DB, id) : null;
+authRoute.post(
+  "/admin/users/:id/invite",
+  requirePermission(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
+    const user = Number.isInteger(id) ? await getUserById(c.env.DB, id) : null;
 
-  if (user && !user.active) {
-    const token = await createAuthToken(
-      c.env.DB,
-      user.id,
-      "invite",
-      INVITE_TOKEN_TTL_MS,
-    );
-    await sendInvitationEmail(c.env.EMAIL, {
-      actionUrl: buildActionUrl(c.req.url, "/invite", token),
-      displayName: user.label ?? user.username,
-      to: user.email,
-    });
-  }
+    if (user && !user.active) {
+      const token = await createAuthToken(
+        c.env.DB,
+        user.id,
+        "invite",
+        INVITE_TOKEN_TTL_MS,
+      );
+      await sendInvitationEmail(c.env.EMAIL, {
+        actionUrl: buildActionUrl(c.req.url, "/invite", token),
+        displayName: user.label ?? user.username,
+        to: user.email,
+      });
+    }
 
-  return c.redirect("/admin/users", 303);
-});
+    return c.redirect("/admin/users", 303);
+  },
+);
 
 authRoute.post("/admin/users/:id/active", async (c) => {
   c.header("Cache-Control", "no-store");
   const id = Number.parseInt(c.req.param("id"), 10);
 
-  if (Number.isInteger(id)) {
-    const body = await c.req.parseBody();
-    await setUserActive(c.env.DB, id, body.active === "1");
+  if (!Number.isInteger(id)) {
+    return c.notFound();
+  }
+
+  const body = await c.req.parseBody();
+  const active = formString(body, "active") === "1";
+  const permission = active ? USERS_UPDATE_PERMISSION : USERS_DELETE_PERMISSION;
+
+  if (
+    await Permission.cannot(
+      permission,
+      c.env.DB,
+      c.var.currentUser.id,
+    )
+  ) {
+    return c.text("Forbidden", 403);
+  }
+
+  if (!active && id === c.var.currentUser.id) {
+    return c.text("You cannot deactivate your own account.", 400);
+  }
+
+  try {
+    await setUserActive(c.env.DB, id, active);
+  } catch (error) {
+    if (isLastActiveAdminError(error)) {
+      return c.text("At least one administrator must remain active.", 409);
+    }
+    throw error;
+  }
+
+  if (!active) {
+    await destroySessionsForUser(c.env.DB, id);
   }
 
   return c.redirect("/admin/users", 303);
@@ -936,54 +1069,113 @@ authRoute.get("/admin/users/:id/edit", async (c) => {
   );
 });
 
-authRoute.post("/admin/users/:id", async (c) => {
-  c.header("Cache-Control", "no-store");
-  const id = Number.parseInt(c.req.param("id"), 10);
+authRoute.post(
+  "/admin/users/:id",
+  requirePermission(USERS_UPDATE_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
 
-  if (!Number.isInteger(id)) {
-    return c.redirect("/admin/users", 303);
-  }
-
-  const body = await c.req.parseBody({ all: true });
-  const email = formString(body, "email", true);
-  const username = formString(body, "username", true);
-  const labelValue = formString(body, "label", true);
-  const label = labelValue.length > 0 ? labelValue : null;
-  const password = formString(body, "password");
-  const roleIds = formRoleIds(body);
-  const inlineSave = c.req.header("Accept")?.includes("application/json") ??
-    false;
-
-  if (id === c.var.currentUser.id) {
-    const adminRole = await getRoleByName(c.env.DB, ADMIN_ROLE);
-    if (adminRole) roleIds.push(adminRole.id);
-  }
-
-  try {
-    await updateUser(c.env.DB, id, { email, username, label });
-    await setRolesForUser(c.env.DB, id, roleIds);
-
-    const active = formString(body, "active");
-    if (active) {
-      await setUserActive(c.env.DB, id, active === "1");
+    if (!Number.isInteger(id)) {
+      return c.redirect("/admin/users", 303);
     }
 
+    const body = await c.req.parseBody({ all: true });
+    const email = formString(body, "email", true);
+    const username = formString(body, "username", true);
+    const labelValue = formString(body, "label", true);
+    const label = labelValue.length > 0 ? labelValue : null;
+    const password = formString(body, "password");
+    const rolesSubmitted = formString(body, "rolesPresent") === "1";
+    const roleIds = rolesSubmitted ? formRoleIds(body) : undefined;
+    const active = formString(body, "activePresent") === "1"
+      ? formString(body, "active") === "1"
+      : undefined;
+    const inlineSave = c.req.header("Accept")?.includes("application/json") ??
+      false;
+    const fail = (status: 400 | 409 | 422 | 500, message: string) =>
+      inlineSave ? c.json({ saved: false }, status) : c.text(message, status);
+
+    if (!email || !username) {
+      return fail(400, "Email and username are required.");
+    }
+
+    if (!/^[^\s@]+@[^\s@]+$/.test(email)) {
+      return fail(422, "Enter a valid email address.");
+    }
+
+    if (
+      await hasUserIdentifierCollision(c.env.DB, {
+        email,
+        excludeUserId: id,
+        username,
+      })
+    ) {
+      return fail(409, "That username or email is already in use.");
+    }
+
+    if (id === c.var.currentUser.id) {
+      if (active === false) {
+        return fail(400, "You cannot deactivate your own account.");
+      }
+
+      if (roleIds) {
+        const adminRole = await getRoleByName(c.env.DB, ADMIN_ROLE);
+        if (adminRole) roleIds.push(adminRole.id);
+      }
+    }
+
+    if (
+      active === false &&
+      await Permission.cannot(
+        USERS_DELETE_PERMISSION,
+        c.env.DB,
+        c.var.currentUser.id,
+      )
+    ) {
+      return c.text("Forbidden", 403);
+    }
+
+    let passwordHash: string | undefined;
     if (password.length > 0) {
-      await setUserPassword(c.env.DB, id, await hashPassword(password));
+      const passwordError = validateAccountPassword(password);
+      if (passwordError) {
+        return fail(422, passwordError);
+      }
+      passwordHash = await hashPassword(password);
     }
-  } catch (error) {
-    if (inlineSave) {
-      return c.json(
-        { saved: false },
-        isUniqueUserError(error) ? 409 : 500,
-      );
-    }
-    throw error;
-  }
 
-  if (inlineSave) return c.json({ saved: true });
-  return c.redirect("/admin/users", 303);
-});
+    try {
+      await updateManagedUser(c.env.DB, id, {
+        active,
+        email,
+        label,
+        passwordHash,
+        roleIds,
+        username,
+      });
+    } catch (error) {
+      if (isUniqueUserError(error)) {
+        return fail(409, "That username or email is already in use.");
+      }
+      if (isLastActiveAdminError(error)) {
+        return fail(409, "At least one administrator must remain active.");
+      }
+      if (inlineSave) return c.json({ saved: false }, 500);
+      throw error;
+    }
+
+    if (passwordHash && id === c.var.currentUser.id) {
+      clearSessionCookie(c);
+    }
+
+    if (inlineSave) return c.json({ saved: true });
+    if (passwordHash && id === c.var.currentUser.id) {
+      return c.redirect("/login?password=updated", 303);
+    }
+    return c.redirect("/admin/users", 303);
+  },
+);
 
 authRoute.get("/admin/account", async (c) => {
   c.header("Cache-Control", "no-store");
@@ -1030,6 +1222,16 @@ authRoute.post("/admin/account", async (c) => {
 
   if (!/^[^\s@]+@[^\s@]+$/.test(email)) {
     return renderError("Enter a valid email address.", 422);
+  }
+
+  if (
+    await hasUserIdentifierCollision(c.env.DB, {
+      email,
+      excludeUserId: currentUser.id,
+      username,
+    })
+  ) {
+    return renderError("That username or email is already in use.", 409);
   }
 
   if (biography.length > MAX_PROFILE_BIOGRAPHY_LENGTH) {

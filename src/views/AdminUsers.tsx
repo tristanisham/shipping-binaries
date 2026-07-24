@@ -73,6 +73,7 @@ const RolePicker: FC<RolePickerProps> = ({
   selectedRoles = [],
 }) => (
   <div class="flex flex-wrap gap-x-3 gap-y-2">
+    <input form={form} name="rolesPresent" type="hidden" value="1" />
     {roles.map((role) => {
       const checked = selectedRoles.includes(role.name);
       const locked = lockAdmin && role.name === ADMIN_ROLE;
