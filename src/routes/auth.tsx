@@ -1166,6 +1166,15 @@ authRoute.post(
   async (c) => {
     c.header("Cache-Control", "no-store");
     const id = Number.parseInt(c.req.param("id"), 10);
+
+    // Nobody manages their own denials: denying your own users:update would
+    // 403 you out of this very page (self-lockout), and self-restore would let
+    // a user lift a denial an admin placed on them. Both directions are the
+    // admin's job, on someone else.
+    if (id === c.var.currentUser.id) {
+      return c.redirect(`/admin/users/${id}/permissions`, 303);
+    }
+
     const body = await c.req.parseBody();
     const permissionId = Number.parseInt(formString(body, "permissionId"), 10);
     const expiresAt = denialExpiresAt(formString(body, "duration"));
@@ -1188,6 +1197,11 @@ authRoute.post(
     c.header("Cache-Control", "no-store");
     const id = Number.parseInt(c.req.param("id"), 10);
     const permissionId = Number.parseInt(c.req.param("permissionId"), 10);
+
+    // A user cannot lift denials on themselves — see the deny route above.
+    if (id === c.var.currentUser.id) {
+      return c.redirect(`/admin/users/${id}/permissions`, 303);
+    }
 
     if (Number.isInteger(id) && Number.isInteger(permissionId)) {
       await Permission.restore(c.env.DB, id, permissionId);

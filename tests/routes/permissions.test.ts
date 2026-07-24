@@ -3,6 +3,7 @@ import { test } from "node:test";
 import app from "../../src/index.js";
 import {
   COMMENTS_CREATE_PERMISSION,
+  INDEFINITE_DENIAL_EXPIRES_AT,
   Permission,
   POSTS_READ_PERMISSION,
   POSTS_UPDATE_PERMISSION,
@@ -503,19 +504,25 @@ test("denying comments:create blocks commenting; clearing restores it", async ()
     Cookie: `${SESSION_COOKIE_NAME}=${token}`,
     "Content-Type": "application/x-www-form-urlencoded",
   };
+  // Deny/restore a separate target — a user cannot manage their own denials.
+  const target = await seedUser(db, {
+    email: "t3@example.com",
+    username: "t3",
+  });
+  await assignRoleToUser(db, target, ADMIN_ROLE);
   const perm = (await Permission.all(db)).find(
     ({ name }) => name === COMMENTS_CREATE_PERMISSION,
   );
   assert.ok(perm);
 
-  // admin holds comments:create by default
+  // the target holds comments:create by default
   assert.equal(
-    await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin),
+    await Permission.can(COMMENTS_CREATE_PERMISSION, db, target),
     true,
   );
 
   const deny = await app.request(
-    `/admin/users/${admin}/denials`,
+    `/admin/users/${target}/denials`,
     {
       body: new URLSearchParams({
         duration: "indefinite",
@@ -528,18 +535,18 @@ test("denying comments:create blocks commenting; clearing restores it", async ()
   );
   assert.equal(deny.status, 303);
   assert.equal(
-    await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin),
+    await Permission.can(COMMENTS_CREATE_PERMISSION, db, target),
     false,
   );
 
   const clear = await app.request(
-    `/admin/users/${admin}/denials/${perm.id}/delete`,
+    `/admin/users/${target}/denials/${perm.id}/delete`,
     { headers: form, method: "POST" },
     { DB: db } as Env,
   );
   assert.equal(clear.status, 303);
   assert.equal(
-    await Permission.can(COMMENTS_CREATE_PERMISSION, db, admin),
+    await Permission.can(COMMENTS_CREATE_PERMISSION, db, target),
     true,
   );
 });
@@ -565,6 +572,78 @@ test("denial routes require users:update", async () => {
     { DB: db } as Env,
   );
   assert.equal(res.status, 403);
+});
+
+test("a user cannot deny their own permissions (self-lockout guard)", async () => {
+  const db = createTestDb();
+  const admin = await seedUser(db, {
+    email: "self-deny@example.com",
+    username: "selfdeny",
+  });
+  await assignRoleToUser(db, admin, ADMIN_ROLE);
+  const token = await createSession(db, admin);
+  const perm = (await Permission.all(db)).find(
+    ({ name }) => name === USERS_UPDATE_PERMISSION,
+  );
+  assert.ok(perm);
+
+  const res = await app.request(
+    `/admin/users/${admin}/denials`,
+    {
+      body: new URLSearchParams({
+        duration: "indefinite",
+        permissionId: String(perm.id),
+      }).toString(),
+      headers: {
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  // Redirected back, but the denial was not written — access is intact.
+  assert.equal(res.status, 303);
+  assert.deepEqual(await Permission.denialsForUser(db, admin), []);
+  assert.equal(await Permission.can(USERS_UPDATE_PERMISSION, db, admin), true);
+});
+
+test("a user cannot self-restore a denial an admin placed on them", async () => {
+  const db = createTestDb();
+  const managerId = await seedUser(db, {
+    email: "self-restore@example.com",
+    username: "selfrestore",
+  });
+  const roleId = await createRole(db, "user-manager7");
+  await Permission.assignToRole(db, roleId, USERS_UPDATE_PERMISSION);
+  await Permission.assignToRole(db, roleId, COMMENTS_CREATE_PERMISSION);
+  await assignRoleToUser(db, managerId, "user-manager7");
+  const token = await createSession(db, managerId);
+  const perm = (await Permission.all(db)).find(
+    ({ name }) => name === COMMENTS_CREATE_PERMISSION,
+  );
+  assert.ok(perm);
+
+  // An admin has denied this user's comments:create.
+  await Permission.deny(db, managerId, perm.id, INDEFINITE_DENIAL_EXPIRES_AT);
+  assert.equal(await Permission.can(COMMENTS_CREATE_PERMISSION, db, managerId), false);
+
+  const res = await app.request(
+    `/admin/users/${managerId}/denials/${perm.id}/delete`,
+    {
+      headers: {
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  // The self-restore is refused; the denial stands.
+  assert.equal(res.status, 303);
+  assert.equal(await Permission.can(COMMENTS_CREATE_PERMISSION, db, managerId), false);
 });
 
 test("GET /admin/users/:id/permissions renders for users:update, 403 otherwise", async () => {
