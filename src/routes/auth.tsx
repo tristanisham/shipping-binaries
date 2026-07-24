@@ -126,6 +126,39 @@ const formRoleIds = (body: Record<string, unknown>): number[] =>
     .map((value) => Number.parseInt(value, 10))
     .filter((id) => Number.isInteger(id) && id > 0);
 
+// Assigning the `admin` role is reserved to admins — role administration is not
+// delegatable through the `users:*` permissions. Given a set of submitted role
+// ids for `target`, return the ids actually safe to persist: a non-admin editor
+// can neither grant admin (privilege escalation) nor strip it from someone, so
+// the target's admin membership is forced to its current value; an admin editor
+// chooses freely but cannot strip their own admin role. `target` is null when
+// creating a fresh user (no current roles to preserve).
+const resolveAdminSafeRoleIds = async (
+  db: D1Database,
+  editor: { readonly id: number; readonly roles: readonly string[] },
+  target: { readonly id: number; readonly roles: readonly string[] } | null,
+  submittedRoleIds: number[],
+): Promise<number[]> => {
+  const adminRole = await getRoleByName(db, ADMIN_ROLE);
+  if (!adminRole) return submittedRoleIds;
+
+  const withoutAdmin = submittedRoleIds.filter((id) => id !== adminRole.id);
+  const editorIsAdmin = editor.roles.includes(ADMIN_ROLE);
+
+  let keepAdmin: boolean;
+  if (editorIsAdmin) {
+    // Admins set the admin role freely, but cannot strip their own.
+    keepAdmin = target?.id === editor.id
+      ? true
+      : submittedRoleIds.includes(adminRole.id);
+  } else {
+    // Non-admins cannot change the admin bit; preserve the target's state.
+    keepAdmin = target?.roles.includes(ADMIN_ROLE) ?? false;
+  }
+
+  return keepAdmin ? [...withoutAdmin, adminRole.id] : withoutAdmin;
+};
+
 const normalizeRoleName = (value: string): string => value.trim().toLowerCase();
 
 const normalizePermissionName = (value: string): string =>
@@ -934,7 +967,16 @@ authRoute.post(
         ),
         username,
       });
-      await setRolesForUser(c.env.DB, userId, formRoleIds(body));
+      await setRolesForUser(
+        c.env.DB,
+        userId,
+        await resolveAdminSafeRoleIds(
+          c.env.DB,
+          c.var.currentUser,
+          null,
+          formRoleIds(body),
+        ),
+      );
       const token = await createAuthToken(
         c.env.DB,
         userId,
@@ -1100,19 +1142,18 @@ authRoute.post(
       return c.redirect("/admin/users", 303);
     }
 
-    const body = await c.req.parseBody({ all: true });
-    const roleIds = formRoleIds(body);
-
-    // An admin cannot strip their own admin role. Only re-add it when the
-    // editor is already an admin — otherwise this would grant admin to any
-    // user with users:update editing their own roles (privilege escalation).
-    if (
-      id === c.var.currentUser.id &&
-      c.var.currentUser.roles.includes(ADMIN_ROLE)
-    ) {
-      const adminRole = await getRoleByName(c.env.DB, ADMIN_ROLE);
-      if (adminRole) roleIds.push(adminRole.id);
+    const target = await getUserById(c.env.DB, id);
+    if (!target) {
+      return c.redirect("/admin/users", 303);
     }
+
+    const body = await c.req.parseBody({ all: true });
+    const roleIds = await resolveAdminSafeRoleIds(
+      c.env.DB,
+      c.var.currentUser,
+      target,
+      formRoleIds(body),
+    );
 
     await setRolesForUser(c.env.DB, id, roleIds);
     return c.redirect(`/admin/users/${id}/permissions`, 303);

@@ -6,10 +6,12 @@ import {
   Permission,
   POSTS_READ_PERMISSION,
   POSTS_UPDATE_PERMISSION,
+  USERS_CREATE_PERMISSION,
   USERS_READ_PERMISSION,
   USERS_UPDATE_PERMISSION,
 } from "../../src/models/permission.js";
 import { createPost } from "../../src/models/post.js";
+import { getAllUsers } from "../../src/models/user.js";
 import {
   ADMIN_ROLE,
   assignRoleToUser,
@@ -344,6 +346,149 @@ test("a non-admin with users:update cannot self-grant admin via /roles", async (
 
   assert.equal(res.status, 303);
   assert.deepEqual(await getRolesForUser(db, managerId), ["user-manager"]);
+});
+
+test("a non-admin with users:update cannot grant admin via /roles", async () => {
+  const db = createTestDb();
+  const managerId = await seedUser(db, {
+    email: "manager5@example.com",
+    username: "manager5",
+  });
+  const roleId = await createRole(db, "user-manager5");
+  await Permission.assignToRole(db, roleId, USERS_UPDATE_PERMISSION);
+  await assignRoleToUser(db, managerId, "user-manager5");
+  const token = await createSession(db, managerId);
+  const adminRole = await getRoleByName(db, ADMIN_ROLE);
+  assert.ok(adminRole);
+
+  // The manager explicitly submits the admin role id for themselves — the
+  // route must drop it rather than persist the escalation.
+  const res = await app.request(
+    `/admin/users/${managerId}/roles`,
+    {
+      body: new URLSearchParams([
+        ["roleIds", String(roleId)],
+        ["roleIds", String(adminRole.id)],
+      ]).toString(),
+      headers: {
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(res.status, 303);
+  assert.deepEqual(await getRolesForUser(db, managerId), ["user-manager5"]);
+  assert.equal(await Permission.can(USERS_READ_PERMISSION, db, managerId), false);
+});
+
+test("a non-admin with users:update cannot strip admin from an admin", async () => {
+  const db = createTestDb();
+  const adminId = await seedUser(db, {
+    email: "keepadmin@example.com",
+    username: "keepadmin",
+  });
+  await assignRoleToUser(db, adminId, ADMIN_ROLE);
+
+  const managerId = await seedUser(db, {
+    email: "manager6@example.com",
+    username: "manager6",
+  });
+  const roleId = await createRole(db, "user-manager6");
+  await Permission.assignToRole(db, roleId, USERS_UPDATE_PERMISSION);
+  await assignRoleToUser(db, managerId, "user-manager6");
+  const token = await createSession(db, managerId);
+
+  // The manager posts an empty role set for the admin — admin must survive.
+  const res = await app.request(
+    `/admin/users/${adminId}/roles`,
+    {
+      body: new URLSearchParams({}).toString(),
+      headers: {
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(res.status, 303);
+  assert.deepEqual(await getRolesForUser(db, adminId), ["admin"]);
+});
+
+test("a non-admin with users:create cannot create a user holding admin", async () => {
+  const db = createTestDb();
+  const managerId = await seedUser(db, {
+    email: "creator@example.com",
+    username: "creator",
+  });
+  const roleId = await createRole(db, "user-creator");
+  await Permission.assignToRole(db, roleId, USERS_CREATE_PERMISSION);
+  await assignRoleToUser(db, managerId, "user-creator");
+  const token = await createSession(db, managerId);
+  const adminRole = await getRoleByName(db, ADMIN_ROLE);
+  assert.ok(adminRole);
+
+  const email = { send: async () => ({ messageId: "test" }) };
+  const res = await app.request(
+    "/admin/users",
+    {
+      body: new URLSearchParams({
+        email: "spawned@example.com",
+        roleIds: String(adminRole.id),
+        username: "spawned",
+      }).toString(),
+      headers: {
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    { DB: db, EMAIL: email } as unknown as Env,
+  );
+
+  assert.equal(res.status, 303);
+  const created = (await getAllUsers(db)).find(
+    (u) => u.email === "spawned@example.com",
+  );
+  assert.ok(created);
+  assert.deepEqual(await getRolesForUser(db, created.id), []);
+});
+
+test("an admin can still assign the admin role to another user", async () => {
+  const db = createTestDb();
+  const adminId = await seedUser(db, {
+    email: "granter@example.com",
+    username: "granter",
+  });
+  await assignRoleToUser(db, adminId, ADMIN_ROLE);
+  const token = await createSession(db, adminId);
+
+  const targetId = await seedUser(db, {
+    email: "promoted@example.com",
+    username: "promoted",
+  });
+  const adminRole = await getRoleByName(db, ADMIN_ROLE);
+  assert.ok(adminRole);
+
+  const res = await app.request(
+    `/admin/users/${targetId}/roles`,
+    {
+      body: new URLSearchParams({ roleIds: String(adminRole.id) }).toString(),
+      headers: {
+        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+  assert.equal(res.status, 303);
+  assert.deepEqual(await getRolesForUser(db, targetId), ["admin"]);
 });
 
 test("denying comments:create blocks commenting; clearing restores it", async () => {
