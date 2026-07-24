@@ -38,12 +38,14 @@ test("PostList defaults to five posts and links author and pagination", () => {
   assert.match(html, /Alice Author/);
   assert.match(html, /Published July 6, 2026/);
   assert.match(html, /aria-label="Share Post 6"/);
-  assert.match(html, /data-share-author="Alice Author"/);
-  assert.match(html, /I just finished reading/);
-  assert.match(html, /navigator\.canShare/);
-  assert.match(html, /navigator\.share/);
-  assert.match(html, /window\.copyWithToast/);
-  assert.match(html, /copyWithToast\(url,&#39;Link copied!&#39;\)/);
+  assert.match(html, /data-share-path="\/blog\/post-6"/);
+  assert.match(html, /classList\.add\(&#39;share-cycling&#39;\)/);
+  assert.match(
+    html,
+    /copyWithToast\(url,&#39;Link to post copied…&#39;,\{delay:900,icon:&#39;link&#39;\}\)/,
+  );
+  // Sharing is copy-only now, so the native share sheet is no longer involved.
+  assert.doesNotMatch(html, /navigator\.share/);
   assert.doesNotMatch(html, /data-share-status/);
   assert.match(html, /aria-label="0 comments on Post 6"/);
   assert.match(html, /text-xs tabular-nums">0<\/span>/);

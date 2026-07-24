@@ -76,7 +76,53 @@
   --color-chocolate-950: #210f03;
 }
 
+/* Click feedback for the post share button: step up through the chocolate
+   (secondary) palette, then settle back to the button's resting colors. The
+   100% frame matches the resting state in both themes so removing the class
+   after the run is invisible. */
+@keyframes share-palette-cycle {
+  0% {
+    background-color: var(--color-chocolate-200);
+    border-color: var(--color-chocolate-300);
+    color: var(--color-chocolate-950);
+  }
+
+  30% {
+    background-color: var(--color-chocolate-300);
+    border-color: var(--color-chocolate-400);
+    color: var(--color-chocolate-950);
+  }
+
+  60% {
+    background-color: var(--color-chocolate-400);
+    border-color: var(--color-chocolate-500);
+    color: var(--color-amber-50);
+  }
+
+  85% {
+    background-color: var(--color-chocolate-500);
+    border-color: var(--color-chocolate-600);
+    color: var(--color-amber-50);
+  }
+
+  100% {
+    background-color: transparent;
+    border-color: transparent;
+    color: inherit;
+  }
+}
+
 @layer components {
+  .share-cycling {
+    animation: share-palette-cycle 900ms ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .share-cycling {
+      animation-duration: 1ms;
+    }
+  }
+
   .editor-js .ce-block__content,
   .editor-js .ce-toolbar__content {
     @apply max-w-none;

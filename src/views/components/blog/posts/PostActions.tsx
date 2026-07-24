@@ -4,7 +4,6 @@ import { buttonVariants } from "../../ui/Button.js";
 
 type PostActionsProps = {
   commentCount: number;
-  displayName: string;
   editHref?: string;
   href: string;
   inverse?: boolean;
@@ -12,14 +11,23 @@ type PostActionsProps = {
   title: string;
 };
 
+const shareCycleMs = 900;
+
+// Copy synchronously (the clipboard write has to stay inside the click's user
+// activation, which the old navigator.share round-trip kept losing), run the
+// palette cycle, and let the toast land as the cycle finishes.
+//
+// `window.URL` is load-bearing: an inline handler runs with `document` on its
+// scope chain, so a bare `URL` resolves to the `document.URL` string and
+// `new URL(...)` throws "URL is not a constructor" before anything else runs.
 const sharePost = [
   "var button=this;",
-  "var url=new URL(button.dataset.sharePath,window.location.origin).href;",
-  "var text='I just finished reading '+button.dataset.shareTitle+' by '+button.dataset.shareAuthor+' on Shipping Binaries';",
-  "var copy=function(){window.copyWithToast(url,'Link copied!').then(function(copied){if(copied){button.title='Link copied!'}})};",
-  "var data={title:button.dataset.shareTitle,text:text,url:url};",
-  "var canNativeShare=false;try{canNativeShare=Boolean(navigator.share)&&(!navigator.canShare||navigator.canShare(data))}catch(error){}",
-  "if(canNativeShare){navigator.share(data).catch(function(error){if(!error||error.name!=='AbortError'){copy()}})}else{copy()}",
+  "var url=new window.URL(button.dataset.sharePath,window.location.origin).href;",
+  "button.classList.remove('share-cycling');",
+  "void button.offsetWidth;",
+  "button.classList.add('share-cycling');",
+  `window.setTimeout(function(){button.classList.remove('share-cycling')},${shareCycleMs});`,
+  `window.copyWithToast(url,'Link to post copied…',{delay:${shareCycleMs},icon:'link'});`,
 ].join("");
 
 const commentCountFormatter = new Intl.NumberFormat("en-US", {
@@ -33,7 +41,6 @@ export const formatCommentCount = (count: number): string =>
 
 export const PostActions: FC<PostActionsProps> = ({
   commentCount,
-  displayName,
   editHref,
   href,
   inverse = false,
@@ -65,11 +72,7 @@ export const PostActions: FC<PostActionsProps> = ({
         onclick={sharePost}
         title="Share"
         type="button"
-        {...{
-          "data-share-author": displayName,
-          "data-share-path": href,
-          "data-share-title": title,
-        }}
+        {...{ "data-share-path": href }}
       >
         <svg
           aria-hidden="true"

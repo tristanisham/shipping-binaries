@@ -26,9 +26,11 @@ export const formatCommentDate = (value: string): string => {
 const commentActionClass =
   "cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-current hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chocolate-500";
 
+// `window.URL`, not `URL`: inline handlers put `document` on the scope chain,
+// where `URL` is a string, so the bare constructor call throws.
 const commentShareScript = [
-  "var url=new URL(this.dataset.commentPath,window.location.origin).href;",
-  "window.copyWithToast(url,'Comment link copied');",
+  "var url=new window.URL(this.dataset.commentPath,window.location.origin).href;",
+  "window.copyWithToast(url,'Comment link copied',{icon:'link'});",
 ].join("");
 
 export const Comment: FC<CommentProps> = ({

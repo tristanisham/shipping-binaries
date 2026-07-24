@@ -36,7 +36,6 @@ export const PostMeta: FC<PostMetaProps> = ({
       </time>
       <PostActions
         commentCount={post.comments.length}
-        displayName={displayName}
         editHref={canEdit ? `/admin/write?id=${post.id}` : undefined}
         href={href}
         inverse={inverse}

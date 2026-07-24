@@ -451,6 +451,8 @@ test("users with comment permission can post and reply with Editor.js", async ()
   assert.match(html, />Reply<\/button>/);
   assert.match(html, /data-comment-path="\/blog\/comments-enabled#comment-1"/);
   assert.match(html, /Comment link copied/);
+  // `new window.URL`, not `new URL` — see Comment.tsx.
+  assert.match(html, /new window\.URL\(this\.dataset\.commentPath/);
   assert.match(html, /mt-4 ml-6 space-y-4/);
 });
 

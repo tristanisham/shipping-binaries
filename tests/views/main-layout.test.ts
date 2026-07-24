@@ -13,7 +13,9 @@ test("Layout renders a responsive viewport by default", () => {
   assert.match(html, /data-toast-viewport/);
   assert.match(html, /window\.showToast/);
   assert.match(html, /window\.copyWithToast/);
-  assert.match(html, /fixed right-4 bottom-4/);
+  assert.match(html, /fixed inset-x-0 bottom-4 z-50 flex flex-col items-center/);
+  // The Lucide `link` icon ships with the toast script for the share button.
+  assert.match(html, /M10 13a5 5 0 0 0 7\.54\.54/);
 });
 
 test("Layout supports a custom viewport value", () => {
