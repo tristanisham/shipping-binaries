@@ -29,20 +29,14 @@ type ListItem = {
 
 type Footnote = {
   id: string;
-  label: string;
   number: number;
   text: string;
 };
 
 type FootnoteReferenceContext = {
   counts: Map<string, number>;
-  labels: ReadonlyMap<string, string>;
   numbers: ReadonlyMap<string, number>;
 };
-
-// Ids minted by the editor's inline footnote tool and the Markdown importer
-// when the author never chose a label; these render as the footnote number.
-const autoFootnoteId = /^(?:inline-footnote|obsidian-inline)-\d+$/;
 
 const publicLinkClass =
   "inline-flex items-baseline gap-1 text-burgundy-700 underline visited:text-burgundy-600 hover:text-burgundy-600 focus-visible:text-burgundy-600 active:text-burgundy-600 dark:text-burgundy-300 dark:visited:text-burgundy-200 dark:hover:text-burgundy-200 dark:focus-visible:text-burgundy-200 dark:active:text-burgundy-200";
@@ -138,8 +132,7 @@ const sanitizeInlineHtml = (
           ? `footnote-reference-${id}`
           : `footnote-reference-${id}-${referenceCount}`;
 
-        const label = footnoteReferences.labels.get(id) ?? String(number);
-        return `<sup><a aria-label="Footnote ${label}, note ${number}" class="${publicLinkClass}" href="#footnote-${id}" id="${referenceId}">${label}</a></sup>`;
+        return `<sup><a aria-label="Footnote ${number}" class="${publicLinkClass}" href="#footnote-${id}" id="${referenceId}">${number}</a></sup>`;
       },
     );
   }
@@ -385,7 +378,6 @@ const collectFootnotes = (blocks: readonly EditorBlock[]): Footnote[] => {
     const number = footnotes.length + 1;
     footnotes.push({
       id,
-      label: autoFootnoteId.test(id) ? String(number) : id,
       number,
       text: blockText(block),
     });
@@ -393,6 +385,71 @@ const collectFootnotes = (blocks: readonly EditorBlock[]): Footnote[] => {
 
   return footnotes;
 };
+
+const valueReferencesFootnote = (value: unknown, id: string): boolean => {
+  if (typeof value === "string") {
+    return value.includes(`[^${id}]`);
+  }
+  if (Array.isArray(value)) {
+    return value.some((item) => valueReferencesFootnote(item, id));
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value).some((item) =>
+      valueReferencesFootnote(item, id)
+    );
+  }
+  return false;
+};
+
+const addImplicitFootnoteReferences = (
+  blocks: readonly EditorBlock[],
+  footnotes: readonly Footnote[],
+): EditorBlock[] => {
+  const renderedBlocks = [...blocks];
+
+  for (const footnote of footnotes) {
+    const explicitlyReferenced = blocks.some((block) =>
+      block.type !== "footnote" &&
+      valueReferencesFootnote(block.data, footnote.id)
+    );
+    if (explicitlyReferenced) continue;
+
+    const definitionIndex = blocks.findIndex((block) =>
+      block.type === "footnote" && blockText(block, "id") === footnote.id
+    );
+    for (let index = definitionIndex - 1; index >= 0; index -= 1) {
+      const block = renderedBlocks[index];
+      if (block.type === "footnote" || typeof block.data?.text !== "string") {
+        continue;
+      }
+
+      renderedBlocks[index] = {
+        ...block,
+        data: {
+          ...block.data,
+          text: `${block.data.text}[^${footnote.id}]`,
+        },
+      };
+      break;
+    }
+  }
+
+  return renderedBlocks;
+};
+
+const Undo2Icon: FC = () => (
+  <svg
+    aria-hidden="true"
+    class="size-4 fill-none stroke-current"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="2"
+    viewBox="0 0 24 24"
+  >
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11" />
+  </svg>
+);
 
 const FootnotesSection: FC<{
   footnoteReferences: FootnoteReferenceContext;
@@ -416,8 +473,9 @@ const FootnotesSection: FC<{
                 aria-label={`Back to footnote ${footnote.number} reference`}
                 class={`ml-2 ${publicLinkClass}`}
                 href={`#footnote-reference-${footnote.id}`}
+                title={`Back to footnote ${footnote.number} reference`}
               >
-                ↩
+                <Undo2Icon />
               </a>
             )
             : null}
@@ -430,16 +488,17 @@ const FootnotesSection: FC<{
 export const PostBody: FC<PostBodyProps> = ({ body, headings }) => {
   const data = parseBody(body);
   const footnotes = collectFootnotes(data.blocks);
+  const renderedBlocks = addImplicitFootnoteReferences(
+    data.blocks,
+    footnotes,
+  );
   const footnoteReferences: FootnoteReferenceContext = {
     counts: new Map(),
-    labels: new Map(
-      footnotes.map((footnote) => [footnote.id, footnote.label]),
-    ),
     numbers: new Map(
       footnotes.map((footnote) => [footnote.id, footnote.number]),
     ),
   };
-  const contentBlocks = data.blocks.filter((block) =>
+  const contentBlocks = renderedBlocks.filter((block) =>
     block.type !== "footnote"
   );
   let headingIndex = 0;

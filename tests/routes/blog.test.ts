@@ -29,6 +29,8 @@ test("published posts render at their slug and drafts stay private", async () =>
     body: JSON.stringify({
       blocks: [
         { type: "header", data: { level: 2, text: "A heading" } },
+        { type: "header", data: { level: 3, text: "A subheading" } },
+        { type: "header", data: { level: 4, text: "A detail" } },
         { type: "paragraph", data: { text: "A <b>public</b> body" } },
       ],
     }),
@@ -56,6 +58,35 @@ test("published posts render at their slug and drafts stay private", async () =>
   assert.match(html, /A <strong>public<\/strong> body/);
   assert.match(html, /id="post-table-of-contents"/);
   assert.match(html, /aria-controls="post-contents-panel"/);
+  assert.match(
+    html,
+    /hover:bg-mist-600 hover:text-amber-50[^"]*dark:hover:bg-amber-50 dark:hover:text-mist-600/,
+  );
+  assert.doesNotMatch(
+    html,
+    /<button[^>]*hover:text-chocolate-500[^>]*data-toc-toggle/,
+  );
+  assert.doesNotMatch(html, /text-chocolate-500/);
+  assert.match(html, /data-toc-container/);
+  assert.match(html, /!root\.contains\(target\)/);
+  assert.doesNotMatch(html, /peer-hover:visible/);
+  assert.doesNotMatch(html, /group-hover:visible/);
+  assert.match(html, /invisible pointer-events-none/);
+  assert.equal(html.match(/<line /g)?.length, 3);
+  assert.match(html, /y1="50" y2="50"/);
+  assert.match(html, /y1="56" y2="56"/);
+  assert.match(html, /y1="62" y2="62"/);
+  assert.match(html, /<line class="stroke-current"/);
+  assert.match(html, /<line class="stroke-current opacity-40"/);
+  assert.match(html, /<li class="pl-2 font-normal">/);
+  assert.match(html, /<li class="pl-4 font-normal">/);
+  assert.match(html, /<li class="pl-6 font-normal">/);
+  assert.match(html, /opacity-50 hover:opacity-100/);
+  assert.match(
+    html,
+    /scrollIntoView\(\{ behavior: "smooth", block: "start" \}\)/,
+  );
+  assert.match(html, /duration: 3000/);
   assert.match(html, /href="#a-heading"[^>]*title="A heading"/);
   assert.match(html, /href="\/@owner"/);
   assert.match(html, /Site Owner/);
@@ -247,6 +278,10 @@ test("users with comment permission can post and reply with Editor.js", async ()
   assert.match(editorHtml, /data-comment-editor/);
   assert.match(editorHtml, /textarea[^>]*name="content"/);
   assert.match(editorHtml, /min-h-32 w-full resize-y/);
+  assert.match(
+    editorHtml,
+    /\[&amp;_\.ce-toolbar\]:!hidden/,
+  );
   assert.match(editorHtml, /@editorjs\/editorjs@2\.31\.6/);
   assert.match(editorHtml, />Cancel<\/button>/);
   assert.match(editorHtml, />Comment<\/button>/);

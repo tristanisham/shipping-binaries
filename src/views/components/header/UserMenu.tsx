@@ -89,6 +89,13 @@ export const UserMenu: FC<UserMenuProps> = ({
                 {item.label}
               </a>
             ))}
+            <a
+              class="mx-2 mt-1 block rounded-sm border border-amber-50/30 px-2 py-1 text-center text-sm font-medium hover:bg-amber-50/15 focus:bg-amber-50/15 focus:outline-none dark:border-mist-600/30 dark:hover:bg-mist-600/15 dark:focus:bg-mist-600/15"
+              href="/logout"
+              role="menuitem"
+            >
+              Log out
+            </a>
           </div>
         </div>
       )}

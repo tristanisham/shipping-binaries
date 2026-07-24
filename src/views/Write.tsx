@@ -19,7 +19,6 @@ import {
   CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "./components/ui/Card.js";
@@ -348,26 +347,6 @@ export const Write: FC<WriteProps> = ({
               />
             </div>
           </CardContent>
-          <CardFooter class={`justify-end gap-2 border-t ${panelDivider}`}>
-            <Button
-              class={panelOutlineButton}
-              name="postAction"
-              type="submit"
-              value="draft"
-              variant="outline"
-            >
-              Save draft
-            </Button>
-            <Button
-              class="capitalize !text-amber-50"
-              name="postAction"
-              type="submit"
-              value="publish"
-              variant="secondary"
-            >
-              Publish
-            </Button>
-          </CardFooter>
         </Card>
 
         <AdminTools title="Tools">
@@ -451,6 +430,28 @@ export const Write: FC<WriteProps> = ({
                 value={image}
               />
             </label>
+          </AdminToolSection>
+          <AdminToolSection open title="Controls">
+            <div class="flex flex-col gap-2">
+              <Button
+                class={`w-full ${panelOutlineButton}`}
+                name="postAction"
+                type="submit"
+                value="draft"
+                variant="outline"
+              >
+                Save Draft
+              </Button>
+              <Button
+                class="w-full capitalize !text-amber-50"
+                name="postAction"
+                type="submit"
+                value="publish"
+                variant="secondary"
+              >
+                Publish
+              </Button>
+            </div>
           </AdminToolSection>
         </AdminTools>
         <script dangerouslySetInnerHTML={{ __html: postSlugScript }} />

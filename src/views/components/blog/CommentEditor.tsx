@@ -93,7 +93,7 @@ export const CommentEditor: FC<CommentEditorProps> = ({ action }) => (
         rows={5}
       />
       <div
-        class="min-h-32 w-full rounded-md border border-onyx-300 bg-amber-50/70 px-3 py-2 shadow-xs focus-within:border-burgundy-600 focus-within:ring-[3px] focus-within:ring-chocolate-500/30 dark:border-onyx-700 dark:bg-onyx-950/60 dark:focus-within:border-burgundy-400 dark:focus-within:ring-chocolate-400/30"
+        class="min-h-32 w-full rounded-md border border-onyx-300 bg-amber-50/70 px-3 py-2 shadow-xs focus-within:border-burgundy-600 focus-within:ring-[3px] focus-within:ring-chocolate-500/30 [&_.ce-toolbar]:!hidden dark:border-onyx-700 dark:bg-onyx-950/60 dark:focus-within:border-burgundy-400 dark:focus-within:ring-chocolate-400/30"
         data-comment-editor-holder
         hidden
       />

@@ -43,6 +43,7 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
     /autosaveEnabled \? &#39;!bg-chocolate-500 !text-amber-50 hover:!bg-chocolate-400&#39; : &#39;!bg-transparent !text-amber-50 !shadow-none hover:!bg-amber-50\/10 dark:!text-mist-600 dark:hover:!bg-mist-600\/10&#39;/,
   );
   assert.match(html, /Google Drive and Obsidian footnotes/);
+  assert.match(html, /Autosave off/);
   assert.doesNotMatch(html, /<span>Autosave<\/span>/);
   assert.doesNotMatch(html, /data-md-input/);
 
@@ -63,6 +64,13 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   );
   assert.match(inlineScript, /Footnote label/);
   assert.match(inlineScript, /Footnote note/);
+  assert.match(
+    inlineScript,
+    /classList\.add\("!w-96", "!max-w-\[calc\(100vw-2rem\)\]"\)/,
+  );
+  assert.match(inlineScript, /classList\.add\("!overflow-x-visible"\)/);
+  assert.match(inlineScript, /actions\.className = "w-full space-y-2 p-2"/);
+  assert.doesNotMatch(inlineScript, /actions\.style\.minWidth/);
   assert.match(inlineScript, /inlineToolbar: true/);
   assert.match(inlineScript, /form\.getAttribute\("action"\)/);
   assert.doesNotMatch(inlineScript, /fetch\(form\.action/);
@@ -118,6 +126,9 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /data-slot="card-action"/);
   assert.match(html, /aria-label="Import Markdown"/);
   assert.match(html, /name="postAction"/);
+  assert.match(html, />Controls<span/);
+  assert.match(html, />Save Draft<\/button>/);
+  assert.ok(html.indexOf(">Controls<span") > html.indexOf(">Image<span"));
   assert.match(
     html,
     /class="[^"]*capitalize !text-amber-50[^"]*"[^>]*name="postAction"[^>]*value="publish"/,

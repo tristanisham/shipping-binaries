@@ -64,13 +64,15 @@ test("PostBody links footnote references to safely rendered definitions", () => 
 
   assert.match(html, /href="#footnote-source"/);
   assert.match(html, /id="footnote-reference-source"/);
-  assert.match(html, /aria-label="Footnote source, note 1"/);
-  assert.match(html, /href="#footnote-source"[^>]*>source<\/a>/);
+  assert.match(html, /aria-label="Footnote 1"/);
+  assert.match(html, /href="#footnote-source"[^>]*>1<\/a>/);
   assert.match(html, /id="footnote-source"/);
   assert.match(html, /role="note"/);
   assert.match(html, /id="footnotes-heading">Footnotes<\/h2>/);
   assert.match(html, /href="#footnote-reference-source"/);
   assert.match(html, /Back to footnote 1 reference/);
+  assert.match(html, /M9 14 4 9l5-5/);
+  assert.match(html, /M4 9h10\.5a5\.5 5\.5/);
   assert.match(html, /<strong>Source<\/strong>/);
   assert.doesNotMatch(html, /<script>/);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
@@ -95,12 +97,36 @@ test("PostBody renders auto-generated footnote ids as their order number", () =>
   }));
 
   assert.match(html, /href="#footnote-inline-footnote-1"[^>]*>1<\/a><\/sup>/);
-  assert.match(html, /href="#footnote-source"[^>]*>source<\/a><\/sup>/);
+  assert.match(html, /href="#footnote-source"[^>]*>2<\/a><\/sup>/);
   assert.match(html, /href="#footnote-obsidian-inline-2"[^>]*>3<\/a><\/sup>/);
-  assert.match(html, /aria-label="Footnote 1, note 1"/);
-  assert.match(html, /aria-label="Footnote source, note 2"/);
-  assert.match(html, /aria-label="Footnote 3, note 3"/);
+  assert.match(html, /aria-label="Footnote 1"/);
+  assert.match(html, /aria-label="Footnote 2"/);
+  assert.match(html, /aria-label="Footnote 3"/);
   assert.doesNotMatch(html, /\[inline-footnote-1\]/);
+});
+
+test("PostBody attaches definition-only footnotes to the preceding text block", () => {
+  const html = renderToString(PostBody({
+    body: JSON.stringify({
+      blocks: [
+        {
+          type: "paragraph",
+          data: { text: "A claim without an explicit marker." },
+        },
+        {
+          type: "footnote",
+          data: { id: "source", text: "The supporting source." },
+        },
+      ],
+    }),
+  }));
+
+  assert.match(
+    html,
+    /A claim without an explicit marker\.<sup><a[^>]*href="#footnote-source"[^>]*>1<\/a><\/sup>/,
+  );
+  assert.match(html, /id="footnote-reference-source"/);
+  assert.match(html, /href="#footnote-reference-source"/);
 });
 
 test("PostBody leaves references visible when no definition exists", () => {

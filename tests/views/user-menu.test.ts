@@ -30,6 +30,10 @@ test("non-admin users get a hover menu with profile and account", () => {
     html,
     /href="\/admin\/account"[^>]*role="menuitem">Account<\/a>/,
   );
+  assert.match(
+    html,
+    /href="\/logout"[^>]*role="menuitem">Log out<\/a>/,
+  );
   assert.doesNotMatch(html, />Dashboard<\/a>/);
 });
 
@@ -48,6 +52,10 @@ test("admin users retain the shield icon and dashboard menu", () => {
   assert.match(html, />Dashboard<\/a>/);
   assert.match(html, /href="\/@owner"[^>]*role="menuitem">Profile<\/a>/);
   assert.match(html, /href="\/admin\/account"[^>]*role="menuitem"/);
+  assert.match(
+    html,
+    /href="\/logout"[^>]*role="menuitem">Log out<\/a>/,
+  );
 });
 
 test("slim header separates nav from a tightly spaced icon group", () => {

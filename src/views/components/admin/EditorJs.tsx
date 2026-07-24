@@ -340,14 +340,17 @@ const editorJsScript = `
       this.noteInput.value = "";
       this.noteInput.setCustomValidity("");
       this.actions.hidden = false;
+      this.actions
+        .closest(".ce-inline-toolbar")
+        ?.classList.add("!w-96", "!max-w-[calc(100vw-2rem)]");
+      this.actions.parentElement?.classList.add("!overflow-x-visible");
       this.button?.classList.add(this.api.styles.inlineToolButtonActive);
       requestAnimationFrame(() => this.noteInput.focus());
     }
 
     renderActions() {
       const actions = document.createElement("div");
-      actions.className = "space-y-2 p-2";
-      actions.style.minWidth = "16rem";
+      actions.className = "w-full space-y-2 p-2";
       actions.hidden = true;
       actions.setAttribute("aria-label", "Add footnote");
       actions.setAttribute("role", "form");
@@ -469,7 +472,13 @@ const editorJsScript = `
     clear() {
       this.range = null;
       this.blockIndex = -1;
-      if (this.actions) this.actions.hidden = true;
+      if (this.actions) {
+        this.actions
+          .closest(".ce-inline-toolbar")
+          ?.classList.remove("!w-96", "!max-w-[calc(100vw-2rem)]");
+        this.actions.parentElement?.classList.remove("!overflow-x-visible");
+        this.actions.hidden = true;
+      }
       this.button?.classList.remove(this.api.styles.inlineToolButtonActive);
     }
   }
@@ -944,7 +953,7 @@ export const EditorJs: FC<EditorJsProps> = ({
             class="min-w-12 text-right text-[0.7rem] text-amber-50/70 dark:text-mist-600/70"
             {...{
               "x-text":
-                "!autosaveEnabled ? 'Off' : saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Retrying…' : saveState === 'saved' ? 'Saved' : ''",
+                "!autosaveEnabled ? 'Autosave off' : saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Retrying…' : saveState === 'saved' ? 'Saved' : ''",
             }}
           />
           <Button
