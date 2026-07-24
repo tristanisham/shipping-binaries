@@ -1543,10 +1543,6 @@
     --tw-outline-style: none;
     outline-style: none;
   }
-  .select-none {
-    -webkit-user-select: none;
-    user-select: none;
-  }
   .group-open\:rotate-90:is(:where(.group):is([open], :popover-open, :open) *) {
     rotate: 90deg;
   }
