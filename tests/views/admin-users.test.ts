@@ -5,14 +5,7 @@ import { AdminUsers } from "../../src/views/AdminUsers.js";
 
 test("users table edits identity fields in place across the full width", () => {
   const html = renderToString(AdminUsers({
-    currentUserId: 1,
     direction: "asc",
-    roles: [{
-      createdAt: "2026-07-22 12:00:00",
-      id: 1,
-      name: "admin",
-      updatedAt: "2026-07-22 12:00:00",
-    }],
     sort: "username",
     users: [{
       active: true,
@@ -39,14 +32,13 @@ test("users table edits identity fields in place across the full width", () => {
   assert.doesNotMatch(html, /form="new-user-form"[^>]*name="password"/);
   assert.match(html, />Invitation<\/span>/);
   assert.match(html, /aria-label="Send invitation"/);
-  assert.ok(html.indexOf('id="new-user-row"') < html.indexOf('id="user-1-identity"'));
+  assert.ok(
+    html.indexOf('id="new-user-row"') < html.indexOf('id="user-1-identity"'),
+  );
   assert.match(html, /id="user-1-identity"[^>]*method="post"/);
   assert.match(html, /name="label"[^>]*value="Site Owner"/);
   assert.match(html, /form="user-1-identity"[^>]*name="username"/);
   assert.match(html, /form="user-1-identity"[^>]*name="email"/);
-  assert.match(html, /form="user-1-identity"[^>]*name="rolesPresent"/);
-  assert.match(html, /form="user-1-identity"[^>]*name="roleIds"/);
-  assert.match(html, /inline-flex select-none items-center/);
   assert.match(html, />admin<\/span>/);
   assert.match(html, /text-amber-50 dark:text-mist-600/);
   assert.match(html, /capitalize disabled:opacity-100/);
@@ -67,4 +59,23 @@ test("users table edits identity fields in place across the full width", () => {
     /bg-burgundy-700 text-amber-50 hover:bg-burgundy-600 dark:bg-burgundy-400/,
   );
   assert.doesNotMatch(html, />Deactivate<\/button>/);
+});
+
+test("users table shows role badges and a manage-access link, not checkboxes", () => {
+  const html = renderToString(AdminUsers({
+    users: [{
+      active: true,
+      createdAt: "",
+      email: "e@example.com",
+      id: 2,
+      label: "Member",
+      roles: ["editor"],
+      updatedAt: "",
+      username: "member",
+    }],
+  }));
+
+  assert.ok(html.includes("/admin/users/2/permissions"));
+  assert.ok(html.includes(">editor<")); // role badge text
+  assert.ok(!html.includes('name="roleIds"')); // no inline checkboxes
 });
