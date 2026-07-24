@@ -76,9 +76,43 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.doesNotMatch(inlineScript, /fetch\(form\.action/);
 
   const browserWindow = {} as {
+    createShippingBinariesMarkdown?: (snapshot: {
+      editor: {
+        blocks: Array<{ data: Record<string, unknown>; type: string }>;
+        time?: number;
+        version?: string;
+      };
+      post: {
+        description: string;
+        draft: boolean;
+        image: string;
+        keywords: string;
+        slug: string;
+        slugMode: "auto" | "custom";
+        title: string;
+      };
+    }) => string;
     markdownToEditorBlocks?: (markdown: string) => {
       blocks: Array<{ type: string }>;
     };
+    parseShippingBinariesMarkdown?: (markdown: string) => {
+      editor: {
+        blocks: Array<{ data: Record<string, unknown>; type: string }>;
+        time?: number;
+        version?: string;
+      };
+      format: string;
+      post: {
+        description: string;
+        draft: boolean;
+        image: string;
+        keywords: string;
+        slug: string;
+        slugMode: "auto" | "custom";
+        title: string;
+      };
+      version: number;
+    } | null;
   };
   new Function("window", inlineScript)(browserWindow);
   const converted = browserWindow.markdownToEditorBlocks?.(
@@ -112,6 +146,47 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
       text: "Obsidian inline note [^obsidian-inline-1]",
     },
   });
+
+  const snapshot = {
+    editor: {
+      blocks: [
+        {
+          type: "paragraph",
+          data: {
+            custom: { preserved: true },
+            text: "Unicode café with <b>exact</b> data.",
+          },
+        },
+      ],
+      time: 1_753_370_400_000,
+      version: "2.31.6",
+    },
+    post: {
+      description: "A precise export",
+      draft: true,
+      image: "https://example.com/image.png",
+      keywords: "markdown, round trip",
+      slug: "exact-export",
+      slugMode: "custom" as const,
+      title: "Exact export",
+    },
+  };
+  const markdown = browserWindow.createShippingBinariesMarkdown?.(snapshot);
+  assert.match(markdown ?? "", /^---\ntitle: "Exact export"/);
+  assert.match(markdown ?? "", /Unicode café with \*\*exact\*\* data\./);
+  assert.match(
+    markdown ?? "",
+    /<!-- shipping-binaries-export:v1:[A-Za-z0-9+/=]+ -->\n$/,
+  );
+  const restored = browserWindow.parseShippingBinariesMarkdown?.(
+    markdown ?? "",
+  );
+  assert.deepEqual(restored, {
+    editor: snapshot.editor,
+    format: "shipping-binaries-markdown",
+    post: snapshot.post,
+    version: 1,
+  });
 });
 
 test("new post form generates and validates a customizable slug", () => {
@@ -125,6 +200,9 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /initPostSlugField\(\$el\)/);
   assert.match(html, /data-slot="card-action"/);
   assert.match(html, /aria-label="Import Markdown"/);
+  assert.match(html, /aria-label="Export Markdown"/);
+  assert.match(html, /data-markdown-export/);
+  assert.match(html, /<path d="M12 18v-6"><\/path>/);
   assert.match(html, /name="postAction"/);
   assert.match(html, />Controls<span/);
   assert.match(html, />Save Draft<\/button>/);

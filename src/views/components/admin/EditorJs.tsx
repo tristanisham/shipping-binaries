@@ -219,7 +219,168 @@ const editorJsScript = `
     return { blocks: blocks.concat(footnotes) };
   };
 
+  const inlineHtmlToMarkdown = (value) => {
+    const render = (source) =>
+      String(source || "")
+        .replace(
+          /<a\\b[^>]*href=(["'])(.*?)\\1[^>]*>([\\s\\S]*?)<\\/a>/gi,
+          (_match, _quote, href, text) =>
+            "[" + render(text) + "](" + href + ")",
+        )
+        .replace(/<(?:strong|b)>([\\s\\S]*?)<\\/(?:strong|b)>/gi, "**$1**")
+        .replace(/<(?:em|i)>([\\s\\S]*?)<\\/(?:em|i)>/gi, "*$1*")
+        .replace(/<(?:del|s)>([\\s\\S]*?)<\\/(?:del|s)>/gi, "~~$1~~")
+        .replace(/<code>([\\s\\S]*?)<\\/code>/gi, backtick + "$1" + backtick)
+        .replace(/<br\\s*\\/?>/gi, "\\n")
+        .replace(/<[^>]*>/g, "")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;|&apos;/gi, "'")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&amp;/gi, "&");
+
+    return render(value);
+  };
+
+  const listItemsToMarkdown = (items, style, depth = 0) =>
+    (Array.isArray(items) ? items : []).flatMap((item, index) => {
+      const prefix = style === "ordered" ? String(index + 1) + "." : "-";
+      const indentation = "  ".repeat(depth);
+      const lines = [
+        indentation + prefix + " " + inlineHtmlToMarkdown(item?.content),
+      ];
+      if (Array.isArray(item?.items) && item.items.length > 0) {
+        lines.push(
+          ...listItemsToMarkdown(item.items, style, depth + 1),
+        );
+      }
+      return lines;
+    }).join("\\n");
+
+  const editorDataToMarkdown = (data) =>
+    (Array.isArray(data?.blocks) ? data.blocks : []).map((block) => {
+      const blockData = block?.data || {};
+      switch (block?.type) {
+        case "paragraph":
+          return inlineHtmlToMarkdown(blockData.text);
+        case "header": {
+          const level = Math.min(6, Math.max(1, Number(blockData.level) || 2));
+          return "#".repeat(level) + " " + inlineHtmlToMarkdown(blockData.text);
+        }
+        case "list":
+          return listItemsToMarkdown(
+            blockData.items,
+            blockData.style === "ordered" ? "ordered" : "unordered",
+          );
+        case "quote": {
+          const quote = inlineHtmlToMarkdown(blockData.text)
+            .split("\\n")
+            .map((line) => "> " + line)
+            .join("\\n");
+          const caption = inlineHtmlToMarkdown(blockData.caption);
+          return caption ? quote + "\\n>\\n> — " + caption : quote;
+        }
+        case "code": {
+          const code = String(blockData.code || "");
+          const fence = code.includes(codeFence) ? backtick.repeat(4) : codeFence;
+          return fence + "\\n" + code + "\\n" + fence;
+        }
+        case "delimiter":
+          return "---";
+        case "footnote":
+          return "[^" + String(blockData.id || "") + "]: " +
+            inlineHtmlToMarkdown(blockData.text).replace(/\\n/g, "\\n  ");
+        default:
+          return "<!-- Unsupported Editor.js block: " +
+            String(block?.type || "unknown") + " -->";
+      }
+    }).join("\\n\\n");
+
+  const encodeUtf8Base64 = (value) => {
+    const bytes = new TextEncoder().encode(value);
+    let binary = "";
+    for (let index = 0; index < bytes.length; index += 0x8000) {
+      binary += String.fromCharCode.apply(
+        null,
+        bytes.subarray(index, index + 0x8000),
+      );
+    }
+    return btoa(binary);
+  };
+
+  const decodeUtf8Base64 = (value) => {
+    const binary = atob(value);
+    const bytes = Uint8Array.from(binary, (character) =>
+      character.charCodeAt(0)
+    );
+    return new TextDecoder().decode(bytes);
+  };
+
+  const createShippingBinariesMarkdown = (snapshot) => {
+    const post = snapshot?.post || {};
+    const editor = snapshot?.editor || { blocks: [] };
+    const frontmatter = [
+      "---",
+      "title: " + JSON.stringify(String(post.title || "")),
+      "description: " + JSON.stringify(String(post.description || "")),
+      "slug: " + JSON.stringify(String(post.slug || "")),
+      "slugMode: " + JSON.stringify(
+        post.slugMode === "auto" ? "auto" : "custom",
+      ),
+      "keywords: " + JSON.stringify(String(post.keywords || "")),
+      "image: " + JSON.stringify(String(post.image || "")),
+      "draft: " + (post.draft ? "true" : "false"),
+      "shippingBinariesFormat: 1",
+      "---",
+    ].join("\\n");
+    const payload = {
+      editor,
+      format: "shipping-binaries-markdown",
+      post: {
+        description: String(post.description || ""),
+        draft: Boolean(post.draft),
+        image: String(post.image || ""),
+        keywords: String(post.keywords || ""),
+        slug: String(post.slug || ""),
+        slugMode: post.slugMode === "auto" ? "auto" : "custom",
+        title: String(post.title || ""),
+      },
+      version: 1,
+    };
+    const body = editorDataToMarkdown(editor).trim();
+    const marker = "<!-- shipping-binaries-export:v1:" +
+      encodeUtf8Base64(JSON.stringify(payload)) + " -->";
+    return frontmatter + "\\n\\n" + (body ? body + "\\n\\n" : "") + marker +
+      "\\n";
+  };
+
+  const parseShippingBinariesMarkdown = (markdown) => {
+    const marker = String(markdown || "").match(
+      /<!--\\s*shipping-binaries-export:v1:([A-Za-z0-9+/=]+)\\s*-->\\s*$/,
+    );
+    if (!marker) return null;
+
+    try {
+      const payload = JSON.parse(decodeUtf8Base64(marker[1]));
+      if (
+        payload?.format !== "shipping-binaries-markdown" ||
+        payload?.version !== 1 ||
+        !Array.isArray(payload?.editor?.blocks) ||
+        typeof payload?.post !== "object" ||
+        payload.post === null
+      ) {
+        return null;
+      }
+      return payload;
+    } catch {
+      return null;
+    }
+  };
+
   window.markdownToEditorBlocks = markdownToBlocks;
+  window.createShippingBinariesMarkdown = createShippingBinariesMarkdown;
+  window.parseShippingBinariesMarkdown = parseShippingBinariesMarkdown;
 
   class FootnoteTool {
     static get toolbox() {
@@ -490,6 +651,7 @@ const editorJsScript = `
     const holder = root.querySelector("[data-editorjs-holder]");
     const input = root.querySelector("[data-editorjs-input]");
     const importButton = form?.querySelector("[data-markdown-import]");
+    const exportButton = form?.querySelector("[data-markdown-export]");
     const importDialog = root.querySelector("[data-markdown-dialog]");
     const markdownInput = root.querySelector("[data-markdown-input]");
     const convertButton = root.querySelector("[data-markdown-convert]");
@@ -561,6 +723,51 @@ const editorJsScript = `
     const syncEditor = async () => {
       await editor.isReady;
       input.value = JSON.stringify(await editor.save());
+    };
+
+    const formValue = (name) => {
+      const field = form.querySelector('[name="' + name + '"]');
+      return typeof field?.value === "string" ? field.value : "";
+    };
+
+    const postSnapshot = () => {
+      const draft = form.querySelector('input[name="currentDraft"]');
+      return {
+        description: formValue("description"),
+        draft: Boolean(draft?.checked),
+        image: formValue("image"),
+        keywords: formValue("keywords"),
+        slug: formValue("slug"),
+        slugMode: formValue("slugMode") === "auto" ? "auto" : "custom",
+        title: formValue("title"),
+      };
+    };
+
+    const applyPostSnapshot = (post) => {
+      const assign = (name, value) => {
+        const field = form.querySelector('[name="' + name + '"]');
+        if (!field || typeof field.value !== "string") return;
+        field.value = String(value || "");
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+
+      assign("title", post.title);
+      assign("description", post.description);
+      assign("keywords", post.keywords);
+      assign("image", post.image);
+      assign("slug", post.slug);
+
+      const slugMode = form.querySelector('input[name="slugMode"]');
+      if (slugMode) {
+        slugMode.value = post.slugMode === "auto" ? "auto" : "custom";
+      }
+
+      const draft = form.querySelector('input[name="currentDraft"]');
+      if (draft) {
+        draft.checked = Boolean(post.draft);
+        draft.dispatchEvent(new Event("change", { bubbles: true }));
+      }
     };
 
     void editor.isReady.then(() => {
@@ -668,13 +875,45 @@ const editorJsScript = `
       markdownInput?.focus();
     });
 
+    exportButton?.addEventListener("click", async () => {
+      await editor.isReady;
+      const editorData = await editor.save();
+      input.value = JSON.stringify(editorData);
+      const snapshot = {
+        editor: editorData,
+        post: postSnapshot(),
+      };
+      const markdown = createShippingBinariesMarkdown(snapshot);
+      const filenameBase = (snapshot.post.slug || snapshot.post.title || "post")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "post";
+      const url = URL.createObjectURL(
+        new Blob([markdown], { type: "text/markdown;charset=utf-8" }),
+      );
+      const link = document.createElement("a");
+      link.download = filenameBase + ".md";
+      link.href = url;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    });
+
     cancelImport?.addEventListener("click", () => {
       importDialog?.close();
     });
 
     convertButton?.addEventListener("click", async () => {
       await editor.isReady;
-      await editor.render(markdownToBlocks(markdownInput.value));
+      const packagedPost = parseShippingBinariesMarkdown(markdownInput.value);
+      if (packagedPost) {
+        await editor.render(packagedPost.editor);
+        applyPostSnapshot(packagedPost.post);
+      } else {
+        await editor.render(markdownToBlocks(markdownInput.value));
+      }
       markdownInput.value = "";
       importDialog?.close();
       markChanged();
@@ -1054,8 +1293,9 @@ export const EditorJs: FC<EditorJsProps> = ({
           Convert Markdown
         </h2>
         <p class="mt-2 text-sm opacity-70">
-          This replaces the current Editor.js body with converted blocks. Google
-          Drive and Obsidian footnotes are detected automatically.
+          Shipping Binaries exports restore all post fields and editor blocks.
+          Other Markdown replaces the body with converted blocks; Google Drive
+          and Obsidian footnotes are detected automatically.
         </p>
         <Textarea
           class={`mt-4 min-h-80 ${panelField}`}
