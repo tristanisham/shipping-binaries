@@ -4,6 +4,7 @@ import {
   getProfileForUser,
   getPublicProfileByUsername,
   updateAccountProfile,
+  updateProfileBiography,
 } from "../../src/models/profile.js";
 import { findUserByLogin } from "../../src/models/user.js";
 import { createTestDb, seedUser } from "../helpers/d1.js";
@@ -49,5 +50,20 @@ test("account profile updates identity and biography together", async () => {
   assert.equal(
     (await getProfileForUser(db, userId))?.biography,
     "Developer and writer.",
+  );
+});
+
+test("profile biography can be updated independently", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, {
+    email: "author@example.com",
+    username: "author",
+  });
+
+  await updateProfileBiography(db, userId, "A revised biography.");
+
+  assert.equal(
+    (await getProfileForUser(db, userId))?.biography,
+    "A revised biography.",
   );
 });

@@ -198,6 +198,10 @@ test("blog index lists published posts and excludes drafts", async () => {
   );
   assert.match(
     authorHtml,
+    /<div class="mx-auto max-w-\[60rem\]"><header class="mt-10">/,
+  );
+  assert.match(
+    authorHtml,
     /<h1 class="font-black-ops-one text-2xl leading-none">Site Owner<\/h1>/,
   );
   assert.match(authorHtml, />\s*@owner\s*<\/p>/);
@@ -215,7 +219,68 @@ test("blog index lists published posts and excludes drafts", async () => {
   );
   assert.match(authorHtml, /grid grid-cols-1 gap-6 md:grid-cols-3/);
   assert.match(authorHtml, /href="\/blog\/listed-post"/);
+  assert.doesNotMatch(authorHtml, /data-edit-biography/);
   assert.doesNotMatch(authorHtml, /Unlisted draft/);
+
+  const token = await createSession(db, userId);
+  const ownerProfileResponse = await app.request(
+    "/@owner",
+    {
+      headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` },
+    },
+    { DB: db } as Env,
+  );
+  const ownerProfileHtml = await ownerProfileResponse.text();
+  assert.equal(ownerProfileResponse.status, 200);
+  assert.match(ownerProfileHtml, /data-edit-biography/);
+  assert.match(
+    ownerProfileHtml,
+    /<div class="mt-4 w-full" x-data="\{ editingBiography: false \}">/,
+  );
+  assert.match(
+    ownerProfileHtml,
+    /action="\/admin\/account\/biography"[^>]*data-biography-form/,
+  );
+  assert.match(
+    ownerProfileHtml,
+    /name="biography"[^>]*>I write about software and the people who build it\.<\/textarea>/,
+  );
+  assert.match(
+    ownerProfileHtml,
+    /<textarea(?=[^>]*name="biography")(?=[^>]*maxlength="5000")[^>]*>/,
+  );
+  assert.match(ownerProfileHtml, />Save biography<\/button>/);
+
+  const biographyUpdate = await app.request(
+    "/admin/account/biography",
+    {
+      body: new URLSearchParams({
+        biography: "An updated biography.",
+      }),
+      headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(biographyUpdate.status, 303);
+  assert.equal(biographyUpdate.headers.get("location"), "/@owner");
+
+  const updatedProfile = await app.request("/@owner", {}, { DB: db } as Env);
+  assert.match(await updatedProfile.text(), /An updated biography\./);
+
+  const oversizedBiography = await app.request(
+    "/admin/account/biography",
+    {
+      body: new URLSearchParams({
+        biography: "x".repeat(5_001),
+      }),
+      headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+  assert.equal(oversizedBiography.status, 422);
+  assert.match(await oversizedBiography.text(), /5,000/);
 
   const missingAuthorResponse = await app.request(
     "/@missing",

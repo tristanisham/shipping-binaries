@@ -5,10 +5,23 @@ import {
   setCurrentNavItem,
 } from "./components/header/Header.js";
 import { PasswordFields } from "./components/auth/PasswordFields.js";
+import {
+  panelDivider,
+  panelField,
+  panelMuted,
+} from "./components/admin/panel.js";
 import { HeaderSlim } from "./components/header/Slim.js";
 import { Button } from "./components/ui/Button.js";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./components/ui/Card.js";
 import { Input } from "./components/ui/Input.js";
 import { Textarea } from "./components/ui/Textarea.js";
+import { cn } from "./components/ui/utils.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AccountProps = {
@@ -41,82 +54,107 @@ export const Account: FC<AccountProps> = ({
         nav={setCurrentNavItem(defaultHeaderNav, "/admin/account")}
         viewerUsername={username}
       />
-      <main class="container mx-auto h-full w-full px-4 sm:w-2/3 lg:w-2/5">
-        <section class="mx-auto mt-16 max-w-md">
-          <h1 class="mb-6 text-3xl font-bold">Account</h1>
-          <form
-            action="/admin/account"
-            class="flex flex-col gap-5"
-            method="post"
-          >
-            <label class="flex flex-col gap-2 font-bold">
-              Name
-              <Input
-                autocomplete="name"
-                name="label"
-                value={label}
-              />
-            </label>
-            <label class="flex flex-col gap-2 font-bold">
-              Username
-              <Input
-                autocomplete="username"
-                name="username"
-                required
-                value={username}
-              />
-            </label>
-            <label class="flex flex-col gap-2 font-bold">
-              Email
-              <Input
-                autocomplete="email"
-                name="email"
-                required
-                type="email"
-                value={email}
-              />
-            </label>
-            <label class="flex flex-col gap-2 font-bold">
-              Biography
-              <Textarea
-                maxlength={MAX_PROFILE_BIOGRAPHY_LENGTH}
-                name="biography"
-                placeholder="Tell readers about yourself."
-                rows={6}
+      <main class="container mx-auto h-full w-full px-4">
+        <section class="mx-auto mt-10 max-w-md sm:mt-16">
+          <Card>
+            <CardHeader class={`border-b ${panelDivider}`}>
+              <CardTitle class="text-2xl">Account</CardTitle>
+              <CardDescription>
+                Update your profile and password.
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="flex flex-col gap-5">
+              <form
+                action="/admin/account"
+                class="flex flex-col gap-5"
+                method="post"
               >
-                {biography}
-              </Textarea>
-            </label>
-            <label class="flex flex-col gap-2 font-bold">
-              Current password
-              <Input
-                autocomplete="current-password"
-                name="currentPassword"
-                required
-                type="password"
-              />
-            </label>
-            <PasswordFields
-              confirmationLabel="Confirm new password"
-              confirmationName="newPasswordConfirmation"
-              idPrefix="account-new"
-              label="New password"
-              passwordName="newPassword"
-              ruleIdPrefix="password-rule"
-            />
-            {error && (
-              <p
-                class="font-bold text-burgundy-700 dark:text-burgundy-300"
-                role="alert"
-              >
-                {error}
-              </p>
-            )}
-            <div class="flex items-center gap-3">
-              <Button type="submit" variant="tertiary">Save changes</Button>
-              <a class="font-bold underline" href="/logout">Log out</a>
-            </div>
-          </form>
+                <label class="flex flex-col gap-2 text-sm font-semibold">
+                  Name
+                  <Input
+                    autocomplete="name"
+                    class={cn("h-11", panelField)}
+                    name="label"
+                    value={label}
+                  />
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-semibold">
+                  Username
+                  <Input
+                    autocomplete="username"
+                    class={cn("h-11", panelField)}
+                    name="username"
+                    required
+                    value={username}
+                  />
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-semibold">
+                  Email
+                  <Input
+                    autocomplete="email"
+                    class={cn("h-11", panelField)}
+                    name="email"
+                    required
+                    type="email"
+                    value={email}
+                  />
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-semibold">
+                  Biography
+                  <Textarea
+                    class={panelField}
+                    maxlength={MAX_PROFILE_BIOGRAPHY_LENGTH}
+                    name="biography"
+                    placeholder="Tell readers about yourself."
+                    rows={6}
+                  >
+                    {biography}
+                  </Textarea>
+                </label>
+                <label class="flex flex-col gap-2 text-sm font-semibold">
+                  Current password
+                  <Input
+                    autocomplete="current-password"
+                    class={cn("h-11", panelField)}
+                    name="currentPassword"
+                    required
+                    type="password"
+                  />
+                </label>
+                <PasswordFields
+                  confirmationLabel="Confirm new password"
+                  confirmationName="newPasswordConfirmation"
+                  idPrefix="account-new"
+                  inputClass={cn("h-11", panelField)}
+                  label="New password"
+                  labelClass="flex flex-col gap-2 text-sm font-semibold"
+                  passwordName="newPassword"
+                  ruleIdPrefix="password-rule"
+                />
+                {error && (
+                  <p
+                    class="text-sm font-bold text-burgundy-300 dark:text-burgundy-700"
+                    role="alert"
+                  >
+                    {error}
+                  </p>
+                )}
+                <Button
+                  class="h-11 w-full"
+                  type="submit"
+                  variant="tertiary"
+                >
+                  Save changes
+                </Button>
+                <a
+                  class={`w-fit text-sm underline ${panelMuted}`}
+                  href="/logout"
+                >
+                  Log out
+                </a>
+              </form>
+            </CardContent>
+          </Card>
         </section>
       </main>
     </Layout>

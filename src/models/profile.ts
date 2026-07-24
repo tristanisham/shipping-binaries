@@ -1,4 +1,4 @@
-export const MAX_PROFILE_BIOGRAPHY_LENGTH = 2_000;
+export const MAX_PROFILE_BIOGRAPHY_LENGTH = 5_000;
 
 export interface Profile {
   biography: string;
@@ -116,4 +116,21 @@ export const updateAccountProfile = async (
       )
       .bind(userId, input.biography),
   ]);
+};
+
+export const updateProfileBiography = async (
+  db: D1Database,
+  userId: number,
+  biography: string,
+): Promise<void> => {
+  await db
+    .prepare(
+      `INSERT INTO profiles (user_id, biography)
+       VALUES (?1, ?2)
+       ON CONFLICT(user_id) DO UPDATE
+       SET biography = excluded.biography,
+           updated_at = CURRENT_TIMESTAMP`,
+    )
+    .bind(userId, biography)
+    .run();
 };

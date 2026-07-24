@@ -48,6 +48,7 @@ import {
   getProfileForUser,
   MAX_PROFILE_BIOGRAPHY_LENGTH,
   updateAccountProfile,
+  updateProfileBiography,
 } from "../models/profile.js";
 import {
   ADMIN_ROLE,
@@ -1326,6 +1327,24 @@ authRoute.get("/admin/account", async (c) => {
       label={c.var.currentUser.label ?? ""}
       username={c.var.currentUser.username}
     />,
+  );
+});
+
+authRoute.post("/admin/account/biography", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const biography = formString(await c.req.parseBody(), "biography").trim();
+
+  if (biography.length > MAX_PROFILE_BIOGRAPHY_LENGTH) {
+    return c.text(
+      `Biography cannot exceed ${MAX_PROFILE_BIOGRAPHY_LENGTH.toLocaleString()} characters.`,
+      422,
+    );
+  }
+
+  await updateProfileBiography(c.env.DB, c.var.currentUser.id, biography);
+  return c.redirect(
+    `/@${encodeURIComponent(c.var.currentUser.username)}`,
+    303,
   );
 });
 
