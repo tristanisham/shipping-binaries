@@ -508,7 +508,7 @@ export const PostBody: FC<PostBodyProps> = ({ body, headings }) => {
   let headingIndex = 0;
 
   return (
-    <div class="space-y-4 leading-relaxed">
+    <div class="post-body space-y-4 leading-relaxed">
       {contentBlocks.map((block) => {
         const heading = block.type === "header" &&
             decodeHeadingText(blockText(block))

@@ -34,5 +34,7 @@
   ],
   "observability": {
     "enabled": true
-  }
+  },
+  // Makes stack traces in Workers Logs point at src/ instead of the bundle.
+  "upload_source_maps": true
 }
