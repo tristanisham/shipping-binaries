@@ -11,6 +11,7 @@
   "devDependencies": {
     "@hono/node-server": "^2.0.10",
     "@hono/vite-dev-server": "^0.26.1",
+    "@posthog/types": "^1.398.0",
     "@tailwindcss/cli": "^4.3.3",
     "@types/node": "^26.1.1",
     "concurrently": "^9.2.4",

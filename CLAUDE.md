@@ -62,6 +62,11 @@ Layout of `src/`:
   mirroring the table, a camelCase domain interface, and `xFromRow`/`xToRow`
   mappers; queries use prepared statements with `?1`-style bindings on the
   `D1Database` from `c.env.DB`.
+- `views/components/analytics/PostHog.tsx` — PostHog's HTML snippet, rendered by
+  `Layout` at the end of `<head>`. The project API key is write-only and lives
+  in the file; `capture_pageleave` is set explicitly (bounce rate and session
+  duration depend on it) and init is skipped on localhost. `@posthog/types`
+  types `window.posthog` via `src/posthog.d.ts`.
 - `auth/password.ts` — bcryptjs hashing (cost 10, rejects >72-byte passwords).
 - `cli/create-owner.ts` — owner bootstrap script that shells out to
   `wrangler d1 execute`.
