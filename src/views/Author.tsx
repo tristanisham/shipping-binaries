@@ -15,6 +15,7 @@ import {
 import { Button } from "./components/ui/Button.js";
 import { Input } from "./components/ui/Input.js";
 import { Textarea } from "./components/ui/Textarea.js";
+import { authorFeedPath } from "../feeds/rss.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 import { toAbsoluteUrl } from "./components/SocialMeta.js";
 
@@ -40,6 +41,10 @@ export const Author: FC<AuthorProps> = ({
     title: `${displayName} | Shipping Binaries`,
     description: `Posts by ${displayName} on Shipping Binaries.`,
     canonical: toAbsoluteUrl(`/@${encodeURIComponent(author.username)}`),
+    feeds: [{
+      href: toAbsoluteUrl(authorFeedPath(author.username)),
+      title: `Posts by ${displayName}`,
+    }],
     social: {
       title: `${displayName} Author’s Page`,
     },

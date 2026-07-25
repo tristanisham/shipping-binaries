@@ -6,6 +6,7 @@ import { getPublishedPosts } from "./models/post.js";
 import { authRoute } from "./routes/auth.js";
 import { blogRoute } from "./routes/blog.js";
 import { parsePageParam } from "./routes/page.js";
+import { rssRoute } from "./routes/rss.js";
 import { weatherRoute } from "./routes/weather.js";
 import { About } from "./views/About.js";
 import { Home } from "./views/Home.js";
@@ -13,6 +14,8 @@ import { Home } from "./views/Home.js";
 const app = new Hono<{ Bindings: Env }>();
 
 app.route("/", authRoute);
+// Ahead of blogRoute so `/blog/rss` resolves to the feed, not `/blog/:slug`.
+app.route("/", rssRoute);
 app.route("/", blogRoute);
 app.route("/", weatherRoute);
 

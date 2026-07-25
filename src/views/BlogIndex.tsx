@@ -7,6 +7,7 @@ import {
   Header,
   setCurrentNavItem,
 } from "./components/header/Header.js";
+import { BLOG_FEED_PATH } from "../feeds/rss.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 import { toAbsoluteUrl } from "./components/SocialMeta.js";
 
@@ -27,6 +28,10 @@ export const BlogIndex: FC<BlogIndexProps> = ({
     title: "Blog | Shipping Binaries",
     description: "Software development articles from Shipping Binaries.",
     canonical: toAbsoluteUrl("/blog"),
+    feeds: [{
+      href: toAbsoluteUrl(BLOG_FEED_PATH),
+      title: "Shipping Binaries",
+    }],
     social: {
       title: "Shipping Binaries Blog",
     },

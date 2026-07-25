@@ -13,6 +13,9 @@ export type LayoutMeta = {
   viewport?: string;
   robots?: string;
   canonical?: string;
+  // RSS feeds this page offers, rendered as <link rel="alternate"> so readers
+  // and browser extensions can discover them.
+  feeds?: { href: string; title: string }[];
   // Open Graph / Twitter card tags; title, description, and url fall back to
   // the page's title, description, and canonical when not set.
   social?: SocialMeta;
@@ -47,6 +50,14 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         {meta?.author && <meta name="author" content={meta.author} />}
         {meta?.robots && <meta name="robots" content={meta.robots} />}
         {meta?.canonical && <link rel="canonical" href={meta.canonical} />}
+        {meta?.feeds?.map((feed) => (
+          <link
+            rel="alternate"
+            type="application/rss+xml"
+            title={feed.title}
+            href={feed.href}
+          />
+        ))}
         {meta?.social && (
           <SocialMetaTags
             social={{
