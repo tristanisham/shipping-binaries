@@ -4,7 +4,6 @@ import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
 import { CommentEditor } from "./components/blog/CommentEditor.js";
 import { getPostHeadings, PostBody } from "./components/blog/PostBody.js";
-import { PostFontScaleScript } from "./components/blog/PostFontScale.js";
 import { PostMeta } from "./components/blog/posts/PostMeta.js";
 import { PostTableOfContents } from "./components/blog/PostTableOfContents.js";
 import { toIsoTimestamp } from "./components/date.js";
@@ -52,7 +51,6 @@ export const BlogPost: FC<BlogPostProps> = ({
         nav={defaultHeaderNav}
         viewerUsername={viewerUsername}
       />
-      <PostFontScaleScript />
       <PostTableOfContents headings={headings} />
       <main class="container mx-auto max-w-3xl px-4 py-12">
         <article>
