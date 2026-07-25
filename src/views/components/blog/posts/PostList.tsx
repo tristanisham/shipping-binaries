@@ -117,6 +117,7 @@ export const PostList: FC<PostListProps> = ({
                     <PostMeta
                       canEdit={isAdmin || viewerUserId === post.userId}
                       post={post}
+                      showTextSize={showFullBody}
                     />
 
                     {showFullBody
