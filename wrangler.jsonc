@@ -17,6 +17,11 @@
   "assets": {
     "directory": "./public"
   },
+  // POSTHOG_API_KEY is a secret (`wrangler secret put`); the host is just the
+  // ingestion endpoint, so it lives with the rest of the deploy config.
+  "vars": {
+    "POSTHOG_HOST": "https://us.i.posthog.com"
+  },
   "d1_databases": [
     {
       "binding": "DB",

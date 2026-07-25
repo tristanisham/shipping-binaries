@@ -19,7 +19,7 @@ import { BlogIndex } from "../views/BlogIndex.js";
 import { BlogPost } from "../views/BlogPost.js";
 import { editorDataHasText } from "../views/components/editorData.js";
 import { parsePageParam } from "./page.js";
-import { createPostHogClient } from "../posthog.js";
+import { capturePageView, captureUserEvent } from "../posthog.js";
 
 export const blogRoute = new Hono<{ Bindings: Env }>();
 
@@ -28,6 +28,8 @@ blogRoute.get("/blog", async (c) => {
     getViewerState(c.env.DB, getCookie(c, SESSION_COOKIE_NAME)),
     getPublishedPosts(c.env.DB),
   ]);
+
+  await capturePageView(c, viewer, { page_type: "blog index" });
 
   return c.html(
     <BlogIndex
@@ -53,6 +55,15 @@ blogRoute.get("/blog/:slug", async (c) => {
     c.env.DB,
     viewer.viewerUserId,
   );
+
+  await capturePageView(c, viewer, {
+    page_type: "blog post",
+    post_id: post.id,
+    post_slug: post.slug,
+    post_title: post.title,
+    post_published_at: post.createdAt,
+    comment_count: post.comments.length,
+  });
 
   return c.html(
     <BlogPost
@@ -111,19 +122,11 @@ blogRoute.post("/blog/:slug/comments", async (c) => {
     return c.text("Invalid comment", 422);
   }
 
-  const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
-  if (posthog) {
-    posthog.capture({
-      distinctId: String(user.id),
-      event: "comment submitted",
-      properties: {
-        post_slug: post.slug,
-        post_id: post.id,
-        has_parent: parentId !== null,
-      },
-    });
-    await posthog.flush();
-  }
+  await captureUserEvent(c, user, "comment submitted", {
+    post_slug: post.slug,
+    post_id: post.id,
+    is_reply: parentId !== null,
+  });
 
   return c.redirect(`/blog/${post.slug}#comment-${commentId}`, 303);
 });
@@ -145,6 +148,13 @@ blogRoute.get("/:handle{@[^/]+}", async (c) => {
   }
 
   const posts = await getPublishedPostsForUser(c.env.DB, author.id);
+
+  await capturePageView(c, viewer, {
+    page_type: "author profile",
+    author_username: author.username,
+    author_post_count: posts.length,
+  });
+
   return c.html(
     <Author
       author={author}

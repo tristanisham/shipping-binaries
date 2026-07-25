@@ -95,7 +95,11 @@ import { Logout } from "../views/Logout.js";
 import { SetPassword } from "../views/SetPassword.js";
 import { Signup, type SignupValues } from "../views/Signup.js";
 import { Write, type WriteFormValues } from "../views/Write.js";
-import { createPostHogClient } from "../posthog.js";
+import {
+  captureAnonymousEvent,
+  captureUserEvent,
+  identifyUser,
+} from "../posthog.js";
 
 type AuthEnv = {
   Bindings: Env;
@@ -364,15 +368,15 @@ authRoute.post("/signup", async (c) => {
   const token = await createSession(c.env.DB, userId);
   setSessionCookie(c, token);
 
-  const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
-  if (posthog) {
-    posthog.capture({
-      distinctId: String(userId),
-      event: "user signed up",
-      properties: { $set: { username: values.username } },
-    });
-    await posthog.flush();
-  }
+  const signedUpUser = {
+    id: userId,
+    email: values.email,
+    label: values.label,
+    roles: [GUEST_ROLE],
+    username: values.username,
+  };
+  await identifyUser(c, signedUpUser);
+  await captureUserEvent(c, signedUpUser, "user signed up");
 
   return c.redirect(getSignedInPath([GUEST_ROLE]), 303);
 });
@@ -396,6 +400,17 @@ authRoute.post("/login", async (c) => {
   );
 
   if (!user || !user.active || !passwordMatches) {
+    // Anonymous by design: attributing a failure to the account someone tried
+    // to reach would let a stranger write to that person's profile. The reason
+    // separates "wrong password" from "deactivated account" from "no such user".
+    await captureAnonymousEvent(c, "login_failure", "login failed", {
+      reason: !user
+        ? "unknown login"
+        : !user.active
+        ? "inactive account"
+        : "wrong password",
+    });
+
     return c.html(
       <Login error={INVALID_LOGIN_MESSAGE} login={login} />,
       401,
@@ -412,15 +427,13 @@ authRoute.post("/login", async (c) => {
   const roles = await getRolesForUser(c.env.DB, user.id);
   setSessionCookie(c, token);
 
-  const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
-  if (posthog) {
-    posthog.capture({
-      distinctId: String(user.id),
-      event: "user logged in",
-      properties: { $set: { username: user.username } },
-    });
-    await posthog.flush();
-  }
+  // Identifying on every login keeps a returning session's profile current;
+  // roles in particular drift between logins.
+  const signedInUser = { ...user, roles };
+  await identifyUser(c, signedInUser);
+  await captureUserEvent(c, signedInUser, "user logged in", {
+    replaced_session: Boolean(existingToken),
+  });
 
   return c.redirect(getSignedInPath(roles), 303);
 });
@@ -445,11 +458,7 @@ authRoute.post("/forgot-password", async (c) => {
       to: user.email,
     });
 
-    const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
-    if (posthog) {
-      posthog.capture({ distinctId: String(user.id), event: "password reset requested" });
-      await posthog.flush();
-    }
+    await captureUserEvent(c, user, "password reset requested");
   }
 
   return c.html(<ForgotPassword sent />);
@@ -524,6 +533,21 @@ const handleSetPassword = async (
   } else {
     await setUserPassword(c.env.DB, claimed.userId, passwordHash);
     await destroySessionsForUser(c.env.DB, claimed.userId);
+  }
+
+  // These close the two funnels that start at `user invited` and `password
+  // reset requested`; without them neither has a completion step. Read after
+  // the write so the invite path reports the now-active roles.
+  const claimedUser = await getUserById(c.env.DB, claimed.userId);
+  if (claimedUser) {
+    if (mode === "invite") {
+      await identifyUser(c, claimedUser);
+    }
+    await captureUserEvent(
+      c,
+      claimedUser,
+      mode === "invite" ? "invitation accepted" : "password reset completed",
+    );
   }
 
   return c.redirect("/login?password=updated", 303);
@@ -747,15 +771,20 @@ authRoute.post("/admin/write", async (c) => {
       return c.json({ id: currentPostId, saved: true, slug });
     }
 
-    const posthogUpdate = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
-    if (posthogUpdate) {
-      posthogUpdate.capture({
-        distinctId: String(c.var.currentUser.id),
-        event: draft ? "post saved as draft" : "post published",
-        properties: { post_id: currentPostId, slug, title, is_new: false },
-      });
-      await posthogUpdate.flush();
-    }
+    await captureUserEvent(
+      c,
+      c.var.currentUser,
+      draft ? "post saved as draft" : "post published",
+      {
+        post_id: currentPostId,
+        slug,
+        title,
+        is_new: false,
+        // A first publish and a re-publish of an already-live post are
+        // different events for a content funnel.
+        was_draft: currentPost?.draft ?? true,
+      },
+    );
 
     return c.redirect(`/admin/write?id=${currentPostId}`, 303);
   }
@@ -769,15 +798,12 @@ authRoute.post("/admin/write", async (c) => {
     return c.json({ id: newId, saved: true, slug }, 201);
   }
 
-  const posthogCreate = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
-  if (posthogCreate) {
-    posthogCreate.capture({
-      distinctId: String(c.var.currentUser.id),
-      event: draft ? "post saved as draft" : "post published",
-      properties: { post_id: newId, slug, title, is_new: true },
-    });
-    await posthogCreate.flush();
-  }
+  await captureUserEvent(
+    c,
+    c.var.currentUser,
+    draft ? "post saved as draft" : "post published",
+    { post_id: newId, slug, title, is_new: true, was_draft: true },
+  );
 
   return c.redirect(`/admin/write?id=${newId}`, 303);
 });
@@ -807,7 +833,27 @@ authRoute.post(
 
     if (Number.isInteger(id)) {
       const body = await c.req.parseBody();
-      await setPostDraft(c.env.DB, id, body.draft === "1");
+      const draft = body.draft === "1";
+      const post = await getPostById(c.env.DB, id);
+      await setPostDraft(c.env.DB, id, draft);
+
+      // The other way a post goes live or comes down, alongside the editor.
+      // Only report it when the state actually changed.
+      if (post && post.draft !== draft) {
+        await captureUserEvent(
+          c,
+          c.var.currentUser,
+          draft ? "post unpublished" : "post published",
+          {
+            post_id: id,
+            slug: post.slug,
+            title: post.title,
+            is_new: false,
+            was_draft: post.draft,
+            source: "admin list",
+          },
+        );
+      }
     }
 
     return c.redirect("/admin/posts", 303);
@@ -1075,16 +1121,13 @@ authRoute.post(
       throw error;
     }
 
-    await setRolesForUser(
+    const grantedRoleIds = await resolveAdminSafeRoleIds(
       c.env.DB,
-      userId,
-      await resolveAdminSafeRoleIds(
-        c.env.DB,
-        c.var.currentUser,
-        null,
-        formRoleIds(body),
-      ),
+      c.var.currentUser,
+      null,
+      formRoleIds(body),
     );
+    await setRolesForUser(c.env.DB, userId, grantedRoleIds);
     const token = await createAuthToken(
       c.env.DB,
       userId,
@@ -1097,15 +1140,11 @@ authRoute.post(
       to: email,
     });
 
-    const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
-    if (posthog) {
-      posthog.capture({
-        distinctId: String(c.var.currentUser.id),
-        event: "user invited",
-        properties: { invited_user_id: userId },
-      });
-      await posthog.flush();
-    }
+    await captureUserEvent(c, c.var.currentUser, "user invited", {
+      invited_user_id: userId,
+      invited_role_count: grantedRoleIds.length,
+      is_resend: false,
+    });
 
     return c.redirect("/admin/users", 303);
   },
@@ -1130,6 +1169,11 @@ authRoute.post(
         actionUrl: buildActionUrl(c.req.url, "/invite", token),
         displayName: user.label ?? user.username,
         to: user.email,
+      });
+
+      await captureUserEvent(c, c.var.currentUser, "user invited", {
+        invited_user_id: user.id,
+        is_resend: true,
       });
     }
 
@@ -1169,6 +1213,13 @@ authRoute.post("/admin/users/:id/active", async (c) => {
   if (!active) {
     await destroySessionsForUser(c.env.DB, id);
   }
+
+  await captureUserEvent(
+    c,
+    c.var.currentUser,
+    active ? "user activated" : "user deactivated",
+    { target_user_id: id },
+  );
 
   return c.redirect("/admin/users", 303);
 });
@@ -1527,15 +1578,21 @@ authRoute.post("/admin/account", async (c) => {
     throw error;
   }
 
-  const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
-  if (posthog) {
-    posthog.capture({
-      distinctId: String(currentUser.id),
-      event: "account updated",
-      properties: { changed_password: changingPassword },
-    });
-    await posthog.flush();
-  }
+  // Identify with the values just written, not the stale ones on
+  // currentUser — this is the one route where a person's email or username
+  // changes, and the profile has to follow it.
+  const updatedUser = {
+    ...currentUser,
+    email,
+    label: label || null,
+    username,
+  };
+  await identifyUser(c, updatedUser);
+  await captureUserEvent(c, updatedUser, "account updated", {
+    changed_password: changingPassword,
+    changed_email: email !== currentUser.email,
+    changed_username: username !== currentUser.username,
+  });
 
   if (changingPassword) {
     await destroySessionsForUser(c.env.DB, currentUser.id);
@@ -1555,11 +1612,7 @@ authRoute.get("/logout", async (c) => {
   }
 
   if (user) {
-    const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
-    if (posthog) {
-      posthog.capture({ distinctId: String(user.id), event: "user logged out" });
-      await posthog.flush();
-    }
+    await captureUserEvent(c, user, "user logged out");
   }
 
   clearSessionCookie(c);
