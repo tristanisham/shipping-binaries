@@ -19,6 +19,7 @@ import { BlogIndex } from "../views/BlogIndex.js";
 import { BlogPost } from "../views/BlogPost.js";
 import { editorDataHasText } from "../views/components/editorData.js";
 import { parsePageParam } from "./page.js";
+import { createPostHogClient } from "../posthog.js";
 
 export const blogRoute = new Hono<{ Bindings: Env }>();
 
@@ -108,6 +109,20 @@ blogRoute.post("/blog/:slug/comments", async (c) => {
 
   if (!commentId) {
     return c.text("Invalid comment", 422);
+  }
+
+  const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
+  if (posthog) {
+    posthog.capture({
+      distinctId: String(user.id),
+      event: "comment submitted",
+      properties: {
+        post_slug: post.slug,
+        post_id: post.id,
+        has_parent: parentId !== null,
+      },
+    });
+    await posthog.flush();
   }
 
   return c.redirect(`/blog/${post.slug}#comment-${commentId}`, 303);

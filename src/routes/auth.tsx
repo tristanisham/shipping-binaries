@@ -95,6 +95,7 @@ import { Logout } from "../views/Logout.js";
 import { SetPassword } from "../views/SetPassword.js";
 import { Signup, type SignupValues } from "../views/Signup.js";
 import { Write, type WriteFormValues } from "../views/Write.js";
+import { createPostHogClient } from "../posthog.js";
 
 type AuthEnv = {
   Bindings: Env;
@@ -362,6 +363,17 @@ authRoute.post("/signup", async (c) => {
 
   const token = await createSession(c.env.DB, userId);
   setSessionCookie(c, token);
+
+  const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
+  if (posthog) {
+    posthog.capture({
+      distinctId: String(userId),
+      event: "user signed up",
+      properties: { $set: { username: values.username } },
+    });
+    await posthog.flush();
+  }
+
   return c.redirect(getSignedInPath([GUEST_ROLE]), 303);
 });
 
@@ -400,6 +412,16 @@ authRoute.post("/login", async (c) => {
   const roles = await getRolesForUser(c.env.DB, user.id);
   setSessionCookie(c, token);
 
+  const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
+  if (posthog) {
+    posthog.capture({
+      distinctId: String(user.id),
+      event: "user logged in",
+      properties: { $set: { username: user.username } },
+    });
+    await posthog.flush();
+  }
+
   return c.redirect(getSignedInPath(roles), 303);
 });
 
@@ -422,6 +444,12 @@ authRoute.post("/forgot-password", async (c) => {
       displayName: user.label ?? user.username,
       to: user.email,
     });
+
+    const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
+    if (posthog) {
+      posthog.capture({ distinctId: String(user.id), event: "password reset requested" });
+      await posthog.flush();
+    }
   }
 
   return c.html(<ForgotPassword sent />);
@@ -719,6 +747,16 @@ authRoute.post("/admin/write", async (c) => {
       return c.json({ id: currentPostId, saved: true, slug });
     }
 
+    const posthogUpdate = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
+    if (posthogUpdate) {
+      posthogUpdate.capture({
+        distinctId: String(c.var.currentUser.id),
+        event: draft ? "post saved as draft" : "post published",
+        properties: { post_id: currentPostId, slug, title, is_new: false },
+      });
+      await posthogUpdate.flush();
+    }
+
     return c.redirect(`/admin/write?id=${currentPostId}`, 303);
   }
 
@@ -729,6 +767,16 @@ authRoute.post("/admin/write", async (c) => {
 
   if (isAutosave) {
     return c.json({ id: newId, saved: true, slug }, 201);
+  }
+
+  const posthogCreate = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
+  if (posthogCreate) {
+    posthogCreate.capture({
+      distinctId: String(c.var.currentUser.id),
+      event: draft ? "post saved as draft" : "post published",
+      properties: { post_id: newId, slug, title, is_new: true },
+    });
+    await posthogCreate.flush();
   }
 
   return c.redirect(`/admin/write?id=${newId}`, 303);
@@ -1048,6 +1096,16 @@ authRoute.post(
       displayName: labelValue || username,
       to: email,
     });
+
+    const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
+    if (posthog) {
+      posthog.capture({
+        distinctId: String(c.var.currentUser.id),
+        event: "user invited",
+        properties: { invited_user_id: userId },
+      });
+      await posthog.flush();
+    }
 
     return c.redirect("/admin/users", 303);
   },
@@ -1469,6 +1527,16 @@ authRoute.post("/admin/account", async (c) => {
     throw error;
   }
 
+  const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
+  if (posthog) {
+    posthog.capture({
+      distinctId: String(currentUser.id),
+      event: "account updated",
+      properties: { changed_password: changingPassword },
+    });
+    await posthog.flush();
+  }
+
   if (changingPassword) {
     await destroySessionsForUser(c.env.DB, currentUser.id);
     clearSessionCookie(c);
@@ -1480,9 +1548,18 @@ authRoute.post("/admin/account", async (c) => {
 
 authRoute.get("/logout", async (c) => {
   const token = getCookie(c, SESSION_COOKIE_NAME);
+  const user = token ? await getSessionUser(c.env.DB, token) : null;
 
   if (token) {
     await destroySession(c.env.DB, token);
+  }
+
+  if (user) {
+    const posthog = createPostHogClient(c.env.POSTHOG_API_KEY, c.env.POSTHOG_HOST);
+    if (posthog) {
+      posthog.capture({ distinctId: String(user.id), event: "user logged out" });
+      await posthog.flush();
+    }
   }
 
   clearSessionCookie(c);
