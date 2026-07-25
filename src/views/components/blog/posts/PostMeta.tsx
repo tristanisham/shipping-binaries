@@ -8,6 +8,7 @@ type PostMetaProps = {
   inverse?: boolean;
   post: PostWithAuthor;
   showRead?: boolean;
+  showTextSize?: boolean;
 };
 
 export const PostMeta: FC<PostMetaProps> = ({
@@ -15,6 +16,7 @@ export const PostMeta: FC<PostMetaProps> = ({
   inverse = false,
   post,
   showRead = true,
+  showTextSize = false,
 }) => {
   const displayName = post.authorLabel ?? `@${post.authorUsername}`;
   const href = `/blog/${post.slug}`;
@@ -41,6 +43,7 @@ export const PostMeta: FC<PostMetaProps> = ({
         href={href}
         inverse={inverse}
         showRead={showRead}
+        showTextSize={showTextSize}
         title={post.title}
       />
     </div>

@@ -76,6 +76,35 @@
   --color-chocolate-950: #210f03;
 }
 
+/* Reader text-size control: --post-font-scale is set from localStorage by the
+   head bootstrap and by the post action bar buttons. Text utilities inside the
+   post body are re-declared in em so they scale with it instead of staying
+   pinned to root rem. These rules stay unlayered so they win over Tailwind's
+   utilities layer. */
+.post-body {
+  font-size: calc(1rem * var(--post-font-scale, 1));
+}
+
+.post-body .text-xs {
+  font-size: 0.75em;
+}
+
+.post-body .text-sm {
+  font-size: 0.875em;
+}
+
+.post-body .text-lg {
+  font-size: 1.125em;
+}
+
+.post-body .text-xl {
+  font-size: 1.25em;
+}
+
+.post-body .text-2xl {
+  font-size: 1.5em;
+}
+
 @layer components {
   .editor-js .ce-block__content,
   .editor-js .ce-toolbar__content {

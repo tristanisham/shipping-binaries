@@ -1,4 +1,6 @@
 import type { FC } from "hono/jsx";
+import { AArrowDownIcon } from "../../icons/AArrowDownIcon.js";
+import { AArrowUpIcon } from "../../icons/AArrowUpIcon.js";
 import { EditIcon } from "../../icons/EditIcon.js";
 import { buttonVariants } from "../../ui/Button.js";
 
@@ -9,8 +11,13 @@ type PostActionsProps = {
   href: string;
   inverse?: boolean;
   showRead?: boolean;
+  // Text size controls only make sense where the post body is rendered.
+  showTextSize?: boolean;
   title: string;
 };
+
+const stepTextSize = (direction: 1 | -1): string =>
+  `window.stepPostFontScale(${direction})`;
 
 const sharePost = [
   "var button=this;",
@@ -38,6 +45,7 @@ export const PostActions: FC<PostActionsProps> = ({
   href,
   inverse = false,
   showRead = true,
+  showTextSize = false,
   title,
 }) => {
   const buttonClass = inverse
@@ -46,6 +54,30 @@ export const PostActions: FC<PostActionsProps> = ({
 
   return (
     <div class="relative ml-auto flex shrink-0 items-center gap-2">
+      {showTextSize
+        ? (
+          <>
+            <button
+              aria-label="Decrease text size"
+              class={buttonClass}
+              onclick={stepTextSize(-1)}
+              title="Decrease text size"
+              type="button"
+            >
+              <AArrowDownIcon />
+            </button>
+            <button
+              aria-label="Increase text size"
+              class={buttonClass}
+              onclick={stepTextSize(1)}
+              title="Increase text size"
+              type="button"
+            >
+              <AArrowUpIcon />
+            </button>
+          </>
+        )
+        : null}
       {editHref
         ? (
           <a
