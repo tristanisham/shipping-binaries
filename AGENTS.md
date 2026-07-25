@@ -6,7 +6,13 @@
 - `src/index.tsx` creates the app, mounts route modules, and directly handles
   the public `/` and `/about` pages. Keep related endpoints grouped under
   `src/routes/` rather than growing the entrypoint: `auth.tsx` owns login,
-  logout, and `/admin` routes, while `weather.ts` owns `/api/weather`.
+  logout, and `/admin` routes, `blog.tsx` owns `/blog` and `/@username`,
+  `rss.ts` owns the feeds, and `weather.ts` owns `/api/weather`.
+- RSS lives in `src/feeds/rss.ts` (serialization and canonical feed paths) and
+  `src/routes/rss.ts` (`/rss` and `/blog/rss` for the whole blog,
+  `/@username/rss` for one author). Keep `rssRoute` mounted before `blogRoute`
+  in `src/index.tsx`, or `/blog/rss` resolves as a post slug. Pages advertise
+  their feeds through `LayoutMeta.feeds`.
 - Page views live in `src/views/`, shared page chrome in `src/views/layouts/`,
   and reusable UI in `src/views/components/`.
 - `src/dev.ts` is the plain Node server entrypoint. `src/app.ts` re-exports the
@@ -54,6 +60,12 @@
   post. Comment replies are recursive through `parent_id`; public comment
   mutation routes remain intentionally deferred until commenter authentication
   is decided.
+- Every post has an author, enforced in the schema: `posts.user_id` is `NOT
+  NULL` and `REFERENCES users(id) ON DELETE CASCADE`, and D1 enforces foreign
+  keys by default. Post routes always write `c.var.currentUser.id`, and reading
+  queries inner-join `users` for the author's username and label. Preserve that
+  constraint in any migration that touches `posts` or `users`; deleting a user
+  removes their posts rather than leaving them authorless.
 
 ## Local workflow
 
@@ -116,15 +128,18 @@ Before handing off changes, run:
 
 ```sh
 npm run typecheck
+npm test
 git diff --check
 ```
 
 For Tailwind validation, compile to a temporary file instead of
 `public/styles.css`, for example
 `npx tailwindcss -i ./src/styles.css -o /tmp/shipping-binaries-styles.css --minify`.
-There is currently no automated test script. Exercise affected routes in the
-browser when behavior or layout changes; use `npm run dev:worker` for behavior
-that depends on D1.
+`npm test` runs `node --test` over `tests/`; `tests/helpers/d1.ts` applies
+`migrations/` to an in-memory `node:sqlite` database that stands in for D1, so
+model SQL and schema constraints are covered without a binding. Still exercise
+affected routes in the browser when behavior or layout changes; use
+`npm run dev:worker` for behavior that depends on D1.
 
 ## Code conventions
 

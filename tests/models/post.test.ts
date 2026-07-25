@@ -217,3 +217,46 @@ test("published post queries exclude drafts and resolve slugs", async () => {
   );
   assert.equal(await getPublishedPostBySlug(db, "draft-post"), null);
 });
+
+test("posts cannot exist without an author", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, { email: "a@x.com", username: "alice" });
+  const insert = (author: number | null) =>
+    db
+      .prepare(
+        `INSERT INTO posts (user_id, slug, draft, title, description, body)
+         VALUES (?1, ?2, 0, 'Orphan', '', '{"blocks":[]}')`,
+      )
+      .bind(author, `orphan-${author}`)
+      .run();
+
+  // posts.user_id is NOT NULL and REFERENCES users(id); D1 enforces foreign
+  // keys by default, as does the node:sqlite harness these tests run against.
+  await assert.rejects(insert(null), /NOT NULL constraint failed/);
+  await assert.rejects(insert(userId + 999), /FOREIGN KEY constraint failed/);
+});
+
+test("deleting an author removes their posts instead of orphaning them", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, { email: "a@x.com", username: "alice" });
+  await createPost(db, {
+    userId,
+    slug: "authored",
+    title: "Authored",
+    description: "",
+    keywords: [],
+    image: "",
+    body: '{"blocks":[]}',
+    draft: false,
+  });
+
+  await db.prepare("DELETE FROM users WHERE id = ?1").bind(userId).run();
+
+  assert.deepEqual(await getAllPosts(db), []);
+  assert.equal(
+    (await db.prepare("SELECT COUNT(*) AS count FROM posts").first<
+      { count: number }
+    >())?.count,
+    0,
+  );
+});

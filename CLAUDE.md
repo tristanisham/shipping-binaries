@@ -29,10 +29,14 @@ npm run account:create      # create/update the owner user; needs OWNER_EMAIL, O
 
 Local Wrangler state persists to `${DATABASE_URL:-.wrangler/state}`.
 
-There is no test suite and no linter. Before handing off changes, run:
+Tests live in `tests/` and run on `node --test` with a `node:sqlite` stand-in
+for D1 (`tests/helpers/d1.ts` applies `migrations/` to an in-memory database, so
+model SQL and schema constraints are exercised for real). There is no linter;
+`npm run fmt` is `deno fmt`. Before handing off changes, run:
 
 ```sh
 npm run typecheck
+npm test
 npm run build
 git diff --check
 ```
@@ -53,8 +57,17 @@ Two entrypoints share one Hono app:
 
 Layout of `src/`:
 
-- `routes/` — feature routers (`auth.tsx`: login/logout/`/admin`; `weather.ts`:
-  `/api/weather` proxying the NWS Cleveland observation with caching).
+- `routes/` — feature routers (`auth.tsx`: login/logout/`/admin`; `blog.tsx`:
+  `/blog`, `/blog/:slug`, comment posting, and `/@username` author pages;
+  `rss.ts`: the RSS feeds; `weather.ts`: `/api/weather` proxying the NWS
+  Cleveland observation with caching).
+- `feeds/rss.ts` — RSS 2.0 serialization plus the canonical feed paths
+  (`BLOG_FEED_PATH`, `authorFeedPath`). `/rss` and `/blog/rss` return the same
+  whole-blog feed and both point `rel="self"` at `/rss` so aggregators dedupe;
+  `/@username/rss` carries one author's posts. Items are summary-only (the
+  post's description, else an excerpt of the body). `rssRoute` must stay mounted
+  before `blogRoute` in `src/index.tsx` or `/blog/rss` resolves as a post slug.
+  Pages advertise their feeds through `LayoutMeta.feeds`.
 - `views/` — one file per page; `views/layouts/MainLayout.tsx` exports `Layout`
   (HTML shell, meta tags, dark-mode bootstrap script); `views/components/` for
   reusable UI.
@@ -81,7 +94,12 @@ SHA-256 hash of a random token, and sets the raw token in an httpOnly
 `c.var.currentUser`. Auth pages set `Cache-Control: no-store`.
 
 Database: schema lives in numbered SQL files in `migrations/` (users, sessions,
-posts + comments), applied with the `db:migrate:*` scripts. The production D1
+posts + comments), applied with the `db:migrate:*` scripts. Every post has an
+author: `posts.user_id` is `NOT NULL` and `REFERENCES users(id) ON DELETE
+CASCADE`, so a post can never be written without a real user and an author's
+posts go with them rather than being orphaned (D1 enforces foreign keys by
+default). Post-reading queries rely on that — they inner-join `users` for the
+author's username and label. The production D1
 database ID committed in `wrangler.jsonc` is an identifier, not a secret.
 `wrangler.jsonc` is the deployment source of truth: it binds D1 as `DB`,
 publishes `public/` as static assets, and routes the `shippingbinaries.com` apex
