@@ -1,4 +1,5 @@
 import type { Child, FC } from "hono/jsx";
+import { PostHogSnippet } from "../components/analytics/PostHog.js";
 import { PostFontScaleScript } from "../components/blog/PostFontScale.js";
 import { type SocialMeta, SocialMetaTags } from "../components/SocialMeta.js";
 import { ToastViewport } from "../components/Toast.js";
@@ -89,6 +90,7 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
           }}
         />
         <link rel="stylesheet" href="/styles.css" />
+        <PostHogSnippet />
       </head>
       <body class="bg-amber-50 font-sans text-mist-600 dark:bg-mist-600 dark:text-amber-50">
         {children}

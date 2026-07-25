@@ -21,6 +21,12 @@
   it as part of agent work.
 - Static files belong under `public/` and are referenced from the site root, for
   example `/styles.css`.
+- Analytics is the PostHog HTML snippet in
+  `src/views/components/analytics/PostHog.tsx`, rendered by `Layout` at the end
+  of `<head>`. The project API key is write-only and belongs in that file rather
+  than a binding. Keep `capture_pageleave` on so bounce rate and session
+  duration stay accurate, and leave the local-hostname guard in place so
+  `npm run dev` does not send events.
 - `wrangler.jsonc` is the Cloudflare Workers deployment source of truth. It
   binds D1 as `c.env.DB`, publishes `public/` as Workers static assets, and
   routes both the apex and `www` domains to the Worker.
