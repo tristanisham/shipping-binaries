@@ -62,14 +62,19 @@ Layout of `src/`:
   `feeds.ts`: the syndication feeds; `weather.ts`: `/api/weather` proxying the
   NWS Cleveland observation with caching).
 - `feeds/feed.ts` — feed building on the `feed` package, plus the canonical
-  paths (`BLOG_FEED_PATHS`, `authorFeedPath`) and autodiscovery link helpers.
-  The whole blog is served in three formats — `/rss` (RSS 2.0), `/feed.xml`
-  (Atom 1.0), `/feed.json` (JSON Feed) — and `/@username/rss` carries one
-  author's posts as RSS. All three whole-blog formats are advertised as
-  `feedLinks`, which is what gives each its own `rel="self"`. Items are
-  summary-only (the post's description, else an excerpt of the body); pages
+  paths (`BLOG_FEED_PATHS`, `authorFeedPaths`) and autodiscovery link helpers.
+  Both the whole blog and each author are served in three formats: RSS 2.0
+  (`/rss`, `/@username/rss`), Atom 1.0 (`/feed.xml`, `/@username/feed.xml`), and
+  JSON Feed (`/feed.json`, `/@username/feed.json`). A feed's whole path set goes
+  in as `feedLinks`, which is what gives each format its own `rel="self"`. Items
+  are summary-only (the post's description, else an excerpt of the body); pages
   advertise their feeds through `LayoutMeta.feeds`. The package needs no node
-  builtins, so the Worker still builds without `nodejs_compat`.
+  builtins, so the Worker builds without `nodejs_compat`.
+  RSS names the author in `<dc:creator>`, not `<author>`: RSS 2.0 requires an
+  email address there and the W3C feed validator flags a bare name. The package
+  declares `xmlns:dc` only for `content:encoded` and exposes no root-attribute
+  hook, so `withDublinCoreNamespace` splices the declaration into its output —
+  tests cover both that splice and that no feed uses an undeclared prefix.
 - `views/` — one file per page; `views/layouts/MainLayout.tsx` exports `Layout`
   (HTML shell, meta tags, dark-mode bootstrap script); `views/components/` for
   reusable UI.

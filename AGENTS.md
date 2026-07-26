@@ -9,12 +9,17 @@
   logout, and `/admin` routes, `blog.tsx` owns `/blog` and `/@username`,
   `rss.ts` owns the feeds, and `weather.ts` owns `/api/weather`.
 - Feeds live in `src/feeds/feed.ts` (built with the `feed` package: canonical
-  paths, format content types, autodiscovery links) and `src/routes/feeds.ts`
-  (`/rss`, `/feed.xml`, and `/feed.json` for the whole blog; `/@username/rss`
-  for one author). Add a format by extending `FeedFormat` and its path/content
-  type maps rather than hand-writing markup, and keep the feed dependency free
-  of node builtins so the Worker builds without `nodejs_compat`. Pages advertise
-  their feeds through `LayoutMeta.feeds`.
+  paths, format content types, autodiscovery links) and `src/routes/feeds.ts`.
+  The whole blog and every author are each served as RSS, Atom, and JSON Feed:
+  `/rss`, `/feed.xml`, `/feed.json`, and the same three under `/@username/`. Add
+  a format by extending `FeedFormat` and its path/content type maps rather than
+  hand-writing markup, and keep the feed dependency free of node builtins so the
+  Worker builds without `nodejs_compat`. Pages advertise their feeds through
+  `LayoutMeta.feeds`.
+- Keep feeds clean under the W3C feed validator. RSS carries the author as
+  `<dc:creator>` because RSS 2.0 reserves `<author>` for an email address; the
+  `xmlns:dc` declaration is spliced onto the package's output. Any element with
+  a namespace prefix needs its prefix declared on the root element.
 - Page views live in `src/views/`, shared page chrome in `src/views/layouts/`,
   and reusable UI in `src/views/components/`.
 - `src/dev.ts` is the plain Node server entrypoint. `src/app.ts` re-exports the
