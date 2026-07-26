@@ -6,7 +6,6 @@ import { buttonVariants } from "../../ui/Button.js";
 
 type PostActionsProps = {
   commentCount: number;
-  displayName: string;
   editHref?: string;
   href: string;
   inverse?: boolean;
@@ -22,11 +21,7 @@ const stepTextSize = (direction: 1 | -1): string =>
 const sharePost = [
   "var button=this;",
   "var url=new URL(button.dataset.sharePath,window.location.origin).href;",
-  "var text='I just finished reading '+button.dataset.shareTitle+' by '+button.dataset.shareAuthor+' on Shipping Binaries';",
-  "var copy=function(){window.copyWithToast(url,'Link copied!').then(function(copied){if(copied){button.title='Link copied!'}})};",
-  "var data={title:button.dataset.shareTitle,text:text,url:url};",
-  "var canNativeShare=false;try{canNativeShare=Boolean(navigator.share)&&(!navigator.canShare||navigator.canShare(data))}catch(error){}",
-  "if(canNativeShare){navigator.share(data).catch(function(error){if(!error||error.name!=='AbortError'){copy()}})}else{copy()}",
+  "window.copyWithToast(url,'Link copied!');",
 ].join("");
 
 const commentCountFormatter = new Intl.NumberFormat("en-US", {
@@ -40,7 +35,6 @@ export const formatCommentCount = (count: number): string =>
 
 export const PostActions: FC<PostActionsProps> = ({
   commentCount,
-  displayName,
   editHref,
   href,
   inverse = false,
@@ -92,15 +86,13 @@ export const PostActions: FC<PostActionsProps> = ({
         )
         : null}
       <button
-        aria-label={`Share ${title}`}
+        aria-label={`Copy link to ${title}`}
         class={buttonClass}
         onclick={sharePost}
-        title="Share"
+        title="Copy link"
         type="button"
         {...{
-          "data-share-author": displayName,
           "data-share-path": href,
-          "data-share-title": title,
         }}
       >
         <svg
