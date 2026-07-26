@@ -8,10 +8,13 @@
   `src/routes/` rather than growing the entrypoint: `auth.tsx` owns login,
   logout, and `/admin` routes, `blog.tsx` owns `/blog` and `/@username`,
   `rss.ts` owns the feeds, and `weather.ts` owns `/api/weather`.
-- RSS lives in `src/feeds/rss.ts` (serialization and canonical feed paths) and
-  `src/routes/rss.ts` (`/rss` for the whole blog, `/@username/rss` for one
-  author). `/rss` is the only whole-blog feed path; pages advertise their feeds
-  through `LayoutMeta.feeds`.
+- Feeds live in `src/feeds/feed.ts` (built with the `feed` package: canonical
+  paths, format content types, autodiscovery links) and `src/routes/feeds.ts`
+  (`/rss`, `/feed.xml`, and `/feed.json` for the whole blog; `/@username/rss`
+  for one author). Add a format by extending `FeedFormat` and its path/content
+  type maps rather than hand-writing markup, and keep the feed dependency free
+  of node builtins so the Worker builds without `nodejs_compat`. Pages advertise
+  their feeds through `LayoutMeta.feeds`.
 - Page views live in `src/views/`, shared page chrome in `src/views/layouts/`,
   and reusable UI in `src/views/components/`.
 - `src/dev.ts` is the plain Node server entrypoint. `src/app.ts` re-exports the

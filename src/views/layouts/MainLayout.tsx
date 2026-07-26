@@ -13,9 +13,10 @@ export type LayoutMeta = {
   viewport?: string;
   robots?: string;
   canonical?: string;
-  // RSS feeds this page offers, rendered as <link rel="alternate"> so readers
-  // and browser extensions can discover them.
-  feeds?: { href: string; title: string }[];
+  // Feeds this page offers, rendered as <link rel="alternate"> so readers and
+  // browser extensions can discover them. `type` is the feed's content type
+  // (see FEED_CONTENT_TYPES), which is how a reader tells the formats apart.
+  feeds?: { href: string; title: string; type: string }[];
   // Open Graph / Twitter card tags; title, description, and url fall back to
   // the page's title, description, and canonical when not set.
   social?: SocialMeta;
@@ -53,7 +54,7 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         {meta?.feeds?.map((feed) => (
           <link
             rel="alternate"
-            type="application/rss+xml"
+            type={feed.type}
             title={feed.title}
             href={feed.href}
           />

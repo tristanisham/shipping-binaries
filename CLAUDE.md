@@ -59,13 +59,17 @@ Layout of `src/`:
 
 - `routes/` — feature routers (`auth.tsx`: login/logout/`/admin`; `blog.tsx`:
   `/blog`, `/blog/:slug`, comment posting, and `/@username` author pages;
-  `rss.ts`: the RSS feeds; `weather.ts`: `/api/weather` proxying the NWS
-  Cleveland observation with caching).
-- `feeds/rss.ts` — RSS 2.0 serialization plus the canonical feed paths
-  (`BLOG_FEED_PATH`, `authorFeedPath`). `/rss` is the whole-blog feed and
-  `/@username/rss` carries one author's posts; items are summary-only (the
-  post's description, else an excerpt of the body). Pages advertise their feeds
-  through `LayoutMeta.feeds`.
+  `feeds.ts`: the syndication feeds; `weather.ts`: `/api/weather` proxying the
+  NWS Cleveland observation with caching).
+- `feeds/feed.ts` — feed building on the `feed` package, plus the canonical
+  paths (`BLOG_FEED_PATHS`, `authorFeedPath`) and autodiscovery link helpers.
+  The whole blog is served in three formats — `/rss` (RSS 2.0), `/feed.xml`
+  (Atom 1.0), `/feed.json` (JSON Feed) — and `/@username/rss` carries one
+  author's posts as RSS. All three whole-blog formats are advertised as
+  `feedLinks`, which is what gives each its own `rel="self"`. Items are
+  summary-only (the post's description, else an excerpt of the body); pages
+  advertise their feeds through `LayoutMeta.feeds`. The package needs no node
+  builtins, so the Worker still builds without `nodejs_compat`.
 - `views/` — one file per page; `views/layouts/MainLayout.tsx` exports `Layout`
   (HTML shell, meta tags, dark-mode bootstrap script); `views/components/` for
   reusable UI.
