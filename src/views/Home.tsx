@@ -1,6 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
+import { blogFeedLinks } from "../feeds/feed.js";
 import { Layout, LayoutMeta } from "./layouts/MainLayout.js";
 import { PostList } from "./components/blog/posts/PostList.js";
 import { toAbsoluteUrl } from "./components/SocialMeta.js";
@@ -36,6 +37,7 @@ export const Home: FC<HomeProps> = (
       "Software Development Blog",
     ],
     canonical: toAbsoluteUrl("/"),
+    feeds: blogFeedLinks(),
     social: {
       title: "Shipping Binaries",
     },
