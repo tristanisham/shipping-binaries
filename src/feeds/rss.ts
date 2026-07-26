@@ -8,8 +8,8 @@ export const RSS_CONTENT_TYPE = "application/rss+xml; charset=utf-8";
 export const RSS_CACHE_CONTROL =
   "public, max-age=1800, stale-while-revalidate=3600";
 
-// `/rss` and `/blog/rss` serve the same feed; both advertise `/rss` as their
-// self link so aggregators subscribed through either path dedupe to one feed.
+// The whole-blog feed. Kept here rather than in the route so views can link it
+// without importing a router.
 export const BLOG_FEED_PATH = "/rss";
 
 export const authorFeedPath = (username: string): string =>

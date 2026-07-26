@@ -62,12 +62,10 @@ Layout of `src/`:
   `rss.ts`: the RSS feeds; `weather.ts`: `/api/weather` proxying the NWS
   Cleveland observation with caching).
 - `feeds/rss.ts` — RSS 2.0 serialization plus the canonical feed paths
-  (`BLOG_FEED_PATH`, `authorFeedPath`). `/rss` and `/blog/rss` return the same
-  whole-blog feed and both point `rel="self"` at `/rss` so aggregators dedupe;
-  `/@username/rss` carries one author's posts. Items are summary-only (the
-  post's description, else an excerpt of the body). `rssRoute` must stay mounted
-  before `blogRoute` in `src/index.tsx` or `/blog/rss` resolves as a post slug.
-  Pages advertise their feeds through `LayoutMeta.feeds`.
+  (`BLOG_FEED_PATH`, `authorFeedPath`). `/rss` is the whole-blog feed and
+  `/@username/rss` carries one author's posts; items are summary-only (the
+  post's description, else an excerpt of the body). Pages advertise their feeds
+  through `LayoutMeta.feeds`.
 - `views/` — one file per page; `views/layouts/MainLayout.tsx` exports `Layout`
   (HTML shell, meta tags, dark-mode bootstrap script); `views/components/` for
   reusable UI.

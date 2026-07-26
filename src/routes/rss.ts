@@ -33,7 +33,6 @@ const blogFeed = async (c: Context<{ Bindings: Env }>) => {
 };
 
 rssRoute.get(BLOG_FEED_PATH, blogFeed);
-rssRoute.get("/blog/rss", blogFeed);
 
 rssRoute.get("/:handle{@[^/]+}/rss", async (c) => {
   const username = c.req.param("handle").slice(1);

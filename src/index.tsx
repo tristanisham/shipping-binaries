@@ -14,7 +14,6 @@ import { Home } from "./views/Home.js";
 const app = new Hono<{ Bindings: Env }>();
 
 app.route("/", authRoute);
-// Ahead of blogRoute so `/blog/rss` resolves to the feed, not `/blog/:slug`.
 app.route("/", rssRoute);
 app.route("/", blogRoute);
 app.route("/", weatherRoute);

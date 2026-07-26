@@ -9,10 +9,9 @@
   logout, and `/admin` routes, `blog.tsx` owns `/blog` and `/@username`,
   `rss.ts` owns the feeds, and `weather.ts` owns `/api/weather`.
 - RSS lives in `src/feeds/rss.ts` (serialization and canonical feed paths) and
-  `src/routes/rss.ts` (`/rss` and `/blog/rss` for the whole blog,
-  `/@username/rss` for one author). Keep `rssRoute` mounted before `blogRoute`
-  in `src/index.tsx`, or `/blog/rss` resolves as a post slug. Pages advertise
-  their feeds through `LayoutMeta.feeds`.
+  `src/routes/rss.ts` (`/rss` for the whole blog, `/@username/rss` for one
+  author). `/rss` is the only whole-blog feed path; pages advertise their feeds
+  through `LayoutMeta.feeds`.
 - Page views live in `src/views/`, shared page chrome in `src/views/layouts/`,
   and reusable UI in `src/views/components/`.
 - `src/dev.ts` is the plain Node server entrypoint. `src/app.ts` re-exports the

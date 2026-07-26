@@ -92,19 +92,11 @@ test("/rss serves an RSS feed of every published post", async () => {
   assert.doesNotMatch(xml, /Unpublished draft/);
 });
 
-test("/blog/rss serves the blog feed rather than a post slug", async () => {
+test("/rss is the only whole-blog feed path", async () => {
   const db = await seedFeedFixtures();
-  const [feed, canonical] = await Promise.all([
-    app.request("/blog/rss", {}, { DB: db } as Env),
-    app.request("/rss", {}, { DB: db } as Env),
-  ]);
+  const response = await app.request("/blog/rss", {}, { DB: db } as Env);
 
-  assert.equal(feed.status, 200);
-  assert.equal(
-    feed.headers.get("content-type"),
-    "application/rss+xml; charset=utf-8",
-  );
-  assert.equal(await feed.text(), await canonical.text());
+  assert.equal(response.status, 404);
 });
 
 test("feed items escape XML and fall back to a body excerpt", async () => {
