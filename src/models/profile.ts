@@ -13,6 +13,8 @@ export interface PublicProfile {
   id: number;
   label: string | null;
   username: string;
+  // False when the account has been deactivated, archiving its posts.
+  active: boolean;
 }
 
 interface ProfileRow {
@@ -28,6 +30,7 @@ interface PublicProfileRow {
   id: number;
   label: string | null;
   username: string;
+  active: 0 | 1;
 }
 
 const profileFromRow = (row: ProfileRow): Profile => ({
@@ -58,13 +61,19 @@ export const getProfileForUser = async (
 export const getPublicProfileByUsername = async (
   db: D1Database,
   username: string,
+  // Deactivated accounts are archived: hidden from the public author page
+  // unless the viewer holds posts:view-archived.
+  options?: { includeArchived?: boolean },
 ): Promise<PublicProfile | null> => {
   const row = await db
     .prepare(
-      `SELECT users.id, users.username, users.label, profiles.biography
+      `SELECT users.id, users.username, users.label, users.active,
+              profiles.biography
        FROM users
        LEFT JOIN profiles ON profiles.user_id = users.id
-       WHERE users.username = ?1
+       WHERE users.username = ?1${
+        options?.includeArchived ? "" : " AND users.active = 1"
+      }
        LIMIT 1`,
     )
     .bind(username)
@@ -76,6 +85,7 @@ export const getPublicProfileByUsername = async (
       id: row.id,
       label: row.label,
       username: row.username,
+      active: row.active === 1,
     }
     : null;
 };

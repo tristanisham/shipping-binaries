@@ -24,7 +24,18 @@ export interface Post {
 export interface PostWithAuthor extends Post {
   authorLabel: string | null;
   authorUsername: string;
+  // False when the author has been deactivated, which archives their posts.
+  authorActive: boolean;
 }
+
+export type PublishedPostOptions = {
+  // Include posts by deactivated authors. Off by default so a caller that
+  // forgets to think about it gets the public view, not the archive.
+  includeArchived?: boolean;
+};
+
+const archivedAuthorFilter = (options?: PublishedPostOptions): string =>
+  options?.includeArchived ? "" : " AND users.active = 1";
 
 export interface PostRow {
   id: number;
@@ -43,6 +54,7 @@ export interface PostRow {
 interface PostWithAuthorRow extends PostRow {
   author_label: string | null;
   author_username: string;
+  author_active: 0 | 1;
 }
 
 export const postFromRow = (
@@ -70,6 +82,7 @@ const postWithAuthorFromRow = (
   ...postFromRow(row, comments),
   authorLabel: row.author_label,
   authorUsername: row.author_username,
+  authorActive: row.author_active === 1,
 });
 
 export const postToRow = (post: Post): PostRow => ({
@@ -317,14 +330,16 @@ export const updatePost = async (
 
 export const getPublishedPosts = async (
   db: D1Database,
+  options?: PublishedPostOptions,
 ): Promise<readonly PostWithAuthor[]> => {
   const result = await db
     .prepare(
       `SELECT ${QUALIFIED_POST_COLUMNS},
-              users.username AS author_username, users.label AS author_label
+              users.username AS author_username, users.label AS author_label,
+              users.active AS author_active
        FROM posts
        JOIN users ON users.id = posts.user_id
-       WHERE posts.draft = 0
+       WHERE posts.draft = 0${archivedAuthorFilter(options)}
        ORDER BY posts.created_at DESC, posts.id DESC`,
     )
     .all<PostWithAuthorRow>();
@@ -335,14 +350,18 @@ export const getPublishedPosts = async (
 export const getPublishedPostsForUser = async (
   db: D1Database,
   userId: number,
+  options?: PublishedPostOptions,
 ): Promise<readonly PostWithAuthor[]> => {
   const result = await db
     .prepare(
       `SELECT ${QUALIFIED_POST_COLUMNS},
-              users.username AS author_username, users.label AS author_label
+              users.username AS author_username, users.label AS author_label,
+              users.active AS author_active
        FROM posts
        JOIN users ON users.id = posts.user_id
-       WHERE posts.draft = 0 AND posts.user_id = ?1
+       WHERE posts.draft = 0 AND posts.user_id = ?1${
+        archivedAuthorFilter(options)
+      }
        ORDER BY posts.created_at DESC, posts.id DESC`,
     )
     .bind(userId)
@@ -354,14 +373,18 @@ export const getPublishedPostsForUser = async (
 export const getPublishedPostBySlug = async (
   db: D1Database,
   slug: string,
+  options?: PublishedPostOptions,
 ): Promise<PostWithAuthor | null> => {
   const row = await db
     .prepare(
       `SELECT ${QUALIFIED_POST_COLUMNS},
-              users.username AS author_username, users.label AS author_label
+              users.username AS author_username, users.label AS author_label,
+              users.active AS author_active
        FROM posts
        JOIN users ON users.id = posts.user_id
-       WHERE posts.slug = ?1 AND posts.draft = 0
+       WHERE posts.slug = ?1 AND posts.draft = 0${
+        archivedAuthorFilter(options)
+      }
        LIMIT 1`,
     )
     .bind(slug)
@@ -380,9 +403,16 @@ export const getPublishedPostBySlug = async (
 export const getPublishedPostRefBySlug = async (
   db: D1Database,
   slug: string,
+  options?: PublishedPostOptions,
 ): Promise<{ id: number; slug: string } | null> => {
   const row = await db
-    .prepare("SELECT id, slug FROM posts WHERE slug = ?1 AND draft = 0 LIMIT 1")
+    .prepare(
+      `SELECT posts.id, posts.slug
+       FROM posts
+       JOIN users ON users.id = posts.user_id
+       WHERE posts.slug = ?1 AND posts.draft = 0${archivedAuthorFilter(options)}
+       LIMIT 1`,
+    )
     .bind(slug)
     .first<{ id: number; slug: string }>();
 

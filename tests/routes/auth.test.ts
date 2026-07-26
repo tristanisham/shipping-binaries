@@ -659,6 +659,7 @@ test("account profile update preserves the password and session", async () => {
     true,
   );
   assert.deepEqual(await getPublicProfileByUsername(db, "member"), {
+    active: true,
     biography: "Updated without a password.",
     id: userId,
     label: "Updated Name",
@@ -757,6 +758,7 @@ test("account password update verifies the current password and forces sign-in",
     false,
   );
   assert.deepEqual(await getPublicProfileByUsername(db, "updated-member"), {
+    active: true,
     biography: "I build useful things.",
     id: userId,
     label: "Updated Member",

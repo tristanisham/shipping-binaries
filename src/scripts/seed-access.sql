@@ -4,13 +4,15 @@ INSERT OR IGNORE INTO roles (name) VALUES
   ('admin'),
   ('guest'),
   ('author'),
-  ('editor');
+  ('editor'),
+  ('moderator');
 
 INSERT OR IGNORE INTO permissions (name) VALUES
   ('posts:create'),
   ('posts:read'),
   ('posts:update'),
   ('posts:delete'),
+  ('posts:view-archived'),
   ('comments:create'),
   ('comments:read'),
   ('comments:update'),
@@ -46,3 +48,10 @@ WHERE roles.name = 'editor'
     'posts:update',
     'posts:delete'
   );
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
+SELECT roles.id, permissions.id
+FROM roles
+CROSS JOIN permissions
+WHERE roles.name = 'moderator'
+  AND permissions.name IN ('posts:read', 'posts:view-archived');

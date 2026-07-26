@@ -21,6 +21,7 @@ test("profiles belong to users and expose public profile information", async () 
   assert.equal(profile?.userId, userId);
   assert.equal(profile?.biography, "");
   assert.deepEqual(await getPublicProfileByUsername(db, "author"), {
+    active: true,
     biography: "",
     id: userId,
     label: "Author Name",

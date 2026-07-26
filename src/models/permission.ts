@@ -13,6 +13,9 @@ export const POSTS_CREATE_PERMISSION = "posts:create";
 export const POSTS_READ_PERMISSION = "posts:read";
 export const POSTS_UPDATE_PERMISSION = "posts:update";
 export const POSTS_DELETE_PERMISSION = "posts:delete";
+// Read posts whose author has been deactivated ("archived"), which are hidden
+// from every public listing, feed, and page.
+export const POSTS_VIEW_ARCHIVED_PERMISSION = "posts:view-archived";
 export const COMMENTS_CREATE_PERMISSION = "comments:create";
 export const COMMENTS_READ_PERMISSION = "comments:read";
 export const COMMENTS_UPDATE_PERMISSION = "comments:update";

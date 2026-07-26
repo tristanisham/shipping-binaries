@@ -5,6 +5,7 @@ import { createComment } from "../models/comment.js";
 import {
   COMMENTS_CREATE_PERMISSION,
   Permission,
+  POSTS_VIEW_ARCHIVED_PERMISSION,
 } from "../models/permission.js";
 import {
   getPublishedPostBySlug,
@@ -23,10 +24,13 @@ import { parsePageParam } from "./page.js";
 export const blogRoute = new Hono<{ Bindings: Env }>();
 
 blogRoute.get("/blog", async (c) => {
-  const [viewer, posts] = await Promise.all([
-    getViewerState(c.env.DB, getCookie(c, SESSION_COOKIE_NAME)),
-    getPublishedPosts(c.env.DB),
-  ]);
+  const viewer = await getViewerState(
+    c.env.DB,
+    getCookie(c, SESSION_COOKIE_NAME),
+  );
+  const posts = await getPublishedPosts(c.env.DB, {
+    includeArchived: viewer.canViewArchived,
+  });
 
   return c.html(
     <BlogIndex
@@ -38,10 +42,13 @@ blogRoute.get("/blog", async (c) => {
 });
 
 blogRoute.get("/blog/:slug", async (c) => {
-  const [viewer, post] = await Promise.all([
-    getViewerState(c.env.DB, getCookie(c, SESSION_COOKIE_NAME)),
-    getPublishedPostBySlug(c.env.DB, c.req.param("slug")),
-  ]);
+  const viewer = await getViewerState(
+    c.env.DB,
+    getCookie(c, SESSION_COOKIE_NAME),
+  );
+  const post = await getPublishedPostBySlug(c.env.DB, c.req.param("slug"), {
+    includeArchived: viewer.canViewArchived,
+  });
 
   if (!post) {
     return c.notFound();
@@ -71,14 +78,20 @@ blogRoute.post("/blog/:slug/comments", async (c) => {
     return c.redirect("/login", 303);
   }
 
-  const [forbidden, post] = await Promise.all([
+  const [forbidden, canViewArchived] = await Promise.all([
     Permission.cannot(COMMENTS_CREATE_PERMISSION, c.env.DB, user.id),
-    getPublishedPostRefBySlug(c.env.DB, slug),
+    Permission.can(POSTS_VIEW_ARCHIVED_PERMISSION, c.env.DB, user.id),
   ]);
 
   if (forbidden) {
     return c.text("Forbidden", 403);
   }
+
+  // Commenting follows visibility: an archived post accepts comments only from
+  // someone who can still see it.
+  const post = await getPublishedPostRefBySlug(c.env.DB, slug, {
+    includeArchived: canViewArchived,
+  });
 
   if (!post) {
     return c.notFound();
@@ -120,16 +133,21 @@ blogRoute.get("/:handle{@[^/]+}", async (c) => {
     return c.notFound();
   }
 
-  const [viewer, author] = await Promise.all([
-    getViewerState(c.env.DB, getCookie(c, SESSION_COOKIE_NAME)),
-    getPublicProfileByUsername(c.env.DB, username),
-  ]);
+  const viewer = await getViewerState(
+    c.env.DB,
+    getCookie(c, SESSION_COOKIE_NAME),
+  );
+  const author = await getPublicProfileByUsername(c.env.DB, username, {
+    includeArchived: viewer.canViewArchived,
+  });
 
   if (!author) {
     return c.notFound();
   }
 
-  const posts = await getPublishedPostsForUser(c.env.DB, author.id);
+  const posts = await getPublishedPostsForUser(c.env.DB, author.id, {
+    includeArchived: viewer.canViewArchived,
+  });
   return c.html(
     <Author
       author={author}

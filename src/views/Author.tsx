@@ -12,6 +12,7 @@ import {
   Header,
   setCurrentNavItem,
 } from "./components/header/Header.js";
+import { Badge } from "./components/ui/Badge.js";
 import { Button } from "./components/ui/Button.js";
 import { Input } from "./components/ui/Input.js";
 import { Textarea } from "./components/ui/Textarea.js";
@@ -39,6 +40,9 @@ export const Author: FC<AuthorProps> = ({
     alpine: canEditProfile,
     title: `${displayName} | Shipping Binaries`,
     description: `Posts by ${displayName} on Shipping Binaries.`,
+    // Only archive-permitted viewers reach this page for a deactivated
+    // account; keep it out of the index for them too.
+    ...(author.active ? {} : { robots: "noindex" }),
     canonical: toAbsoluteUrl(`/@${encodeURIComponent(author.username)}`),
     social: {
       title: `${displayName} Author’s Page`,
@@ -124,9 +128,16 @@ export const Author: FC<AuthorProps> = ({
                 </>
               )}
             </div>
-            <p class="mt-1 text-sm leading-none opacity-70">
-              @{author.username}
-            </p>
+            <div class="mt-1 flex flex-wrap items-center gap-2">
+              <p class="text-sm leading-none opacity-70">
+                @{author.username}
+              </p>
+              {!author.active && (
+                <Badge title="This account is deactivated. Its posts are hidden from readers.">
+                  Archived
+                </Badge>
+              )}
+            </div>
             {(author.biography || canEditProfile) && (
               <div
                 class="mt-4 w-full"

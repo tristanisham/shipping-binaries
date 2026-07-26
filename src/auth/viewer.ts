@@ -1,3 +1,7 @@
+import {
+  Permission,
+  POSTS_VIEW_ARCHIVED_PERMISSION,
+} from "../models/permission.js";
 import { getSessionUser } from "../models/session.js";
 import { ADMIN_ROLE } from "../models/role.js";
 
@@ -6,6 +10,8 @@ export type ViewerProps = {
   isAuthenticated?: boolean;
   viewerUserId?: number | null;
   viewerUsername?: string | null;
+  // Holds posts:view-archived, so posts by deactivated authors stay visible.
+  canViewArchived?: boolean;
 };
 
 export type ViewerState = Required<ViewerProps>;
@@ -27,5 +33,11 @@ export const getViewerState = async (
     isAuthenticated: Boolean(user),
     viewerUserId: user?.id ?? null,
     viewerUsername: user?.username ?? null,
+    // Short-circuits to false without a query for signed-out visitors.
+    canViewArchived: await Permission.can(
+      POSTS_VIEW_ARCHIVED_PERMISSION,
+      db,
+      user?.id,
+    ),
   };
 };

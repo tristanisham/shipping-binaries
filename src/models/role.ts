@@ -1,5 +1,8 @@
 export const ADMIN_ROLE = "admin";
 export const GUEST_ROLE = "guest";
+// Seeded with posts:read and posts:view-archived; unprotected, so admins can
+// rename or retire it from the roles UI like any other assignable role.
+export const MODERATOR_ROLE = "moderator";
 export const PROTECTED_ROLES = [ADMIN_ROLE, GUEST_ROLE] as const;
 
 // Protected roles cannot be renamed or deleted through the admin UI.

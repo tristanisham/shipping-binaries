@@ -55,6 +55,7 @@ test("permissions are inherited through roles", async () => {
       "posts:delete",
       "posts:read",
       "posts:update",
+      "posts:view-archived",
       "users:create",
       "users:delete",
       "users:read",

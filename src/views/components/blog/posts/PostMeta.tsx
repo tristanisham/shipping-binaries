@@ -1,5 +1,6 @@
 import type { FC } from "hono/jsx";
 import type { PostWithAuthor } from "../../../../models/post.js";
+import { Badge } from "../../ui/Badge.js";
 import { formatPublishDate } from "./Pagination.js";
 import { PostActions } from "./PostActions.js";
 
@@ -29,6 +30,11 @@ export const PostMeta: FC<PostMetaProps> = ({
       >
         {displayName}
       </a>
+      {!post.authorActive && (
+        <Badge title="The author's account is deactivated, so this post is hidden from readers.">
+          Archived
+        </Badge>
+      )}
       <span aria-hidden="true" class="opacity-50">•</span>
       <time
         class={inverse ? "opacity-80" : "opacity-70"}

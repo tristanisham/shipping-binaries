@@ -17,10 +17,15 @@ app.route("/", blogRoute);
 app.route("/", weatherRoute);
 
 app.get("/", async (c) => {
-  const [viewer, posts] = await Promise.all([
-    getViewerState(c.env.DB, getCookie(c, SESSION_COOKIE_NAME)),
-    getPublishedPosts(c.env.DB),
-  ]);
+  // The viewer's archive access decides which posts the listing may include,
+  // so it has to resolve before the query rather than alongside it.
+  const viewer = await getViewerState(
+    c.env.DB,
+    getCookie(c, SESSION_COOKIE_NAME),
+  );
+  const posts = await getPublishedPosts(c.env.DB, {
+    includeArchived: viewer.canViewArchived,
+  });
 
   return c.html(
     <Home

@@ -50,6 +50,14 @@
   `admin` role cannot be renamed or deleted, and the Users form must not let an
   administrator remove their own admin access. These pages use `HeaderSlim` and
   send `Cache-Control: no-store`.
+- Deactivating a user archives their posts instead of deleting them: posts by an
+  inactive author drop out of every public listing, page, and feed, and their
+  `/@username` page 404s. Viewers holding `posts:view-archived` (the `admin` and
+  `moderator` roles) still see them, badged "Archived". The published-post model
+  reads and `getPublicProfileByUsername` take `{ includeArchived }` and default
+  to hiding, so a new caller is public-safe unless it opts in; routes pass
+  `viewer.canViewArchived`. Deleting a user still cascades their posts away —
+  deactivation is the reversible path.
 - Posts belong to one user, users may own many posts, and comments belong to one
   post. Comment replies are recursive through `parent_id`; public comment
   mutation routes remain intentionally deferred until commenter authentication
@@ -97,8 +105,9 @@ npm run db:seed:access -- --remote
 The access seeder is idempotent and additive: it restores missing fixed roles,
 permissions, and grants without deleting custom assignments. It gives `admin`
 every permission currently present, gives `author` post create/read access,
-gives `editor` all four post permissions, and creates `guest` without assigning
-permissions. Apply migrations before running it.
+gives `editor` all four post permissions, gives `moderator` `posts:read` and
+`posts:view-archived`, and creates `guest` without assigning permissions. Apply
+migrations before running it.
 
 Create or update the owner interactively in local D1 by default. `--prod` and
 `--remote` are equivalent opt-ins to production:

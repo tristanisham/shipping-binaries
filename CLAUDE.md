@@ -80,6 +80,18 @@ SHA-256 hash of a random token, and sets the raw token in an httpOnly
 `src/routes/auth.tsx` guards `/admin` and `/admin/*`, putting the user on
 `c.var.currentUser`. Auth pages set `Cache-Control: no-store`.
 
+Archived posts: deactivating a user (`users.active = 0`) archives their posts
+rather than deleting them. Every published-post read hides them by default —
+`getPublishedPosts`, `getPublishedPostsForUser`, `getPublishedPostBySlug`,
+`getPublishedPostRefBySlug`, and `getPublicProfileByUsername` all take
+`{ includeArchived }` and filter on `users.active = 1` unless it is set. Routes
+pass `viewer.canViewArchived`, which `getViewerState` derives from the
+`posts:view-archived` permission (held by `admin` and the `moderator` role
+seeded in `migrations/0016_archive_deactivated_authors.sql`). Keep the default
+off: a caller that forgets the option gets the public view, not the archive.
+Archived posts carry an "Archived" badge through `PostMeta`, and an archived
+author page is `noindex`.
+
 Database: schema lives in numbered SQL files in `migrations/` (users, sessions,
 posts + comments), applied with the `db:migrate:*` scripts. The production D1
 database ID committed in `wrangler.jsonc` is an identifier, not a secret.
