@@ -83,8 +83,8 @@ test("/rss serves an RSS feed of every published post", async () => {
     xml,
     /<guid[^>]*>https:\/\/shippingbinaries\.com\/blog\/guest-post<\/guid>/,
   );
-  assert.match(xml, /<author>Site Owner<\/author>/);
-  assert.match(xml, /<author>guest<\/author>/);
+  assert.match(xml, /<dc:creator><!\[CDATA\[Site Owner\]\]><\/dc:creator>/);
+  assert.match(xml, /<dc:creator><!\[CDATA\[guest\]\]><\/dc:creator>/);
   assert.match(xml, /<category>Deployment<\/category>/);
   assert.match(xml, /<pubDate>[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} /);
   assert.match(xml, /<lastBuildDate>/);
@@ -241,8 +241,97 @@ test("pages advertise every feed they offer for autodiscovery", async () => {
     assert.match(postHtml, link);
   }
 
-  const authorFeedLink =
-    /title="Posts by Site Owner \(RSS\)" href="https:\/\/shippingbinaries\.com\/@owner\/rss"/;
-  assert.match(postHtml, authorFeedLink);
-  assert.match(await author.text(), authorFeedLink);
+  const authorFeedLinks = [
+    /type="application\/rss\+xml" title="Posts by Site Owner \(RSS\)" href="https:\/\/shippingbinaries\.com\/@owner\/rss"/,
+    /type="application\/atom\+xml" title="Posts by Site Owner \(Atom\)" href="https:\/\/shippingbinaries\.com\/@owner\/feed\.xml"/,
+    /type="application\/feed\+json" title="Posts by Site Owner \(JSON Feed\)" href="https:\/\/shippingbinaries\.com\/@owner\/feed\.json"/,
+  ];
+  const authorHtml = await author.text();
+  for (const link of authorFeedLinks) {
+    assert.match(postHtml, link);
+    assert.match(authorHtml, link);
+  }
+});
+
+// RSS 2.0 requires <author> to hold an email address, which the W3C feed
+// validator flags when it holds a name instead. The author's name belongs in
+// dc:creator, whose namespace has to be declared on the root element.
+test("RSS names authors with a declared dc:creator instead of <author>", async () => {
+  const db = await seedFeedFixtures();
+  const xml = await (await app.request("/rss", {}, { DB: db } as Env)).text();
+
+  assert.match(
+    xml,
+    /<rss[^>]*xmlns:dc="http:\/\/purl\.org\/dc\/elements\/1\.1\/"/,
+  );
+  assert.match(xml, /<dc:creator>/);
+  assert.doesNotMatch(xml, /<author>/);
+  // The declaration is spliced into the package's output, so guard against
+  // splicing it twice.
+  assert.equal(xml.match(/xmlns:dc=/g)?.length, 1);
+});
+
+// Guards the same splice from the other side: every prefixed element has to
+// resolve to a prefix declared on the root, or the feed is not well-formed.
+test("every namespace prefix used in a feed is declared", async () => {
+  const db = await seedFeedFixtures();
+
+  for (const path of ["/rss", "/@owner/rss"]) {
+    const xml = await (await app.request(path, {}, { DB: db } as Env)).text();
+    const declared = new Set(
+      [...xml.matchAll(/xmlns:([A-Za-z][\w.-]*)=/g)].map((match) => match[1]),
+    );
+    const used = new Set(
+      [...xml.matchAll(/<([A-Za-z][\w.-]*):[A-Za-z]/g)].map((match) =>
+        match[1]
+      ),
+    );
+
+    assert.ok(used.size > 0, `${path} should use a prefixed element`);
+    for (const prefix of used) {
+      assert.ok(declared.has(prefix), `${path} uses undeclared ${prefix}:`);
+    }
+  }
+});
+
+test("author feeds are served in every format", async () => {
+  const db = await seedFeedFixtures();
+  const [atom, json, missing] = await Promise.all([
+    app.request("/@owner/feed.xml", {}, { DB: db } as Env),
+    app.request("/@owner/feed.json", {}, { DB: db } as Env),
+    app.request("/@nobody/feed.json", {}, { DB: db } as Env),
+  ]);
+
+  assert.equal(atom.status, 200);
+  assert.equal(
+    atom.headers.get("content-type"),
+    "application/atom+xml; charset=utf-8",
+  );
+  const atomXml = await atom.text();
+  assert.match(
+    atomXml,
+    /<link rel="self" href="https:\/\/shippingbinaries\.com\/@owner\/feed\.xml"\/>/,
+  );
+  assert.match(atomXml, /<title>Site Owner \| Shipping Binaries<\/title>/);
+  // Author feeds carry only that author's posts, in every format.
+  assert.doesNotMatch(atomXml, /guest-post/);
+
+  assert.equal(json.status, 200);
+  assert.equal(
+    json.headers.get("content-type"),
+    "application/feed+json; charset=utf-8",
+  );
+  const feed = await json.json() as {
+    feed_url: string;
+    items: { url: string }[];
+  };
+  assert.equal(
+    feed.feed_url,
+    "https://shippingbinaries.com/@owner/feed.json",
+  );
+  assert.deepEqual(feed.items.map((item) => item.url), [
+    "https://shippingbinaries.com/blog/shipping-fast",
+  ]);
+
+  assert.equal(missing.status, 404);
 });

@@ -32,9 +32,21 @@ export const BLOG_FEED_PATHS: Record<FeedFormat, string> = {
   rss: "/rss",
 };
 
-// Author feeds are RSS only.
-export const authorFeedPath = (username: string): string =>
-  `/@${encodeURIComponent(username)}/rss`;
+// Author feeds mirror the whole-blog formats, under the author's handle.
+export const authorFeedPaths = (
+  username: string,
+): Record<FeedFormat, string> => {
+  const handle = `/@${encodeURIComponent(username)}`;
+  return {
+    atom: `${handle}/feed.xml`,
+    json: `${handle}/feed.json`,
+    rss: `${handle}/rss`,
+  };
+};
+
+const FEED_FORMATS = ["rss", "atom", "json"] as const;
+
+const DC_NAMESPACE = "http://purl.org/dc/elements/1.1/";
 
 const FEED_LABELS: Record<FeedFormat, string> = {
   atom: "Atom",
@@ -47,20 +59,23 @@ export type FeedLink = { href: string; title: string; type: string };
 // Autodiscovery links for LayoutMeta.feeds. RSS leads, since it is the format
 // most readers assume when a page offers exactly one feed.
 export const blogFeedLinks = (): FeedLink[] =>
-  (["rss", "atom", "json"] as const).map((format) => ({
+  FEED_FORMATS.map((format) => ({
     href: toAbsoluteUrl(BLOG_FEED_PATHS[format]),
     title: `${SITE_NAME} (${FEED_LABELS[format]})`,
     type: FEED_MIME_TYPES[format],
   }));
 
-export const authorFeedLink = (
+export const authorFeedLinks = (
   username: string,
   displayName: string,
-): FeedLink => ({
-  href: toAbsoluteUrl(authorFeedPath(username)),
-  title: `Posts by ${displayName} (RSS)`,
-  type: FEED_MIME_TYPES.rss,
-});
+): FeedLink[] => {
+  const paths = authorFeedPaths(username);
+  return FEED_FORMATS.map((format) => ({
+    href: toAbsoluteUrl(paths[format]),
+    title: `Posts by ${displayName} (${FEED_LABELS[format]})`,
+    type: FEED_MIME_TYPES[format],
+  }));
+};
 
 // Cap the feed so a long archive does not turn into a multi-megabyte response.
 const MAX_FEED_ITEMS = 50;
@@ -142,6 +157,7 @@ export type FeedOptions = {
 };
 
 const buildFeed = (
+  format: FeedFormat,
   { description, feedPaths, pagePath, posts, title }: FeedOptions,
 ): Feed => {
   const items = posts.slice(0, MAX_FEED_ITEMS);
@@ -168,6 +184,9 @@ const buildFeed = (
 
   for (const post of items) {
     const url = toAbsoluteUrl(`/blog/${post.slug}`);
+    const authorName = stripInvalidXmlChars(
+      post.authorLabel ?? post.authorUsername,
+    );
 
     feed.addItem({
       id: url,
@@ -178,9 +197,18 @@ const buildFeed = (
       // <updated> and JSON date_modified.
       published: toDate(post.createdAt),
       date: toDate(post.updatedAt),
-      author: [{
-        name: stripInvalidXmlChars(post.authorLabel ?? post.authorUsername),
-      }],
+      // RSS 2.0 requires <author> to be an email address, and we do not publish
+      // author emails, so RSS carries the name as <dc:creator> instead — the
+      // element aggregators already read for exactly this. Atom and JSON both
+      // model a named author natively.
+      ...(format === "rss"
+        ? {
+          extensions: [{
+            name: "dc:creator",
+            objects: { _cdata: authorName },
+          }],
+        }
+        : { author: [{ name: authorName }] }),
       category: post.keywords.map((keyword) => ({
         name: stripInvalidXmlChars(keyword),
       })),
@@ -190,11 +218,20 @@ const buildFeed = (
   return feed;
 };
 
+// The package declares xmlns:dc only when an item carries content:encoded, and
+// gives no hook for attributes on the root element, so the declaration for the
+// dc:creator extension above has to be spliced in.
+const withDublinCoreNamespace = (xml: string): string =>
+  xml.replace(
+    /<rss\b(?![^>]*\bxmlns:dc=)([^>]*)>/,
+    `<rss$1 xmlns:dc="${DC_NAMESPACE}">`,
+  );
+
 export const renderFeed = (
   format: FeedFormat,
   options: FeedOptions,
 ): string => {
-  const feed = buildFeed(options);
+  const feed = buildFeed(format, options);
 
   switch (format) {
     case "atom":
@@ -202,6 +239,6 @@ export const renderFeed = (
     case "json":
       return feed.json1();
     default:
-      return feed.rss2();
+      return withDublinCoreNamespace(feed.rss2());
   }
 };
