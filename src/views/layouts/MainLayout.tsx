@@ -1,6 +1,10 @@
 import type { Child, FC } from "hono/jsx";
 import { PostHogSnippet } from "../components/analytics/PostHog.js";
-import { PostFontScaleScript } from "../components/blog/PostFontScale.js";
+import {
+  POST_FONT_SIZES,
+  PostFontScaleScript,
+} from "../components/blog/PostFontScale.js";
+import { PostActionsFitScript } from "../components/blog/posts/PostActionsFit.js";
 import { type SocialMeta, SocialMetaTags } from "../components/SocialMeta.js";
 import { ToastViewport } from "../components/Toast.js";
 
@@ -98,7 +102,9 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              'try { const theme = localStorage.getItem("theme"); const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.classList.toggle("dark", theme === "dark" || (!theme && prefersDark)); const scale = Number(localStorage.getItem("postFontScale")); if (Number.isFinite(scale) && scale > 0) { document.documentElement.style.setProperty("--post-font-scale", String(Math.min(1.5, Math.max(0.875, scale)))); } } catch {}',
+              `try { const theme = localStorage.getItem("theme"); const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches; document.documentElement.classList.toggle("dark", theme === "dark" || (!theme && prefersDark)); const size = localStorage.getItem("postFontSize"); if (${
+                JSON.stringify(POST_FONT_SIZES)
+              }.includes(size)) { document.documentElement.style.setProperty("--post-font-size", size); } } catch {}`,
           }}
         />
         <link rel="stylesheet" href="/styles.css" />
@@ -108,6 +114,7 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         {children}
         <ToastViewport />
         <PostFontScaleScript />
+        <PostActionsFitScript />
       </body>
     </html>
   );

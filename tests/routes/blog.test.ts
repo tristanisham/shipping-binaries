@@ -90,7 +90,7 @@ test("published posts render at their slug and drafts stay private", async () =>
   assert.match(html, /href="#a-heading"[^>]*title="A heading"/);
   assert.match(html, /href="\/@owner"/);
   assert.match(html, /Site Owner/);
-  assert.match(html, /aria-label="Share Public post"/);
+  assert.match(html, /aria-label="Copy link to Public post"/);
   assert.match(html, /aria-label="0 comments on Public post"/);
   assert.doesNotMatch(html, /aria-label="Edit Public post"/);
   assert.doesNotMatch(html, /aria-label="Read Public post"/);

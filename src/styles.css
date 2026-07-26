@@ -76,13 +76,16 @@
   --color-chocolate-950: #210f03;
 }
 
-/* Reader text-size control: --post-font-scale is set from localStorage by the
-   head bootstrap and by the post action bar buttons. Text utilities inside the
-   post body are re-declared in em so they scale with it instead of staying
-   pinned to root rem. These rules stay unlayered so they win over Tailwind's
-   utilities layer. */
+/* Reader text-size control: --post-font-size is one of the CSS absolute-size
+   keywords, set from localStorage by the head bootstrap and by the post action
+   bar buttons. Keywords rather than a rem multiplier so the browser resolves
+   each step against the reader's own font-size preference; the unset default,
+   "medium", is exactly that preference. Text utilities inside the post body are
+   re-declared in em so they scale with it instead of staying pinned to root
+   rem. These rules stay unlayered so they win over Tailwind's utilities
+   layer. */
 .post-body {
-  font-size: calc(1rem * var(--post-font-scale, 1));
+  font-size: var(--post-font-size, medium);
 }
 
 .post-body .text-xs {

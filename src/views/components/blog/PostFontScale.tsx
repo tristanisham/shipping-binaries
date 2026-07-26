@@ -1,35 +1,48 @@
 import type { FC } from "hono/jsx";
 
-// Keep these in sync with the bootstrap clamp in views/layouts/MainLayout.tsx.
+// The ladder is the CSS absolute-size keywords, so every step is resolved by
+// the browser against the reader's own font-size preference rather than against
+// a hardcoded pixel base — "medium" *is* whatever they configured. Keep this
+// list in sync with the bootstrap in views/layouts/MainLayout.tsx.
+export const POST_FONT_SIZES = [
+  "x-small",
+  "small",
+  "medium",
+  "large",
+  "x-large",
+  "xx-large",
+] as const;
+
+export const POST_FONT_SIZE_DEFAULT = "medium";
+
 const postFontScaleScript = `
 (() => {
-  const MIN = 0.875;
-  const MAX = 1.5;
-  const STEP = 0.125;
-  const clamp = (value) => Math.min(MAX, Math.max(MIN, value));
+  const SIZES = ${JSON.stringify(POST_FONT_SIZES)};
+  const DEFAULT_INDEX = SIZES.indexOf("${POST_FONT_SIZE_DEFAULT}");
 
-  const read = () => {
+  const readIndex = () => {
     try {
-      const stored = Number(localStorage.getItem("postFontScale"));
-      return Number.isFinite(stored) && stored > 0 ? clamp(stored) : 1;
+      const stored = SIZES.indexOf(localStorage.getItem("postFontSize"));
+      return stored === -1 ? DEFAULT_INDEX : stored;
     } catch {
-      return 1;
+      return DEFAULT_INDEX;
     }
   };
 
-  const apply = (value) => {
-    document.documentElement.style.setProperty("--post-font-scale", String(value));
+  const apply = (index) => {
+    document.documentElement.style.setProperty("--post-font-size", SIZES[index]);
   };
 
   window.stepPostFontScale = (direction) => {
-    const next = clamp(Math.round((read() + direction * STEP) * 1000) / 1000);
+    const next = Math.min(SIZES.length - 1, Math.max(0, readIndex() + direction));
     apply(next);
     try {
-      localStorage.setItem("postFontScale", String(next));
+      localStorage.setItem("postFontSize", SIZES[next]);
     } catch {}
+    window.dispatchEvent(new Event("postfontsizechange"));
   };
 
-  apply(read());
+  apply(readIndex());
 })();
 `;
 

@@ -4,6 +4,7 @@ import { AArrowUpIcon } from "../../icons/AArrowUpIcon.js";
 import { EditIcon } from "../../icons/EditIcon.js";
 import { SITE_ORIGIN } from "../../SocialMeta.js";
 import { buttonVariants } from "../../ui/Button.js";
+import { cn } from "../../ui/utils.js";
 
 type PostActionsProps = {
   commentCount: number;
@@ -50,7 +51,10 @@ export const PostActions: FC<PostActionsProps> = ({
     : "inline-flex size-8 items-center justify-center rounded-md border border-mist-600/30 text-mist-600 hover:bg-mist-600/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mist-600 dark:border-amber-50/30 dark:text-amber-50 dark:hover:bg-amber-50/10 dark:focus-visible:ring-amber-50";
 
   return (
-    <div class="relative ml-auto flex shrink-0 items-center gap-2">
+    <div
+      class="relative ml-auto flex shrink-0 items-center gap-2"
+      data-post-actions
+    >
       {showTextSize
         ? (
           <>
@@ -91,6 +95,7 @@ export const PostActions: FC<PostActionsProps> = ({
       <button
         aria-label={`Copy link to ${title}`}
         class={buttonClass}
+        data-drop-order="2"
         onclick={copyLink(`${SITE_ORIGIN}${href}`)}
         title="Copy link"
         type="button"
@@ -115,6 +120,7 @@ export const PostActions: FC<PostActionsProps> = ({
           commentCount === 1 ? "comment" : "comments"
         } on ${title}`}
         class={`${buttonClass} min-w-8 !w-auto gap-1.5 px-2`}
+        data-drop-order="3"
         href={`${href}#comments`}
         title={`${commentCount} ${commentCount === 1 ? "comment" : "comments"}`}
       >
@@ -138,7 +144,13 @@ export const PostActions: FC<PostActionsProps> = ({
         ? (
           <a
             aria-label={`Read ${title}`}
-            class={buttonVariants({ size: "sm", variant: "tertiary" })}
+            // Hidden on mobile: the card title already links to the post, so
+            // Read is the first thing to drop when the row runs out of width.
+            class={cn(
+              buttonVariants({ size: "sm", variant: "tertiary" }),
+              "hidden sm:inline-flex",
+            )}
+            data-drop-order="1"
             href={href}
             title="Read"
           >
