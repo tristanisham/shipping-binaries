@@ -6,7 +6,20 @@
 - `src/index.tsx` creates the app, mounts route modules, and directly handles
   the public `/` and `/about` pages. Keep related endpoints grouped under
   `src/routes/` rather than growing the entrypoint: `auth.tsx` owns login,
-  logout, and `/admin` routes, while `weather.ts` owns `/api/weather`.
+  logout, and `/admin` routes, `blog.tsx` owns `/blog` and `/@username`,
+  `rss.ts` owns the feeds, and `weather.ts` owns `/api/weather`.
+- Feeds live in `src/feeds/feed.ts` (built with the `feed` package: canonical
+  paths, format content types, autodiscovery links) and `src/routes/feeds.ts`.
+  The whole blog and every author are each served as RSS, Atom, and JSON Feed:
+  `/rss`, `/feed.xml`, `/feed.json`, and the same three under `/@username/`. Add
+  a format by extending `FeedFormat` and its path/content type maps rather than
+  hand-writing markup, and keep the feed dependency free of node builtins so the
+  Worker builds without `nodejs_compat`. Pages advertise their feeds through
+  `LayoutMeta.feeds`.
+- Keep feeds clean under the W3C feed validator. RSS carries the author as
+  `<dc:creator>` because RSS 2.0 reserves `<author>` for an email address; the
+  `xmlns:dc` declaration is spliced onto the package's output. Any element with
+  a namespace prefix needs its prefix declared on the root element.
 - Page views live in `src/views/`, shared page chrome in `src/views/layouts/`,
   and reusable UI in `src/views/components/`.
 - `src/dev.ts` is the plain Node server entrypoint. `src/app.ts` re-exports the
@@ -21,6 +34,12 @@
   it as part of agent work.
 - Static files belong under `public/` and are referenced from the site root, for
   example `/styles.css`.
+- Analytics is the PostHog HTML snippet in
+  `src/views/components/analytics/PostHog.tsx`, rendered by `Layout` at the end
+  of `<head>`. The project API key is write-only and belongs in that file rather
+  than a binding. Keep `capture_pageleave` on so bounce rate and session
+  duration stay accurate, and leave the local-hostname guard in place so
+  `npm run dev` does not send events.
 - `wrangler.jsonc` is the Cloudflare Workers deployment source of truth. It
   binds D1 as `c.env.DB`, publishes `public/` as Workers static assets, and
   routes both the apex and `www` domains to the Worker.
@@ -48,6 +67,12 @@
   post. Comment replies are recursive through `parent_id`; public comment
   mutation routes remain intentionally deferred until commenter authentication
   is decided.
+- Every post has an author, enforced in the schema: `posts.user_id` is `NOT
+  NULL` and `REFERENCES users(id) ON DELETE CASCADE`, and D1 enforces foreign
+  keys by default. Post routes always write `c.var.currentUser.id`, and reading
+  queries inner-join `users` for the author's username and label. Preserve that
+  constraint in any migration that touches `posts` or `users`; deleting a user
+  removes their posts rather than leaving them authorless.
 
 ## Local workflow
 
@@ -110,15 +135,18 @@ Before handing off changes, run:
 
 ```sh
 npm run typecheck
+npm test
 git diff --check
 ```
 
 For Tailwind validation, compile to a temporary file instead of
 `public/styles.css`, for example
 `npx tailwindcss -i ./src/styles.css -o /tmp/shipping-binaries-styles.css --minify`.
-There is currently no automated test script. Exercise affected routes in the
-browser when behavior or layout changes; use `npm run dev:worker` for behavior
-that depends on D1.
+`npm test` runs `node --test` over `tests/`; `tests/helpers/d1.ts` applies
+`migrations/` to an in-memory `node:sqlite` database that stands in for D1, so
+model SQL and schema constraints are covered without a binding. Still exercise
+affected routes in the browser when behavior or layout changes; use
+`npm run dev:worker` for behavior that depends on D1.
 
 ## Code conventions
 

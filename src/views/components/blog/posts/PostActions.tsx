@@ -18,10 +18,16 @@ type PostActionsProps = {
 const stepTextSize = (direction: 1 | -1): string =>
   `window.stepPostFontScale(${direction})`;
 
+// Inline handlers run with `document` on the scope chain, where `URL` is the
+// document's URL string — so the constructor has to be reached via `window`.
 const sharePost = [
   "var button=this;",
-  "var url=new URL(button.dataset.sharePath,window.location.origin).href;",
-  "window.copyWithToast(url,'Link copied!');",
+  "var url=new window.URL(button.dataset.sharePath,window.location.origin).href;",
+  "var text='I just finished reading '+button.dataset.shareTitle+' by '+button.dataset.shareAuthor+' on Shipping Binaries';",
+  "var copy=function(){window.copyWithToast(url,'Link copied!').then(function(copied){if(copied){button.title='Link copied!'}})};",
+  "var data={title:button.dataset.shareTitle,text:text,url:url};",
+  "var canNativeShare=false;try{canNativeShare=Boolean(navigator.share)&&(!navigator.canShare||navigator.canShare(data))}catch(error){}",
+  "if(canNativeShare){navigator.share(data).catch(function(error){if(!error||error.name!=='AbortError'){copy()}})}else{copy()}",
 ].join("");
 
 const commentCountFormatter = new Intl.NumberFormat("en-US", {

@@ -5,6 +5,7 @@
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "feed": "^6.0.0",
     "hono": "^4.12.31",
     "posthog-node": "^5.46.1",
     "tailwind-merge": "^3.6.0"
@@ -12,6 +13,7 @@
   "devDependencies": {
     "@hono/node-server": "^2.0.10",
     "@hono/vite-dev-server": "^0.26.1",
+    "@posthog/types": "^1.398.0",
     "@tailwindcss/cli": "^4.3.3",
     "@types/node": "^26.1.1",
     "concurrently": "^9.2.4",

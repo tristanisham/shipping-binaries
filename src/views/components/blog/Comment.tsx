@@ -26,8 +26,10 @@ export const formatCommentDate = (value: string): string => {
 const commentActionClass =
   "cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-current hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-chocolate-500";
 
+// See PostActions.tsx: inline handlers must reach the URL constructor through
+// `window`, since `document.URL` shadows it on the scope chain.
 const commentShareScript = [
-  "var url=new URL(this.dataset.commentPath,window.location.origin).href;",
+  "var url=new window.URL(this.dataset.commentPath,window.location.origin).href;",
   "window.copyWithToast(url,'Comment link copied');",
 ].join("");
 

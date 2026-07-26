@@ -9,6 +9,7 @@ import { PostTableOfContents } from "./components/blog/PostTableOfContents.js";
 import { toIsoTimestamp } from "./components/date.js";
 import { defaultHeaderNav, Header } from "./components/header/Header.js";
 import { toAbsoluteUrl } from "./components/SocialMeta.js";
+import { authorFeedLinks, blogFeedLinks } from "../feeds/feed.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type BlogPostProps = ViewerProps & {
@@ -31,6 +32,13 @@ export const BlogPost: FC<BlogPostProps> = ({
     description: post.description,
     keywords: post.keywords,
     canonical: postUrl,
+    feeds: [
+      ...blogFeedLinks(),
+      ...authorFeedLinks(
+        post.authorUsername,
+        post.authorLabel ?? post.authorUsername,
+      ),
+    ],
     social: {
       title: post.title,
       type: "article",
