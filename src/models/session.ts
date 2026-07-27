@@ -3,14 +3,19 @@ import { parseRoleList, type User } from "./user.js";
 
 export const SESSION_COOKIE_NAME = "shipping_session";
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// "Remember me" lifetime. The cookie's Max-Age and this row TTL must be set
+// from the same number, or the session dies on the server while the browser
+// still presents a cookie that looks valid.
+export const SESSION_REMEMBER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const createSession = async (
   db: D1Database,
   userId: number,
+  ttlMs: number = SESSION_TTL_MS,
 ): Promise<string> => {
   const token = createRandomToken();
   const tokenHash = await hashToken(token);
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+  const expiresAt = new Date(Date.now() + ttlMs).toISOString();
 
   await db
     .prepare(

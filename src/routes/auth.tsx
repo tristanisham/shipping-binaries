@@ -22,6 +22,8 @@ import {
   destroySessionsForUser,
   getSessionUser,
   SESSION_COOKIE_NAME,
+  SESSION_REMEMBER_TTL_MS,
+  SESSION_TTL_MS,
 } from "../models/session.js";
 import {
   createPost,
@@ -219,11 +221,24 @@ const denialExpiresAt = (duration: string): string | null => {
   return ms ? new Date(Date.now() + ms).toISOString() : null;
 };
 
-const setSessionCookie = (c: Context<AuthEnv>, token: string): void => {
+const setSessionCookie = (
+  c: Context<AuthEnv>,
+  token: string,
+  // Omitted for a browser-session cookie, which is discarded on browser close.
+  maxAgeMs?: number,
+): void => {
   setCookie(c, SESSION_COOKIE_NAME, token, {
     httpOnly: true,
+    ...(maxAgeMs === undefined
+      ? {}
+      : { maxAge: Math.floor(maxAgeMs / 1000) }),
     path: "/",
     sameSite: "Strict",
+    // Production is served over https, so this is what marks the cookie Secure
+    // there. Do not swap it for a hostname check: `wrangler dev` rewrites the
+    // request URL to the configured route host, so the worker sees
+    // http://shippingbinaries.com/... locally and a hostname test would mark
+    // dev cookies Secure too. The protocol is the reliable signal.
     secure: new URL(c.req.url).protocol === "https:",
   });
 };
@@ -385,10 +400,11 @@ authRoute.post("/login", async (c) => {
   const body = await c.req.parseBody();
   const login = typeof body.login === "string" ? body.login.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
+  const remember = body.remember === "1";
 
   if (!login || !password) {
     return c.html(
-      <Login error={INVALID_LOGIN_MESSAGE} login={login} />,
+      <Login error={INVALID_LOGIN_MESSAGE} login={login} remember={remember} />,
       400,
     );
   }
@@ -412,7 +428,7 @@ authRoute.post("/login", async (c) => {
     });
 
     return c.html(
-      <Login error={INVALID_LOGIN_MESSAGE} login={login} />,
+      <Login error={INVALID_LOGIN_MESSAGE} login={login} remember={remember} />,
       401,
     );
   }
@@ -423,9 +439,11 @@ authRoute.post("/login", async (c) => {
     await destroySession(c.env.DB, existingToken);
   }
 
-  const token = await createSession(c.env.DB, user.id);
+  // One duration drives both the row and the cookie, so they expire together.
+  const ttlMs = remember ? SESSION_REMEMBER_TTL_MS : SESSION_TTL_MS;
+  const token = await createSession(c.env.DB, user.id, ttlMs);
   const roles = await getRolesForUser(c.env.DB, user.id);
-  setSessionCookie(c, token);
+  setSessionCookie(c, token, remember ? ttlMs : undefined);
 
   // Identifying on every login keeps a returning session's profile current;
   // roles in particular drift between logins.

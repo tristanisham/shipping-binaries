@@ -51,9 +51,13 @@
   routes, while every authenticated user may open `/admin/account`.
 - Passwords are hashed and verified with `bcryptjs` in `src/auth/password.ts`;
   never store or log plaintext credentials.
-- Sessions are stored in D1, use SHA-256 hashes of random bearer tokens, expire
-  after seven days, and are referenced by the HTTP-only `shipping_session`
-  cookie. Keep token hashing and cookie behavior centralized in
+- Sessions are stored in D1, use SHA-256 hashes of random bearer tokens, and are
+  referenced by the HTTP-only `shipping_session` cookie. The row and the cookie
+  share one lifetime, set by the "Remember me" checkbox on `/login`: unchecked
+  is seven days with a browser-session cookie, checked is 30 days with a
+  matching `Max-Age`. The cookie is `Secure` on https requests only —
+  `wrangler dev` reports the route host locally, so the protocol, not the
+  hostname, decides. Keep token hashing and cookie behavior centralized in
   `src/models/session.ts` and `src/routes/auth.tsx`.
 - `requireSession` protects both `/admin` and `/admin/*`; `requireAdmin`
   protects every admin route except `/admin/account`. Unauthenticated requests

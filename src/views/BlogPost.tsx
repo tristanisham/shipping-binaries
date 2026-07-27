@@ -7,7 +7,8 @@ import { getPostHeadings, PostBody } from "./components/blog/PostBody.js";
 import { PostMeta } from "./components/blog/posts/PostMeta.js";
 import { PostTableOfContents } from "./components/blog/PostTableOfContents.js";
 import { toIsoTimestamp } from "./components/date.js";
-import { defaultHeaderNav, Header } from "./components/header/Header.js";
+import { defaultHeaderNav } from "./components/header/Header.js";
+import { HeaderSlim } from "./components/header/Slim.js";
 import { toAbsoluteUrl } from "./components/SocialMeta.js";
 import { authorFeedLinks, blogFeedLinks } from "../feeds/feed.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
@@ -53,7 +54,7 @@ export const BlogPost: FC<BlogPostProps> = ({
 
   return (
     <Layout meta={meta}>
-      <Header
+      <HeaderSlim
         isAdmin={isAdmin}
         isAuthenticated={isAuthenticated}
         nav={defaultHeaderNav}

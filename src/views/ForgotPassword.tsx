@@ -1,5 +1,20 @@
 import type { FC } from "hono/jsx";
+import {
+  panelDivider,
+  panelField,
+  panelMuted,
+  panelRow,
+} from "./components/admin/panel.js";
 import { defaultHeaderNav, Header } from "./components/header/Header.js";
+import { Button } from "./components/ui/Button.js";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from "./components/ui/Card.js";
+import { Input } from "./components/ui/Input.js";
+import { cn } from "./components/ui/utils.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type ForgotPasswordProps = {
@@ -20,49 +35,76 @@ export const ForgotPassword: FC<ForgotPasswordProps> = ({
   return (
     <Layout meta={meta}>
       <Header nav={defaultHeaderNav} />
-      <main class="container mx-auto h-full px-4">
-        <section class="mx-auto mt-16 max-w-md">
-          <h1 class="mb-4 text-3xl font-bold">Reset password</h1>
-          {sent
-            ? (
-              <div class="flex flex-col gap-5">
-                <p>
-                  If an active account matches that email address, a reset link
-                  is on its way.
-                </p>
-                <a class="font-bold underline" href="/login">Back to log in</a>
-              </div>
-            )
-            : (
-              <form
-                action="/forgot-password"
-                class="flex flex-col gap-5"
-                method="post"
+      <main class="container mx-auto h-full w-full px-4">
+        <section class="mx-auto mt-10 max-w-md sm:mt-16">
+          <Card>
+            <CardHeader class={`border-b ${panelDivider}`}>
+              <h1
+                class="text-2xl leading-none font-semibold"
+                data-slot="card-title"
               >
-                <p>
-                  Enter your account email and we’ll send a single-use reset
-                  link.
-                </p>
-                <label class="flex flex-col gap-2 font-bold">
-                  Email
-                  <input
-                    autocomplete="email"
-                    autofocus
-                    class="rounded-md border-2 border-mist-600 bg-transparent px-4 py-3 outline-none focus:ring-2 focus:ring-mist-600 dark:border-amber-50 dark:focus:ring-amber-50"
-                    name="email"
-                    required
-                    type="email"
-                    value={email}
-                  />
-                </label>
-                <button
-                  class="cursor-pointer rounded-md bg-mist-600 px-4 py-3 font-bold text-amber-50 dark:bg-amber-50 dark:text-mist-600"
-                  type="submit"
-                >
-                  Send reset link
-                </button>
-              </form>
-            )}
+                Reset password
+              </h1>
+              <CardDescription>
+                {sent
+                  ? "Check your inbox for the reset link."
+                  : "We’ll email you a single-use reset link."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="flex flex-col gap-5">
+              {sent
+                ? (
+                  <>
+                    <p
+                      class={`rounded-lg px-4 py-3 text-sm font-medium ${panelRow}`}
+                      role="status"
+                    >
+                      If an active account matches that email address, a reset
+                      link is on its way.
+                    </p>
+                    <a
+                      class={`w-fit text-sm underline ${panelMuted}`}
+                      href="/login"
+                    >
+                      Back to log in
+                    </a>
+                  </>
+                )
+                : (
+                  <form
+                    action="/forgot-password"
+                    class="flex flex-col gap-5"
+                    method="post"
+                  >
+                    <label class="flex flex-col gap-2 text-sm font-semibold">
+                      Email
+                      <Input
+                        autocomplete="email"
+                        autofocus
+                        class={cn("h-11", panelField)}
+                        name="email"
+                        required
+                        type="email"
+                        value={email}
+                      />
+                    </label>
+                    <Button
+                      class="h-11 w-full"
+                      type="submit"
+                      variant="tertiary"
+                    >
+                      Send reset link
+                    </Button>
+                    <a
+                      class={`w-fit text-sm underline ${panelMuted}`}
+                      href="/login"
+                    >
+                      Back to log in
+                    </a>
+                  </form>
+                )}
+            </CardContent>
+          </Card>
         </section>
       </main>
     </Layout>

@@ -96,7 +96,15 @@ Layout of `src/`:
 Auth flow: `POST /login` verifies credentials (comparing against a dummy hash on
 unknown users to keep timing constant), stores a session row keyed by the
 SHA-256 hash of a random token, and sets the raw token in an httpOnly
-`shipping_session` cookie (7-day TTL). The `requireSession` middleware in
+`shipping_session` cookie. The row and the cookie share one lifetime, chosen by
+the "Remember me" checkbox: unchecked gives a 7-day row (`SESSION_TTL_MS`) and a
+browser-session cookie with no `Max-Age`, so it dies when the browser closes;
+checked gives 30 days (`SESSION_REMEMBER_TTL_MS`) on both. Pass the same
+duration to `createSession` and `setSessionCookie` or the row expires while the
+browser still presents a valid-looking cookie. The cookie is `Secure` when the
+request protocol is https — not when the hostname looks remote, because
+`wrangler dev` reports the configured route host (`http://shippingbinaries.com`)
+locally. The `requireSession` middleware in
 `src/routes/auth.tsx` guards `/admin` and `/admin/*`, putting the user on
 `c.var.currentUser`. Auth pages set `Cache-Control: no-store`.
 

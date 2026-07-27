@@ -26,6 +26,7 @@ type LoginProps = {
   error?: string;
   login?: string;
   notice?: string;
+  remember?: boolean;
 };
 
 const passwordToggleScript = `
@@ -44,7 +45,12 @@ const passwordToggleScript = `
 })();
 `;
 
-export const Login: FC<LoginProps> = ({ error, login = "", notice }) => {
+export const Login: FC<LoginProps> = ({
+  error,
+  login = "",
+  notice,
+  remember = false,
+}) => {
   const meta: LayoutMeta = {
     title: "Log in | Shipping Binaries",
     description: "Log in to Shipping Binaries.",
@@ -130,6 +136,16 @@ export const Login: FC<LoginProps> = ({ error, login = "", notice }) => {
                       </svg>
                     </button>
                   </div>
+                </label>
+                <label class="flex items-center gap-2 text-sm font-medium">
+                  <input
+                    checked={remember}
+                    class="size-4"
+                    name="remember"
+                    type="checkbox"
+                    value="1"
+                  />
+                  Remember me for 30 days
                 </label>
                 {error && (
                   <p
