@@ -3,6 +3,11 @@ import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
 import { CommentEditor } from "./components/blog/CommentEditor.js";
+import {
+  EmailCapture,
+  EmailCaptureAlignment,
+  type EmailCaptureStatus,
+} from "./components/blog/EmailCapture.js";
 import { getPostHeadings, PostBody } from "./components/blog/PostBody.js";
 import { PostMeta } from "./components/blog/posts/PostMeta.js";
 import { PostTableOfContents } from "./components/blog/PostTableOfContents.js";
@@ -15,11 +20,13 @@ import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type BlogPostProps = ViewerProps & {
   canComment?: boolean;
+  emailCaptureStatus?: EmailCaptureStatus;
   post: PostWithAuthor;
 };
 
 export const BlogPost: FC<BlogPostProps> = ({
   canComment = false,
+  emailCaptureStatus,
   isAdmin = false,
   isAuthenticated = false,
   post,
@@ -86,6 +93,15 @@ export const BlogPost: FC<BlogPostProps> = ({
             : null}
           <PostBody body={post.body} headings={headings} />
         </article>
+
+        <EmailCapture
+          alignment={EmailCaptureAlignment.Left}
+          description="Be notified when a new post is published."
+          isAuthenticated={isAuthenticated}
+          label="Get new posts by email"
+          postSlug={post.slug}
+          status={emailCaptureStatus}
+        />
 
         <section
           aria-labelledby="comments-heading"

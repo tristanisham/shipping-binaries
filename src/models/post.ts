@@ -351,6 +351,30 @@ export const getPublishedPostsForUser = async (
   return result.results.map((row) => postWithAuthorFromRow(row));
 };
 
+export const getPublishedPostsByKeyword = async (
+  db: D1Database,
+  keyword: string,
+): Promise<readonly PostWithAuthor[]> => {
+  const result = await db
+    .prepare(
+      `SELECT ${QUALIFIED_POST_COLUMNS},
+              users.username AS author_username, users.label AS author_label
+       FROM posts
+       JOIN users ON users.id = posts.user_id
+       WHERE posts.draft = 0
+         AND EXISTS (
+           SELECT 1
+           FROM json_each(posts.keywords)
+           WHERE LOWER(TRIM(json_each.value)) = LOWER(?1)
+         )
+       ORDER BY posts.created_at DESC, posts.id DESC`,
+    )
+    .bind(keyword)
+    .all<PostWithAuthorRow>();
+
+  return result.results.map((row) => postWithAuthorFromRow(row));
+};
+
 export const getPublishedPostBySlug = async (
   db: D1Database,
   slug: string,
