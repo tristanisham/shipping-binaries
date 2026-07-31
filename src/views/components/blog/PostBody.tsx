@@ -532,9 +532,12 @@ export const PostBody: FC<PostBodyProps> = ({
         const captureProps = block.type === "emailCapture" && emailCapture
           ? {
             ...emailCapture,
+            description: blockText(block, "description").trim() ||
+              emailCapture.description,
             id: emailCaptureIndex++ === 0
               ? "email-capture"
               : `email-capture-${emailCaptureIndex}`,
+            label: blockText(block, "title").trim() || emailCapture.label,
           }
           : undefined;
 

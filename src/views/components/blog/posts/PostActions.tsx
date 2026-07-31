@@ -61,6 +61,9 @@ export const PostActions: FC<PostActionsProps> = ({
             <button
               aria-label="Decrease text size"
               class={buttonClass}
+              data-analytics-event="post text size changed"
+              data-post-path={href}
+              data-text-size-direction="decrease"
               onclick={stepTextSize(-1)}
               title="Decrease text size"
               type="button"
@@ -70,6 +73,9 @@ export const PostActions: FC<PostActionsProps> = ({
             <button
               aria-label="Increase text size"
               class={buttonClass}
+              data-analytics-event="post text size changed"
+              data-post-path={href}
+              data-text-size-direction="increase"
               onclick={stepTextSize(1)}
               title="Increase text size"
               type="button"
@@ -82,7 +88,10 @@ export const PostActions: FC<PostActionsProps> = ({
       <button
         aria-label={`Copy link to ${title}`}
         class={buttonClass}
+        data-analytics-event="post link copied"
         data-drop-order="2"
+        data-post-path={href}
+        data-post-title={title}
         onclick={copyLink(`${SITE_ORIGIN}${href}`)}
         title="Copy link"
         type="button"
@@ -107,7 +116,10 @@ export const PostActions: FC<PostActionsProps> = ({
           commentCount === 1 ? "comment" : "comments"
         } on ${title}`}
         class={`${buttonClass} min-w-8 !w-auto gap-1.5 px-2`}
+        data-analytics-event="comment intent"
         data-drop-order="3"
+        data-post-path={href}
+        data-post-title={title}
         href={`${href}#comments`}
         title={`${commentCount} ${commentCount === 1 ? "comment" : "comments"}`}
       >
@@ -137,7 +149,10 @@ export const PostActions: FC<PostActionsProps> = ({
               buttonVariants({ size: "sm", variant: "tertiary" }),
               "hidden sm:inline-flex",
             )}
+            data-analytics-event="post opened"
             data-drop-order="1"
+            data-post-path={href}
+            data-post-title={title}
             href={href}
             title="Read"
           >

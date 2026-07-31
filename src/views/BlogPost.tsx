@@ -3,6 +3,7 @@ import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
 import { CommentEditor } from "./components/blog/CommentEditor.js";
+import { PostEngagement } from "./components/analytics/PostEngagement.js";
 import { parseEditorData } from "./components/editorData.js";
 import {
   EmailCapture,
@@ -82,7 +83,10 @@ export const BlogPost: FC<BlogPostProps> = ({
         viewerUsername={viewerUsername}
       />
       <PostTableOfContents headings={headings} />
-      <main class="container mx-auto max-w-3xl px-4 py-12">
+      <main
+        class="container mx-auto max-w-3xl px-4 py-12"
+        data-post-analytics
+      >
         <article>
           <header class="mb-8">
             <h1 class="text-4xl font-bold">{post.title}</h1>
@@ -105,11 +109,13 @@ export const BlogPost: FC<BlogPostProps> = ({
               />
             )
             : null}
-          <PostBody
-            body={post.body}
-            emailCapture={emailCapture}
-            headings={headings}
-          />
+          <div data-post-content>
+            <PostBody
+              body={post.body}
+              emailCapture={emailCapture}
+              headings={headings}
+            />
+          </div>
         </article>
 
         {hasInlineEmailCapture ? null : <EmailCapture {...emailCapture} />}
@@ -121,7 +127,12 @@ export const BlogPost: FC<BlogPostProps> = ({
         >
           <h2 class="text-2xl font-bold" id="comments-heading">Comments</h2>
           {canComment
-            ? <CommentEditor action={`/blog/${post.slug}/comments`} />
+            ? (
+              <CommentEditor
+                action={`/blog/${post.slug}/comments`}
+                postSlug={post.slug}
+              />
+            )
             : null}
           {post.comments.length > 0
             ? post.comments.map((comment) => (
@@ -133,6 +144,12 @@ export const BlogPost: FC<BlogPostProps> = ({
             ))
             : <p>No comments yet.</p>}
         </section>
+        <PostEngagement
+          isAuthenticated={isAuthenticated}
+          postId={post.id}
+          postSlug={post.slug}
+          postTitle={post.title}
+        />
       </main>
     </Layout>
   );

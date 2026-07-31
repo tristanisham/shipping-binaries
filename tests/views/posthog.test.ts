@@ -23,8 +23,16 @@ test("PostHog snippet skips local development hostnames", () => {
 
   assert.match(
     html,
-    /if \(!\/\^\(localhost\|127[^)]*\)\$\/\.test\(window\.location\.hostname\)\)/,
+    /if \(!\/\^\(localhost\|127[^)]*\)\$\/\.test\(window\.location\.hostname\) &&/,
   );
+});
+
+test("PostHog snippet excludes authentication and admin pages", () => {
+  const html = renderToString(PostHogSnippet({}));
+
+  assert.match(html, /admin\(\?:\\\/\|\$\)/);
+  assert.match(html, /login\$/);
+  assert.match(html, /window\.location\.pathname/);
 });
 
 test("Layout loads PostHog inside the document head", () => {
@@ -32,4 +40,13 @@ test("Layout loads PostHog inside the document head", () => {
   const head = html.slice(0, html.indexOf("</head>"));
 
   assert.match(head, /posthog\.init\(/);
+});
+
+test("Layout delegates meaningful interaction and form events to PostHog", () => {
+  const html = renderToString(Layout({ children: "Article" }));
+
+  assert.match(html, /\[data-analytics-event\]/);
+  assert.match(html, /form\[data-analytics-start-event\]/);
+  assert.match(html, /form\.dataset\.analyticsSubmitEvent/);
+  assert.match(html, /window\.posthog\?\.capture/);
 });

@@ -69,6 +69,32 @@ test("PostBody renders an email capture block in its saved position", () => {
   assert.ok(html.indexOf("email-capture") < html.indexOf("After capture"));
 });
 
+test("PostBody uses email capture copy edited inside the post", () => {
+  const html = renderToString(PostBody({
+    body: JSON.stringify({
+      blocks: [{
+        type: "emailCapture",
+        data: {
+          description: "A description saved with this block.",
+          title: "A custom capture title",
+        },
+      }],
+    }),
+    emailCapture: {
+      alignment: EmailCaptureAlignment.Left,
+      description: "Default description",
+      label: "Default title",
+      postSlug: "capture-post",
+    },
+  }));
+
+  assert.match(html, />A custom capture title<\/h2>/);
+  assert.match(html, /A description saved with this block\./);
+  assert.match(html, /data-form-label="A custom capture title"/);
+  assert.doesNotMatch(html, /Default title/);
+  assert.doesNotMatch(html, /Default description/);
+});
+
 test("PostBody links footnote references to safely rendered definitions", () => {
   const html = renderToString(PostBody({
     body: JSON.stringify({

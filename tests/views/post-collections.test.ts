@@ -38,6 +38,11 @@ test("PostList defaults to five posts and links author and pagination", () => {
   assert.match(html, /Alice Author/);
   assert.match(html, /data-drop-order="0">Published <\/span>July 6, 2026/);
   assert.match(html, /aria-label="Copy link to Post 6"/);
+  assert.match(html, /data-analytics-event="post link copied"/);
+  assert.match(html, /data-analytics-event="comment intent"/);
+  assert.match(html, /data-analytics-event="post opened"/);
+  assert.match(html, /data-post-path="\/blog\/post-6"/);
+  assert.match(html, /data-post-title="Post 6"/);
   // The absolute URL is baked in server-side, JSON-quoted so a value carrying a
   // quote could not break out of the inline handler's JS string context.
   assert.match(

@@ -38,7 +38,8 @@ import { editorDataHasText } from "../views/components/editorData.js";
 import { parsePageParam } from "./page.js";
 import {
   captureAnonymousEvent,
-  capturePageView,
+  captureAnonymousRequestEvent,
+  capturePageServed,
   captureUserEvent,
 } from "../posthog.js";
 
@@ -88,7 +89,7 @@ blogRoute.get("/blog", async (c) => {
     getPublishedPosts(c.env.DB),
   ]);
 
-  await capturePageView(c, viewer, { page_type: "blog index" });
+  await capturePageServed(c, viewer, { page_type: "blog index" });
 
   return c.html(
     <BlogIndex
@@ -105,7 +106,7 @@ blogRoute.get("/help", async (c) => {
     getPublishedPostsByKeyword(c.env.DB, "page:help"),
   ]);
 
-  await capturePageView(c, viewer, {
+  await capturePageServed(c, viewer, {
     page_type: "help",
     post_count: posts.length,
   });
@@ -156,7 +157,7 @@ blogRoute.get("/blog/:slug", async (c) => {
     viewer.viewerUserId,
   );
 
-  await capturePageView(c, viewer, {
+  await capturePageServed(c, viewer, {
     page_type: "blog post",
     post_id: post.id,
     post_slug: post.slug,
@@ -181,6 +182,9 @@ blogRoute.post("/blog/:slug/subscribe", async (c) => {
     getPublishedPostRefBySlug(c.env.DB, c.req.param("slug")),
   ]);
   if (!post) {
+    await captureAnonymousRequestEvent(c, "email subscription failed", {
+      reason: "post not found",
+    });
     return c.notFound();
   }
 
@@ -206,6 +210,9 @@ blogRoute.post("/blog/:slug/subscribe", async (c) => {
         form_label: captureLabel,
         post_id: post.id,
         post_slug: post.slug,
+        subscription_status: subscriber.unsubscribedAt
+          ? "unsubscribed"
+          : "subscribed",
       },
     );
     return c.redirect(
@@ -219,6 +226,12 @@ blogRoute.post("/blog/:slug/subscribe", async (c) => {
 
   const submittedEmail = typeof body.email === "string" ? body.email : "";
   if (!isValidSubscriberEmail(submittedEmail)) {
+    await captureAnonymousRequestEvent(c, "email subscription failed", {
+      form_label: captureLabel,
+      post_id: post.id,
+      post_slug: post.slug,
+      reason: "invalid email",
+    });
     return c.redirect(
       subscriptionRedirect(postPath, "invalid"),
       303,
@@ -227,10 +240,22 @@ blogRoute.post("/blog/:slug/subscribe", async (c) => {
 
   const email = normalizeSubscriberEmail(submittedEmail);
   if (await findUserByEmail(c.env.DB, email)) {
+    await captureAnonymousRequestEvent(c, "email subscription failed", {
+      form_label: captureLabel,
+      post_id: post.id,
+      post_slug: post.slug,
+      reason: "account login required",
+    });
     return c.redirect("/login", 303);
   }
 
   if (!await allowAnonymousSubscriptionRequest(c, email)) {
+    await captureAnonymousRequestEvent(c, "email subscription failed", {
+      form_label: captureLabel,
+      post_id: post.id,
+      post_slug: post.slug,
+      reason: "rate limited",
+    });
     c.header("Retry-After", "60");
     return c.text("Too many subscription requests. Try again shortly.", 429);
   }
@@ -252,6 +277,17 @@ blogRoute.post("/blog/:slug/subscribe", async (c) => {
         c.env.DB,
         result.subscriber.id,
         result.confirmationToken,
+      );
+      await captureAnonymousEvent(
+        c,
+        `email_subscriber_${result.subscriber.id}`,
+        "email subscription failed",
+        {
+          form_label: captureLabel,
+          post_id: post.id,
+          post_slug: post.slug,
+          reason: "confirmation delivery failed",
+        },
       );
       throw error;
     }
@@ -292,11 +328,27 @@ blogRoute.get("/subscribe/confirm", async (c) => {
   const postPath = post ? `/blog/${post.slug}` : "/blog";
 
   if (!/^[a-f0-9]{64}$/.test(token)) {
+    await captureAnonymousRequestEvent(
+      c,
+      "email subscription confirmation failed",
+      {
+        post_slug: post?.slug,
+        reason: "invalid token",
+      },
+    );
     return c.redirect(postPath, 303);
   }
 
   const subscriber = await confirmSubscription(c.env.DB, token);
   if (!subscriber) {
+    await captureAnonymousRequestEvent(
+      c,
+      "email subscription confirmation failed",
+      {
+        post_slug: post?.slug,
+        reason: "expired or used token",
+      },
+    );
     return c.redirect(postPath, 303);
   }
 
@@ -326,6 +378,10 @@ blogRoute.post("/blog/:slug/comments", async (c) => {
   const user = token ? await getSessionUser(c.env.DB, token) : null;
 
   if (!user) {
+    await captureAnonymousRequestEvent(c, "comment submission failed", {
+      post_slug: slug,
+      reason: "authentication required",
+    });
     return c.redirect("/login", 303);
   }
 
@@ -335,10 +391,18 @@ blogRoute.post("/blog/:slug/comments", async (c) => {
   ]);
 
   if (forbidden) {
+    await captureUserEvent(c, user, "comment submission failed", {
+      post_slug: slug,
+      reason: "permission denied",
+    });
     return c.text("Forbidden", 403);
   }
 
   if (!post) {
+    await captureUserEvent(c, user, "comment submission failed", {
+      post_slug: slug,
+      reason: "post not found",
+    });
     return c.notFound();
   }
 
@@ -354,6 +418,11 @@ blogRoute.post("/blog/:slug/comments", async (c) => {
     !editorDataHasText(content) ||
     (parentId !== null && (!Number.isInteger(parentId) || parentId < 1))
   ) {
+    await captureUserEvent(c, user, "comment submission failed", {
+      post_id: post.id,
+      post_slug: post.slug,
+      reason: "invalid content",
+    });
     return c.text("Invalid comment", 422);
   }
 
@@ -365,6 +434,11 @@ blogRoute.post("/blog/:slug/comments", async (c) => {
   });
 
   if (!commentId) {
+    await captureUserEvent(c, user, "comment submission failed", {
+      post_id: post.id,
+      post_slug: post.slug,
+      reason: "invalid parent",
+    });
     return c.text("Invalid comment", 422);
   }
 
@@ -395,7 +469,7 @@ blogRoute.get("/:handle{@[^/]+}", async (c) => {
 
   const posts = await getPublishedPostsForUser(c.env.DB, author.id);
 
-  await capturePageView(c, viewer, {
+  await capturePageServed(c, viewer, {
     page_type: "author profile",
     author_username: author.username,
     author_post_count: posts.length,

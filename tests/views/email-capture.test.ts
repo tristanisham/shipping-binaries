@@ -24,6 +24,17 @@ test("email capture uses its custom label for the form", () => {
     /name="captureLabel" type="hidden" value="Footer subscription"/,
   );
   assert.match(html, /name="email"/);
+  assert.match(
+    html,
+    /data-analytics-start-event="email subscription form started"/,
+  );
+  assert.match(
+    html,
+    /data-analytics-submit-event="email subscription form submitted"/,
+  );
+  assert.match(html, /data-form-label="Footer subscription"/);
+  assert.match(html, /data-is-authenticated="false"/);
+  assert.match(html, /data-post-slug="source-post"/);
 });
 
 test("email capture scopes labels and fields to a custom id", () => {
@@ -48,6 +59,7 @@ test("signed-in capture renders the email-help rectangle without an input", () =
   assert.match(html, /justify-between/);
   assert.match(html, /href="\/help">via Email<\/a>/);
   assert.match(html, />Subscribe<\/button>/);
+  assert.match(html, /data-is-authenticated="true"/);
   assert.doesNotMatch(html, /name="email"/);
 });
 

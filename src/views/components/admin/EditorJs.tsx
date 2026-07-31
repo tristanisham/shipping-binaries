@@ -401,6 +401,10 @@ const editorJsScript = `
   window.createShippingBinariesMarkdown = createShippingBinariesMarkdown;
   window.parseShippingBinariesMarkdown = parseShippingBinariesMarkdown;
 
+  const defaultEmailCaptureTitle = "Get new posts by email";
+  const defaultEmailCaptureDescription =
+    "Be notified when a new post is published.";
+
   class EmailCaptureTool {
     static get toolbox() {
       return {
@@ -413,29 +417,66 @@ const editorJsScript = `
       return true;
     }
 
+    constructor({ data = {}, readOnly = false }) {
+      this.data = {
+        description: String(data.description || defaultEmailCaptureDescription),
+        title: String(data.title || defaultEmailCaptureTitle),
+      };
+      this.readOnly = readOnly;
+      this.title = null;
+      this.description = null;
+    }
+
     render() {
       const wrapper = document.createElement("div");
       wrapper.className =
         "rounded-xl border border-current/20 bg-current/5 p-6";
 
-      const label = document.createElement("div");
-      label.className = "text-2xl font-bold";
-      label.textContent = "Get new posts by email";
+      this.title = document.createElement("div");
+      this.title.className =
+        "rounded-sm text-2xl font-bold outline-none focus:ring-2 focus:ring-current/30";
+      this.title.contentEditable = String(!this.readOnly);
+      this.title.dataset.placeholder = defaultEmailCaptureTitle;
+      this.title.setAttribute("aria-label", "Email capture title");
+      this.title.setAttribute("role", "textbox");
+      this.title.textContent = this.data.title;
 
-      const description = document.createElement("p");
-      description.className = "mt-2 opacity-75";
-      description.textContent = "Be notified when a new post is published.";
+      this.description = document.createElement("p");
+      this.description.className =
+        "mt-2 rounded-sm opacity-75 outline-none focus:ring-2 focus:ring-current/30";
+      this.description.contentEditable = String(!this.readOnly);
+      this.description.dataset.placeholder = defaultEmailCaptureDescription;
+      this.description.setAttribute(
+        "aria-label",
+        "Email capture description",
+      );
+      this.description.setAttribute("role", "textbox");
+      this.description.textContent = this.data.description;
+
+      if (!this.readOnly) {
+        this.title.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          this.description?.focus();
+        });
+      }
 
       const note = document.createElement("p");
       note.className = "mt-4 text-xs font-medium uppercase tracking-wide opacity-60";
-      note.textContent = "Email capture card";
+      note.textContent = this.readOnly
+        ? "Email capture card"
+        : "Edit the title and description in place";
 
-      wrapper.append(label, description, note);
+      wrapper.append(this.title, this.description, note);
       return wrapper;
     }
 
     save() {
-      return {};
+      return {
+        description: this.description?.textContent?.trim() ||
+          defaultEmailCaptureDescription,
+        title: this.title?.textContent?.trim() || defaultEmailCaptureTitle,
+      };
     }
   }
 

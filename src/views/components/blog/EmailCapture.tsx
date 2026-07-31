@@ -86,6 +86,11 @@ export const EmailCapture: FC<EmailCaptureProps> = ({
                 action={`/blog/${postSlug}/subscribe`}
                 aria-label={label}
                 class="mt-6 flex h-11 items-center justify-between gap-4 rounded-md border border-onyx-300 bg-amber-50/70 px-3 shadow-xs dark:border-onyx-700 dark:bg-onyx-950/60"
+                data-analytics-start-event="email subscription form started"
+                data-analytics-submit-event="email subscription form submitted"
+                data-form-label={label}
+                data-is-authenticated="true"
+                data-post-slug={postSlug}
                 method="post"
               >
                 <input name="captureLabel" type="hidden" value={label} />
@@ -106,6 +111,11 @@ export const EmailCapture: FC<EmailCaptureProps> = ({
                 action={`/blog/${postSlug}/subscribe`}
                 aria-label={label}
                 class="mt-6 flex flex-col gap-3 sm:flex-row"
+                data-analytics-start-event="email subscription form started"
+                data-analytics-submit-event="email subscription form submitted"
+                data-form-label={label}
+                data-is-authenticated="false"
+                data-post-slug={postSlug}
                 method="post"
               >
                 <input name="captureLabel" type="hidden" value={label} />

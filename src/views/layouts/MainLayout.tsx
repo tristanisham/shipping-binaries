@@ -1,5 +1,6 @@
 import type { Child, FC } from "hono/jsx";
 import { PostHogSnippet } from "../components/analytics/PostHog.js";
+import { AnalyticsInteractions } from "../components/analytics/Interactions.js";
 import {
   POST_FONT_SIZES,
   PostFontScaleScript,
@@ -115,6 +116,7 @@ export const Layout: FC<LayoutProps> = ({ children, meta }) => {
         <ToastViewport />
         <PostFontScaleScript />
         <PostActionsFitScript />
+        <AnalyticsInteractions />
       </body>
     </html>
   );

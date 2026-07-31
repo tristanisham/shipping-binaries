@@ -70,6 +70,12 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(inlineScript, /class FootnoteTool/);
   assert.match(inlineScript, /class EmailCaptureTool/);
   assert.match(inlineScript, /emailCapture: EmailCaptureTool/);
+  assert.match(inlineScript, /Email capture title/);
+  assert.match(inlineScript, /Email capture description/);
+  assert.match(inlineScript, /contentEditable = String\(!this\.readOnly\)/);
+  assert.match(inlineScript, /Edit the title and description in place/);
+  assert.match(inlineScript, /description: this\.description\?\.textContent/);
+  assert.match(inlineScript, /title: this\.title\?\.textContent/);
   assert.match(inlineScript, /footnote: FootnoteTool/);
   assert.match(inlineScript, /class InlineFootnoteTool/);
   assert.match(inlineScript, /footnoteInline: InlineFootnoteTool/);

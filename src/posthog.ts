@@ -148,8 +148,10 @@ export const captureError = (
   c: AnalyticsContext,
   error: unknown,
   distinctId?: string,
+  properties: Record<string, unknown> = {},
 ): Promise<void> =>
-  track(c, (client) => client.captureExceptionImmediate(error, distinctId));
+  track(c, (client) =>
+    client.captureExceptionImmediate(error, distinctId, properties));
 
 // Requests we never want in the analytics: crawlers, uptime checks, link
 // unfurlers. Deliberately broad — a missed human view costs less than a
@@ -180,11 +182,26 @@ const anonymousVisitorId = async (c: AnalyticsContext): Promise<string> => {
   return `anon_${hex}`;
 };
 
-// Records a view of a public page as PostHog's canonical `$pageview`, which is
-// what its web-analytics and path insights are built on. Signed-in readers are
-// attributed to their profile; everyone else is counted anonymously. Extra
-// properties (post metadata, for instance) are merged in by the caller.
-export const capturePageView = async (
+// A request-scoped anonymous action. Unlike public page serving, this does not
+// discard feed clients or other non-browser agents: those requests are exactly
+// what callers such as the feed routes need to measure.
+export const captureAnonymousRequestEvent = async (
+  c: AnalyticsContext,
+  event: string,
+  properties: Record<string, unknown> = {},
+): Promise<void> =>
+  captureAnonymousEvent(
+    c,
+    await anonymousVisitorId(c),
+    event,
+    properties,
+  );
+
+// Records delivery of a public page without impersonating PostHog's canonical
+// browser `$pageview`. The client snippet owns `$pageview`, sessions, devices,
+// and Web Analytics; this server event retains route and content metadata for
+// JavaScript-disabled readers and request-level operational reporting.
+export const capturePageServed = async (
   c: AnalyticsContext,
   viewer: { readonly viewerUserId?: number | null },
   properties: Record<string, unknown> = {},
@@ -214,15 +231,10 @@ export const capturePageView = async (
     return track(c, (client) =>
       client.captureImmediate({
         distinctId: String(viewer.viewerUserId),
-        event: "$pageview",
+        event: "page served",
         properties: pageProperties,
       }));
   }
 
-  return captureAnonymousEvent(
-    c,
-    await anonymousVisitorId(c),
-    "$pageview",
-    pageProperties,
-  );
+  return captureAnonymousRequestEvent(c, "page served", pageProperties);
 };

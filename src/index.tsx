@@ -8,7 +8,7 @@ import { blogRoute } from "./routes/blog.js";
 import { parsePageParam } from "./routes/page.js";
 import { feedsRoute } from "./routes/feeds.js";
 import { weatherRoute } from "./routes/weather.js";
-import { capturePageView, captureError } from "./posthog.js";
+import { captureError, capturePageServed } from "./posthog.js";
 import { About } from "./views/About.js";
 import { Home } from "./views/Home.js";
 
@@ -25,7 +25,7 @@ app.get("/", async (c) => {
     getPublishedPosts(c.env.DB),
   ]);
 
-  await capturePageView(c, viewer, { page_type: "home" });
+  await capturePageServed(c, viewer, { page_type: "home" });
 
   return c.html(
     <Home
@@ -42,7 +42,7 @@ app.get("/about", async (c) => {
     getCookie(c, SESSION_COOKIE_NAME),
   );
 
-  await capturePageView(c, viewer, { page_type: "about" });
+  await capturePageServed(c, viewer, { page_type: "about" });
 
   return c.html(<About {...viewer} />);
 });
@@ -60,6 +60,10 @@ app.onError(async (error, c) => {
     c,
     error,
     currentUser ? String(currentUser.id) : undefined,
+    {
+      http_method: c.req.method,
+      pathname: new URL(c.req.url).pathname,
+    },
   );
 
   return c.text("Internal Server Error", 500);

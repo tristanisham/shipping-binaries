@@ -4,6 +4,7 @@ import { Textarea } from "../ui/Textarea.js";
 
 type CommentEditorProps = {
   action: string;
+  postSlug: string;
 };
 
 const commentEditorScript = `
@@ -62,22 +63,39 @@ const commentEditorScript = `
       });
 
       if (!hasContent) {
+        window.posthog?.capture("comment submission failed", {
+          post_slug: form.dataset.postSlug,
+          reason: "empty content",
+        });
         window.showToast?.("Write a comment first.");
         return;
       }
 
       input.value = JSON.stringify(data);
+      window.posthog?.capture("comment form submitted", {
+        is_reply: parentInput.value !== "",
+        post_slug: form.dataset.postSlug,
+      });
       form.submit();
     } catch {
+      window.posthog?.capture("comment submission failed", {
+        post_slug: form.dataset.postSlug,
+        reason: "editor preparation failed",
+      });
       window.showToast?.("The comment could not be prepared.");
     }
   });
 })();
 `;
 
-export const CommentEditor: FC<CommentEditorProps> = ({ action }) => (
+export const CommentEditor: FC<CommentEditorProps> = ({ action, postSlug }) => (
   <div data-comment-editor>
-    <form action={action} method="post">
+    <form
+      action={action}
+      data-analytics-start-event="comment intent"
+      data-post-slug={postSlug}
+      method="post"
+    >
       <input name="parentId" type="hidden" value="" />
       <p
         class="mb-2 text-sm font-semibold"
