@@ -98,7 +98,7 @@ test("PostList adjusts body depth to the number of posts", () => {
   assert.equal(compact.match(/>Read more\.\.\.<\/a>/g)?.length, 3);
 });
 
-test("PostList shows Edit first for the post author or an admin", () => {
+test("PostList shows Edit last and compacts Read for the post author or an admin", () => {
   const [post] = makePosts(1);
   const author = renderToString(PostList({
     posts: [post],
@@ -117,11 +117,14 @@ test("PostList shows Edit first for the post author or an admin", () => {
   assert.match(author, /aria-label="Edit Post 1"/);
   assert.match(author, /href="\/admin\/write\?id=1"/);
   assert.ok(
-    author.indexOf('aria-label="Edit Post 1"') <
-      author.indexOf('aria-label="Copy link to Post 1"'),
+    author.indexOf('aria-label="Edit Post 1"') >
+      author.indexOf('aria-label="Read Post 1"'),
   );
+  assert.doesNotMatch(author, /<span>Read<\/span>/);
   assert.match(admin, /aria-label="Edit Post 1"/);
+  assert.doesNotMatch(admin, /<span>Read<\/span>/);
   assert.doesNotMatch(otherViewer, /aria-label="Edit Post 1"/);
+  assert.match(otherViewer, /<span>Read<\/span>/);
 });
 
 test("the row drops Published, then Read, Share, Comments, never text size", () => {

@@ -79,19 +79,6 @@ export const PostActions: FC<PostActionsProps> = ({
           </>
         )
         : null}
-      {editHref
-        ? (
-          <a
-            aria-label={`Edit ${title}`}
-            class={buttonVariants({ size: "sm", variant: "tertiary" })}
-            href={editHref}
-            title="Edit"
-          >
-            <EditIcon />
-            <span>Edit</span>
-          </a>
-        )
-        : null}
       <button
         aria-label={`Copy link to ${title}`}
         class={buttonClass}
@@ -170,7 +157,20 @@ export const PostActions: FC<PostActionsProps> = ({
               <path d="M16 8h2" />
               <path d="M16 12h2" />
             </svg>
-            <span>Read</span>
+            {editHref ? null : <span>Read</span>}
+          </a>
+        )
+        : null}
+      {editHref
+        ? (
+          <a
+            aria-label={`Edit ${title}`}
+            class={buttonVariants({ size: "sm", variant: "tertiary" })}
+            href={editHref}
+            title="Edit"
+          >
+            <EditIcon />
+            <span>Edit</span>
           </a>
         )
         : null}
