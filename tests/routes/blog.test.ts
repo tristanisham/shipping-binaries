@@ -28,6 +28,7 @@ test("published posts render at their slug and drafts stay private", async () =>
         { type: "header", data: { level: 2, text: "A heading" } },
         { type: "header", data: { level: 3, text: "A subheading" } },
         { type: "header", data: { level: 4, text: "A detail" } },
+        { type: "emailCapture", data: {} },
         { type: "paragraph", data: { text: "A <b>public</b> body" } },
       ],
     }),
@@ -56,6 +57,8 @@ test("published posts render at their slug and drafts stay private", async () =>
     /<h2[^>]*id="a-heading"[^>]*><span>A heading<\/span><\/h2>/,
   );
   assert.match(html, /A <strong>public<\/strong> body/);
+  assert.equal(html.match(/id="email-capture"/g)?.length, 1);
+  assert.ok(html.indexOf("email-capture") < html.indexOf("A <strong>public"));
   assert.match(html, /id="post-table-of-contents"/);
   assert.match(html, /aria-controls="post-contents-panel"/);
   assert.match(

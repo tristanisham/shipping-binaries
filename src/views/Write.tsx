@@ -364,6 +364,7 @@ export const Write: FC<WriteProps> = ({
             <div class="flex grow flex-col gap-2 text-sm font-medium">
               <span>Body</span>
               <EditorJs
+                defaultEmailCapture={!post}
                 name="body"
                 placeholder="Start writing..."
                 value={body}

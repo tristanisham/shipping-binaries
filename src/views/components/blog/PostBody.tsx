@@ -1,6 +1,10 @@
 import type { FC } from "hono/jsx";
 import { escapeHtml } from "../ui/utils.js";
 import { parseEditorData } from "../editorData.js";
+import {
+  EmailCapture,
+  type EmailCaptureProps,
+} from "./EmailCapture.js";
 
 type EditorBlock = {
   type?: string;
@@ -13,6 +17,7 @@ type EditorData = {
 
 type PostBodyProps = {
   body: string;
+  emailCapture?: Omit<EmailCaptureProps, "id">;
   headings?: readonly PostHeading[];
 };
 
@@ -276,9 +281,10 @@ const ListItems: FC<{
 
 const EditorBlockView: FC<{
   block: EditorBlock;
+  emailCapture?: EmailCaptureProps;
   footnoteReferences: FootnoteReferenceContext;
   heading?: PostHeading;
-}> = ({ block, footnoteReferences, heading }) => {
+}> = ({ block, emailCapture, footnoteReferences, heading }) => {
   if (block.type === "legacy") {
     return <p class="whitespace-pre-wrap">{blockText(block)}</p>;
   }
@@ -356,6 +362,10 @@ const EditorBlockView: FC<{
 
   if (block.type === "delimiter") {
     return <hr class="border-amber-50/30 dark:border-mist-600/30" />;
+  }
+
+  if (block.type === "emailCapture") {
+    return emailCapture ? <EmailCapture {...emailCapture} /> : null;
   }
 
   return (
@@ -489,7 +499,11 @@ const FootnotesSection: FC<{
   </section>
 );
 
-export const PostBody: FC<PostBodyProps> = ({ body, headings }) => {
+export const PostBody: FC<PostBodyProps> = ({
+  body,
+  emailCapture,
+  headings,
+}) => {
   const data = parseBody(body);
   const footnotes = collectFootnotes(data.blocks);
   const renderedBlocks = addImplicitFootnoteReferences(
@@ -506,6 +520,7 @@ export const PostBody: FC<PostBodyProps> = ({ body, headings }) => {
     block.type !== "footnote"
   );
   let headingIndex = 0;
+  let emailCaptureIndex = 0;
 
   return (
     <div class="post-body space-y-4 leading-relaxed">
@@ -514,10 +529,19 @@ export const PostBody: FC<PostBodyProps> = ({ body, headings }) => {
             decodeHeadingText(blockText(block))
           ? headings?.[headingIndex++]
           : undefined;
+        const captureProps = block.type === "emailCapture" && emailCapture
+          ? {
+            ...emailCapture,
+            id: emailCaptureIndex++ === 0
+              ? "email-capture"
+              : `email-capture-${emailCaptureIndex}`,
+          }
+          : undefined;
 
         return (
           <EditorBlockView
             block={block}
+            emailCapture={captureProps}
             footnoteReferences={footnoteReferences}
             heading={heading}
           />

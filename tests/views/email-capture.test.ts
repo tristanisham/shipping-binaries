@@ -26,6 +26,18 @@ test("email capture uses its custom label for the form", () => {
   assert.match(html, /name="email"/);
 });
 
+test("email capture scopes labels and fields to a custom id", () => {
+  const html = renderToString(EmailCapture({
+    ...props,
+    id: "email-capture-2",
+  }));
+
+  assert.match(html, /aria-labelledby="email-capture-2-title"/);
+  assert.match(html, /id="email-capture-2-title"/);
+  assert.match(html, /for="email-capture-2-address"/);
+  assert.match(html, /id="email-capture-2-address"/);
+});
+
 test("signed-in capture renders the email-help rectangle without an input", () => {
   const html = renderToString(EmailCapture({
     ...props,

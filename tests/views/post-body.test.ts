@@ -5,6 +5,9 @@ import {
   getPostHeadings,
   PostBody,
 } from "../../src/views/components/blog/PostBody.js";
+import {
+  EmailCaptureAlignment,
+} from "../../src/views/components/blog/EmailCapture.js";
 
 test("PostBody preserves safe inline formatting and escapes unsafe HTML", () => {
   const html = renderToString(PostBody({
@@ -41,6 +44,29 @@ test("PostBody keeps internal links in the current tab without an icon", () => {
   assert.match(html, /href="\/about"/);
   assert.doesNotMatch(html, /target="_blank"/);
   assert.doesNotMatch(html, /M15 3h6v6/);
+});
+
+test("PostBody renders an email capture block in its saved position", () => {
+  const html = renderToString(PostBody({
+    body: JSON.stringify({
+      blocks: [
+        { type: "paragraph", data: { text: "Before capture" } },
+        { type: "emailCapture", data: {} },
+        { type: "paragraph", data: { text: "After capture" } },
+      ],
+    }),
+    emailCapture: {
+      alignment: EmailCaptureAlignment.Left,
+      description: "Capture description",
+      label: "Capture label",
+      postSlug: "capture-post",
+    },
+  }));
+
+  assert.match(html, /id="email-capture"/);
+  assert.match(html, />Capture label<\/h2>/);
+  assert.ok(html.indexOf("Before capture") < html.indexOf("email-capture"));
+  assert.ok(html.indexOf("email-capture") < html.indexOf("After capture"));
 });
 
 test("PostBody links footnote references to safely rendered definitions", () => {

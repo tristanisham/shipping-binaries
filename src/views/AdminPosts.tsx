@@ -2,6 +2,10 @@ import type { FC } from "hono/jsx";
 import type { PostListItem } from "../models/post.js";
 import { AdminNav } from "./components/admin/AdminNav.js";
 import {
+  PostUtmLinks,
+  PostUtmLinksScript,
+} from "./components/admin/PostUtmLinks.js";
+import {
   defaultHeaderNav,
   setCurrentNavItem,
 } from "./components/header/Header.js";
@@ -150,6 +154,15 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts, viewerUsername }) => {
                           </td>
                           <td class="py-3 text-right">
                             <div class="flex items-center justify-end gap-2">
+                              {post.draft
+                                ? null
+                                : (
+                                  <PostUtmLinks
+                                    postId={post.id}
+                                    slug={post.slug}
+                                    title={post.title}
+                                  />
+                                )}
                               <a
                                 class={cn(
                                   buttonVariants({
@@ -229,6 +242,7 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts, viewerUsername }) => {
           </CardContent>
         </Card>
       </main>
+      <PostUtmLinksScript />
     </Layout>
   );
 };

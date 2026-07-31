@@ -2,6 +2,26 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToString } from "hono/jsx/dom/server";
 import { AdminPosts } from "../../src/views/AdminPosts.js";
+import { postUtmUrl } from "../../src/views/components/admin/PostUtmLinks.js";
+
+test("post UTM links identify their source and campaign", () => {
+  assert.equal(
+    postUtmUrl("live-post", "copy_link"),
+    "https://shippingbinaries.com/blog/live-post?utm_source=copy_link&utm_medium=referral&utm_campaign=post_share",
+  );
+  assert.equal(
+    postUtmUrl("live-post", "x"),
+    "https://shippingbinaries.com/blog/live-post?utm_source=x&utm_medium=social&utm_campaign=post_share",
+  );
+  assert.equal(
+    postUtmUrl("live-post", "facebook"),
+    "https://shippingbinaries.com/blog/live-post?utm_source=facebook&utm_medium=social&utm_campaign=post_share",
+  );
+  assert.equal(
+    postUtmUrl("live-post", "bluesky"),
+    "https://shippingbinaries.com/blog/live-post?utm_source=bluesky&utm_medium=social&utm_campaign=post_share",
+  );
+});
 
 test("post edit actions use an accessible pencil icon", () => {
   const html = renderToString(AdminPosts({
@@ -36,6 +56,7 @@ test("post edit actions use an accessible pencil icon", () => {
     html,
     /data-slot="card-action"[^>]*><a class="[^"]*bg-chocolate-500 text-amber-50[^"]*" href="\/admin\/write">New Post<\/a>/,
   );
+  assert.doesNotMatch(html, /Open UTM links for Draft post/);
 });
 
 test("published posts use the globe-off unpublish action", () => {
@@ -61,4 +82,33 @@ test("published posts use the globe-off unpublish action", () => {
   assert.match(html, /M10\.114 4\.462A14\.5 14\.5/);
   assert.match(html, /<path d="m2 2 20 20"><\/path>/);
   assert.doesNotMatch(html, />Unpublish<\/button>/);
+
+  assert.match(html, /aria-label="Open UTM links for Live post"/);
+  assert.match(html, /data-post-utm-menu/);
+  assert.match(html, /flex items-center gap-1/);
+  assert.match(html, /aria-label="Copy generic UTM link for Live post"/);
+  assert.match(html, /aria-label="Copy X UTM link for Live post"/);
+  assert.match(html, /aria-label="Copy Facebook UTM link for Live post"/);
+  assert.match(html, /aria-label="Copy Bluesky UTM link for Live post"/);
+  assert.match(html, /M10 13a5 5 0 0 0 7\.54\.54l3-3/);
+  assert.match(html, /M14\.234 10\.162 22\.977 0h-2\.072/);
+  assert.match(html, /M9\.101 23\.691v-7\.98/);
+  assert.match(html, /M5\.202 2\.857C7\.954 4\.922/);
+
+  const genericIndex = html.indexOf("Copy generic UTM link");
+  const xIndex = html.indexOf("Copy X UTM link");
+  const facebookIndex = html.indexOf("Copy Facebook UTM link");
+  const blueskyIndex = html.indexOf("Copy Bluesky UTM link");
+  assert.ok(genericIndex < xIndex);
+  assert.ok(xIndex < facebookIndex);
+  assert.ok(facebookIndex < blueskyIndex);
+
+  const menuScript = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
+    .map((match) => match[1])
+    .find((script) => script.includes("window.togglePostUtmLinks"));
+  assert.ok(menuScript);
+  assert.doesNotThrow(() => new Function(menuScript));
+  assert.match(menuScript, /window\.copyWithToast\(url, message\)/);
+  assert.match(menuScript, /!root\.contains\(event\.target\)/);
+  assert.match(menuScript, /event\.key !== "Escape"/);
 });

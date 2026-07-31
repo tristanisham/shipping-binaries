@@ -3,6 +3,7 @@ import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
 import { CommentEditor } from "./components/blog/CommentEditor.js";
+import { parseEditorData } from "./components/editorData.js";
 import {
   EmailCapture,
   EmailCaptureAlignment,
@@ -35,6 +36,19 @@ export const BlogPost: FC<BlogPostProps> = ({
 }) => {
   const postUrl = toAbsoluteUrl(`/blog/${post.slug}`);
   const headings = getPostHeadings(post.body);
+  const hasInlineEmailCapture = parseEditorData(post.body)?.blocks.some(
+    (block) =>
+      typeof block === "object" && block !== null && "type" in block &&
+      block.type === "emailCapture",
+  ) ?? false;
+  const emailCapture = {
+    alignment: EmailCaptureAlignment.Left,
+    description: "Be notified when a new post is published.",
+    isAuthenticated,
+    label: "Get new posts by email",
+    postSlug: post.slug,
+    status: emailCaptureStatus,
+  } as const;
   const meta: LayoutMeta = {
     title: `${post.title} | Shipping Binaries`,
     description: post.description,
@@ -91,17 +105,14 @@ export const BlogPost: FC<BlogPostProps> = ({
               />
             )
             : null}
-          <PostBody body={post.body} headings={headings} />
+          <PostBody
+            body={post.body}
+            emailCapture={emailCapture}
+            headings={headings}
+          />
         </article>
 
-        <EmailCapture
-          alignment={EmailCaptureAlignment.Left}
-          description="Be notified when a new post is published."
-          isAuthenticated={isAuthenticated}
-          label="Get new posts by email"
-          postSlug={post.slug}
-          status={emailCaptureStatus}
-        />
+        {hasInlineEmailCapture ? null : <EmailCapture {...emailCapture} />}
 
         <section
           aria-labelledby="comments-heading"

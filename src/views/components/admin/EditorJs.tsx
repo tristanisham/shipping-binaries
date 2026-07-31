@@ -6,6 +6,7 @@ import { type EditorData, parseEditorData } from "../editorData.js";
 import { panelField, panelOutlineButton, panelSurface } from "./panel.js";
 
 type EditorJsProps = {
+  defaultEmailCapture?: boolean;
   name: string;
   value?: string;
   placeholder?: string;
@@ -14,16 +15,26 @@ type EditorJsProps = {
 const escapeLegacyText = (value: string): string =>
   escapeHtml(value).replace(/\r?\n/g, "<br>");
 
-export const normalizeEditorData = (value = ""): EditorData => {
+export const normalizeEditorData = (
+  value = "",
+  defaultEmailCapture = false,
+): EditorData => {
   const parsed = parseEditorData(value);
   if (parsed) {
     return parsed;
   }
 
   return {
-    blocks: value.length > 0
+    blocks: [
+      ...(value.length > 0
       ? [{ type: "paragraph", data: { text: escapeLegacyText(value) } }]
-      : [],
+      : defaultEmailCapture
+      ? [{ type: "paragraph", data: { text: "" } }]
+      : []),
+      ...(defaultEmailCapture
+        ? [{ type: "emailCapture", data: {} }]
+        : []),
+    ],
   };
 };
 
@@ -206,6 +217,12 @@ const editorJsScript = `
         continue;
       }
 
+      if (line.trim() === "<!-- email-capture -->") {
+        flushParagraph();
+        blocks.push({ type: "emailCapture", data: {} });
+        continue;
+      }
+
       if (line.trim() === "") {
         flushParagraph();
         continue;
@@ -291,6 +308,8 @@ const editorJsScript = `
         case "footnote":
           return "[^" + String(blockData.id || "") + "]: " +
             inlineHtmlToMarkdown(blockData.text).replace(/\\n/g, "\\n  ");
+        case "emailCapture":
+          return "<!-- email-capture -->";
         default:
           return "<!-- Unsupported Editor.js block: " +
             String(block?.type || "unknown") + " -->";
@@ -381,6 +400,44 @@ const editorJsScript = `
   window.markdownToEditorBlocks = markdownToBlocks;
   window.createShippingBinariesMarkdown = createShippingBinariesMarkdown;
   window.parseShippingBinariesMarkdown = parseShippingBinariesMarkdown;
+
+  class EmailCaptureTool {
+    static get toolbox() {
+      return {
+        title: "Email capture",
+        icon: '<svg width="18" height="18" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m3 7 9 6 9-6" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+      };
+    }
+
+    static get isReadOnlySupported() {
+      return true;
+    }
+
+    render() {
+      const wrapper = document.createElement("div");
+      wrapper.className =
+        "rounded-xl border border-current/20 bg-current/5 p-6";
+
+      const label = document.createElement("div");
+      label.className = "text-2xl font-bold";
+      label.textContent = "Get new posts by email";
+
+      const description = document.createElement("p");
+      description.className = "mt-2 opacity-75";
+      description.textContent = "Be notified when a new post is published.";
+
+      const note = document.createElement("p");
+      note.className = "mt-4 text-xs font-medium uppercase tracking-wide opacity-60";
+      note.textContent = "Email capture card";
+
+      wrapper.append(label, description, note);
+      return wrapper;
+    }
+
+    save() {
+      return {};
+    }
+  }
 
   class FootnoteTool {
     static get toolbox() {
@@ -702,6 +759,7 @@ const editorJsScript = `
       tools: {
         code: window.CodeTool,
         delimiter: window.Delimiter,
+        emailCapture: EmailCaptureTool,
         footnote: FootnoteTool,
         footnoteInline: InlineFootnoteTool,
         header: {
@@ -792,6 +850,8 @@ const editorJsScript = `
           return {};
         case "footnote":
           return { id: "", text: "" };
+        case "emailCapture":
+          return {};
         default:
           return { text: "" };
       }
@@ -1030,12 +1090,15 @@ const editorJsScript = `
 `;
 
 export const EditorJs: FC<EditorJsProps> = ({
+  defaultEmailCapture = false,
   name,
   value,
   placeholder,
 }) => {
   const sourceValue = value ?? "";
-  const initialValue = JSON.stringify(normalizeEditorData(sourceValue));
+  const initialValue = JSON.stringify(
+    normalizeEditorData(sourceValue, defaultEmailCapture),
+  );
   const legacyMarkdown = parseEditorData(sourceValue) ? "" : sourceValue;
 
   return (
@@ -1183,6 +1246,19 @@ export const EditorJs: FC<EditorJsProps> = ({
         >
           <svg class={iconClass} {...commonSvgProps}>
             <path d="M5 12h14" />
+          </svg>
+        </button>
+        <button
+          aria-label="Add email capture"
+          class={editorToolButtonClass}
+          data-editorjs-tool="emailCapture"
+          disabled
+          title="Add email capture"
+          type="button"
+        >
+          <svg class={iconClass} {...commonSvgProps}>
+            <rect height="14" rx="2" width="18" x="3" y="5" />
+            <path d="m3 7 9 6 9-6" />
           </svg>
         </button>
 

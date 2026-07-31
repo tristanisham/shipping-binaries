@@ -16,9 +16,10 @@ export type EmailCaptureStatus =
   | "subscribed"
   | "unsubscribed";
 
-type EmailCaptureProps = {
+export type EmailCaptureProps = {
   alignment: EmailCaptureAlignment;
   description: string;
+  id?: string;
   isAuthenticated?: boolean;
   label: string;
   postSlug: string;
@@ -34,22 +35,23 @@ const alignmentClasses: Record<EmailCaptureAlignment, string> = {
 export const EmailCapture: FC<EmailCaptureProps> = ({
   alignment,
   description,
+  id = "email-capture",
   isAuthenticated = false,
   label,
   postSlug,
   status,
 }) => (
   <section
-    aria-labelledby="email-capture-title"
+    aria-labelledby={`${id}-title`}
     class="mt-12 rounded-xl border border-mist-600/20 bg-mist-600/5 p-6 dark:border-amber-50/20 dark:bg-amber-50/5 sm:p-8"
-    id="email-capture"
+    id={id}
   >
     <h2
       class={cn(
         "text-3xl font-bold sm:text-4xl",
         alignmentClasses[alignment],
       )}
-      id="email-capture-title"
+      id={`${id}-title`}
     >
       {label}
     </h2>
@@ -107,13 +109,13 @@ export const EmailCapture: FC<EmailCaptureProps> = ({
                 method="post"
               >
                 <input name="captureLabel" type="hidden" value={label} />
-                <label class="sr-only" for="email-capture-address">
+                <label class="sr-only" for={`${id}-address`}>
                   Email address
                 </label>
                 <Input
                   autocomplete="email"
                   class="h-11 flex-1"
-                  id="email-capture-address"
+                  id={`${id}-address`}
                   maxlength={SUBSCRIBER_EMAIL_MAX_LENGTH}
                   name="email"
                   placeholder="you@example.com"

@@ -19,6 +19,19 @@ test("legacy Markdown is safely wrapped for Editor.js", () => {
   });
 });
 
+test("new editor data starts with an email capture after the writing block", () => {
+  assert.deepEqual(normalizeEditorData("", true), {
+    blocks: [
+      { type: "paragraph", data: { text: "" } },
+      { type: "emailCapture", data: {} },
+    ],
+  });
+  assert.deepEqual(
+    normalizeEditorData(JSON.stringify({ blocks: [] }), true),
+    { blocks: [] },
+  );
+});
+
 test("Editor.js renders a JSON body field and Markdown converter", () => {
   const html = renderToString(EditorJs({ name: "body", value: "# Legacy" }));
   assert.match(html, /name="body" type="hidden"/);
@@ -32,6 +45,7 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(html, /data-editorjs-tool="code"/);
   assert.match(html, /data-editorjs-tool="delimiter"/);
   assert.match(html, /data-editorjs-tool="footnote"/);
+  assert.match(html, /data-editorjs-tool="emailCapture"/);
   assert.match(html, /data-editorjs-link/);
   assert.match(html, /bg-chocolate-500/);
   assert.match(
@@ -54,6 +68,8 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(inlineScript, /insertAt,\s+false/);
   assert.match(inlineScript, /dispatchChange\(\)/);
   assert.match(inlineScript, /class FootnoteTool/);
+  assert.match(inlineScript, /class EmailCaptureTool/);
+  assert.match(inlineScript, /emailCapture: EmailCaptureTool/);
   assert.match(inlineScript, /footnote: FootnoteTool/);
   assert.match(inlineScript, /class InlineFootnoteTool/);
   assert.match(inlineScript, /footnoteInline: InlineFootnoteTool/);
@@ -147,6 +163,15 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
     },
   });
 
+  const captureBlock = browserWindow.markdownToEditorBlocks?.(
+    "Before\n\n<!-- email-capture -->\n\nAfter",
+  );
+  assert.deepEqual(captureBlock?.blocks.map((block) => block.type), [
+    "paragraph",
+    "emailCapture",
+    "paragraph",
+  ]);
+
   const snapshot = {
     editor: {
       blocks: [
@@ -202,6 +227,7 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /aria-label="Import Markdown"/);
   assert.match(html, /aria-label="Export Markdown"/);
   assert.match(html, /data-markdown-export/);
+  assert.match(html, /&quot;type&quot;:&quot;emailCapture&quot;/);
   assert.match(html, /<path d="M12 18v-6"><\/path>/);
   assert.match(html, /name="postAction"/);
   assert.match(html, />Controls<span/);
