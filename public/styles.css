@@ -1049,6 +1049,12 @@
   .bg-mist-600 {
     background-color: var(--color-mist-600);
   }
+  .bg-mist-600\/5 {
+    background-color: color-mix(in srgb, oklch(45% 0.017 213.2) 5%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-mist-600) 5%, transparent);
+    }
+  }
   .bg-onyx-100 {
     background-color: var(--color-onyx-100);
   }
@@ -1970,6 +1976,12 @@
     .sm\:inline-flex {
       display: inline-flex;
     }
+    .sm\:flex-row {
+      flex-direction: row;
+    }
+    .sm\:p-8 {
+      padding: calc(var(--spacing) * 8);
+    }
     .sm\:p-12 {
       padding: calc(var(--spacing) * 12);
     }
@@ -2149,6 +2161,12 @@
   }
   .dark\:bg-amber-50:where(.dark, .dark *) {
     background-color: var(--color-amber-50);
+  }
+  .dark\:bg-amber-50\/5:where(.dark, .dark *) {
+    background-color: color-mix(in srgb, oklch(98.7% 0.022 95.277) 5%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-amber-50) 5%, transparent);
+    }
   }
   .dark\:bg-burgundy-400:where(.dark, .dark *) {
     background-color: var(--color-burgundy-400);

@@ -12,6 +12,7 @@ import { Badge } from "./components/ui/Badge.js";
 import { Button, buttonVariants } from "./components/ui/Button.js";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -74,6 +75,14 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts, viewerUsername }) => {
             <CardDescription>
               {posts.length} {posts.length === 1 ? "post" : "posts"}
             </CardDescription>
+            <CardAction>
+              <a
+                class={buttonVariants({ size: "sm", variant: "tertiary" })}
+                href="/admin/write"
+              >
+                New Post
+              </a>
+            </CardAction>
           </CardHeader>
           <CardContent>
             {posts.length === 0

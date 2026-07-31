@@ -32,6 +32,10 @@ test("post edit actions use an accessible pencil icon", () => {
   assert.doesNotMatch(html, />Publish<\/button>/);
   assert.match(html, /<th class="py-2 font-medium text-right">Actions<\/th>/);
   assert.match(html, /class="flex items-center justify-end gap-2"/);
+  assert.match(
+    html,
+    /data-slot="card-action"[^>]*><a class="[^"]*bg-chocolate-500 text-amber-50[^"]*" href="\/admin\/write">New Post<\/a>/,
+  );
 });
 
 test("published posts use the globe-off unpublish action", () => {
