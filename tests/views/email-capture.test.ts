@@ -49,3 +49,20 @@ test("subscribed capture replaces both forms with its status", () => {
   assert.match(html, /role="status">You&#39;re subscribed\./);
   assert.doesNotMatch(html, /<form/);
 });
+
+test("pending and unsubscribed states do not render another capture form", () => {
+  const pending = renderToString(EmailCapture({
+    ...props,
+    status: "pending",
+  }));
+  const unsubscribed = renderToString(EmailCapture({
+    ...props,
+    isAuthenticated: true,
+    status: "unsubscribed",
+  }));
+
+  assert.match(pending, /Check your email to confirm your subscription\./);
+  assert.doesNotMatch(pending, /<form/);
+  assert.match(unsubscribed, /currently unsubscribed\./);
+  assert.doesNotMatch(unsubscribed, /<form/);
+});

@@ -10,7 +10,11 @@ export enum EmailCaptureAlignment {
   Right = "right",
 }
 
-export type EmailCaptureStatus = "invalid" | "subscribed";
+export type EmailCaptureStatus =
+  | "invalid"
+  | "pending"
+  | "subscribed"
+  | "unsubscribed";
 
 type EmailCaptureProps = {
   alignment: EmailCaptureAlignment;
@@ -51,10 +55,15 @@ export const EmailCapture: FC<EmailCaptureProps> = ({
     </h2>
     <p class="mt-3 text-base opacity-75">{description}</p>
 
-    {status === "subscribed"
+    {status === "subscribed" || status === "pending" ||
+        status === "unsubscribed"
       ? (
         <p class="mt-6 font-semibold" role="status">
-          You're subscribed.
+          {status === "subscribed"
+            ? "You're subscribed."
+            : status === "pending"
+            ? "Check your email to confirm your subscription."
+            : "This email subscription is currently unsubscribed."}
         </p>
       )
       : (

@@ -26,6 +26,10 @@ import {
   SESSION_TTL_MS,
 } from "../models/session.js";
 import {
+  getAllSubscribers,
+  unsubscribeSubscriber,
+} from "../models/subscriber.js";
+import {
   createPost,
   formatSlug,
   getAllPosts,
@@ -88,6 +92,7 @@ import { Account } from "../views/Account.js";
 import { AdminHome } from "../views/AdminHome.js";
 import { AdminPosts } from "../views/AdminPosts.js";
 import { AdminRoles } from "../views/AdminRoles.js";
+import { AdminSubscribers } from "../views/AdminSubscribers.js";
 import { AdminUserAccess } from "../views/AdminUserAccess.js";
 import { AdminUserEdit } from "../views/AdminUserEdit.js";
 import { AdminUsers } from "../views/AdminUsers.js";
@@ -188,7 +193,7 @@ const isUniqueRoleError = (error: unknown): boolean =>
 
 const isUniqueUserError = (error: unknown): boolean =>
   error instanceof Error &&
-  /UNIQUE constraint failed: users\.(email|username)|login identifier collision/
+  /UNIQUE constraint failed: (?:users\.(email|username)|subscribers\.email)|login identifier collision/
     .test(error.message);
 
 const isLastActiveAdminError = (error: unknown): boolean =>
@@ -1075,6 +1080,48 @@ authRoute.post(
     }
 
     return c.redirect(`/admin/roles?role=${role.id}`, 303);
+  },
+);
+
+authRoute.get(
+  "/admin/subscribers",
+  requireAdminRole,
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const subscribers = await getAllSubscribers(c.env.DB);
+
+    return c.html(
+      <AdminSubscribers
+        subscribers={subscribers}
+        viewerUsername={c.var.currentUser.username}
+      />,
+    );
+  },
+);
+
+authRoute.post(
+  "/admin/subscribers/:id/unsubscribe",
+  requireAdminRole,
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = Number.parseInt(c.req.param("id"), 10);
+    if (!Number.isInteger(id) || id < 1) {
+      return c.notFound();
+    }
+
+    const unsubscribed = await unsubscribeSubscriber(c.env.DB, id);
+    if (!unsubscribed) {
+      return c.notFound();
+    }
+
+    await captureUserEvent(
+      c,
+      c.var.currentUser,
+      "subscriber unsubscribed",
+      { subscriber_id: id },
+    );
+
+    return c.redirect("/admin/subscribers", 303);
   },
 );
 

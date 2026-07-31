@@ -1,5 +1,6 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { getCookie } from "hono/cookie";
+import { hashToken } from "../auth/token.js";
 import { getViewerState } from "../auth/viewer.js";
 import { sendSubscriberConfirmationEmail } from "../email/subscriber.js";
 import { createComment } from "../models/comment.js";
@@ -17,11 +18,14 @@ import {
 import { getPublicProfileByUsername } from "../models/profile.js";
 import { getSessionUser, SESSION_COOKIE_NAME } from "../models/session.js";
 import {
-  deleteSubscriber,
+  confirmSubscription,
   getSubscriberByEmail,
+  getSubscriberForUser,
   isValidSubscriberEmail,
   normalizeSubscriberEmail,
-  subscribe,
+  preparePendingSubscription,
+  releasePendingSubscription,
+  subscribeUser,
 } from "../models/subscriber.js";
 import { findUserByEmail } from "../models/user.js";
 import { Author } from "../views/Author.js";
@@ -39,6 +43,44 @@ import {
 } from "../posthog.js";
 
 export const blogRoute = new Hono<{ Bindings: Env }>();
+
+const subscriptionRedirect = (
+  postPath: string,
+  status: EmailCaptureStatus,
+): string => `${postPath}?subscription=${status}#email-capture`;
+
+const buildSubscriberConfirmationUrl = (
+  requestUrl: string,
+  token: string,
+  postSlug: string,
+): string => {
+  const request = new URL(requestUrl);
+  const origin = request.hostname === "localhost" ||
+      request.hostname === "127.0.0.1"
+    ? request.origin
+    : "https://shippingbinaries.com";
+  const confirmationUrl = new URL("/subscribe/confirm", origin);
+  confirmationUrl.searchParams.set("token", token);
+  confirmationUrl.searchParams.set("post", postSlug);
+  return confirmationUrl.toString();
+};
+
+const allowAnonymousSubscriptionRequest = async (
+  c: Context<{ Bindings: Env }>,
+  email: string,
+): Promise<boolean> => {
+  const addressKey = await hashToken(email);
+  const actorKey = c.req.header("cf-connecting-ip") ?? "unknown";
+  const [address, actor] = await Promise.all([
+    c.env.SUBSCRIBE_RATE_LIMITER.limit({
+      key: `address:${addressKey}`,
+    }),
+    c.env.SUBSCRIBE_RATE_LIMITER.limit({
+      key: `actor:${actorKey}`,
+    }),
+  ]);
+  return address.success && actor.success;
+};
 
 blogRoute.get("/blog", async (c) => {
   const [viewer, posts] = await Promise.all([
@@ -91,14 +133,17 @@ blogRoute.get("/blog/:slug", async (c) => {
 
   const requestedStatus = c.req.query("subscription");
   const requestEmailCaptureStatus: EmailCaptureStatus | undefined =
-    requestedStatus === "invalid" || requestedStatus === "subscribed"
+    requestedStatus === "invalid" || requestedStatus === "pending" ||
+      requestedStatus === "subscribed" || requestedStatus === "unsubscribed"
       ? requestedStatus
       : undefined;
   const currentSubscriber = currentUser
-    ? await getSubscriberByEmail(c.env.DB, currentUser.email)
+    ? await getSubscriberForUser(c.env.DB, currentUser.id)
     : null;
   const emailCaptureStatus: EmailCaptureStatus | undefined = currentSubscriber
-    ? "subscribed"
+    ? currentSubscriber.unsubscribedAt
+      ? "unsubscribed"
+      : "subscribed"
     : requestEmailCaptureStatus;
 
   if (currentUser || emailCaptureStatus) {
@@ -147,68 +192,130 @@ blogRoute.post("/blog/:slug/subscribe", async (c) => {
     : "";
   const captureLabel = captureLabelValue.slice(0, 100) ||
     "Email subscription";
-  let email: string;
-
   if (currentUser) {
-    email = currentUser.email;
-  } else {
-    const submittedEmail = typeof body.email === "string" ? body.email : "";
-    if (!isValidSubscriberEmail(submittedEmail)) {
-      return c.redirect(
-        `${postPath}?subscription=invalid#email-capture`,
-        303,
-      );
-    }
-
-    email = normalizeSubscriberEmail(submittedEmail);
-    if (await findUserByEmail(c.env.DB, email)) {
-      return c.redirect("/login", 303);
-    }
-  }
-
-  const result = await subscribe(c.env.DB, email);
-  if (!result.created) {
-    return c.redirect(
-      `${postPath}?subscription=subscribed#email-capture`,
-      303,
+    const subscriber = await subscribeUser(
+      c.env.DB,
+      currentUser.id,
+      currentUser.email,
     );
-  }
-
-  if (!currentUser) {
-    try {
-      await sendSubscriberConfirmationEmail(c.env.EMAIL, {
-        accountUrl: toAbsoluteUrl("/signup"),
-        to: result.subscriber.email,
-      });
-    } catch (error) {
-      await deleteSubscriber(c.env.DB, result.subscriber.id);
-      throw error;
-    }
-  }
-
-  const analyticsProperties = {
-    form_label: captureLabel,
-    post_id: post.id,
-    post_slug: post.slug,
-  };
-  if (currentUser) {
     await captureUserEvent(
       c,
       currentUser,
       "email subscription captured",
-      analyticsProperties,
+      {
+        form_label: captureLabel,
+        post_id: post.id,
+        post_slug: post.slug,
+      },
     );
-  } else {
-    await captureAnonymousEvent(
-      c,
-      `email_subscriber_${result.subscriber.id}`,
-      "email subscription captured",
-      analyticsProperties,
+    return c.redirect(
+      subscriptionRedirect(
+        postPath,
+        subscriber.unsubscribedAt ? "unsubscribed" : "subscribed",
+      ),
+      303,
     );
   }
 
+  const submittedEmail = typeof body.email === "string" ? body.email : "";
+  if (!isValidSubscriberEmail(submittedEmail)) {
+    return c.redirect(
+      subscriptionRedirect(postPath, "invalid"),
+      303,
+    );
+  }
+
+  const email = normalizeSubscriberEmail(submittedEmail);
+  if (await findUserByEmail(c.env.DB, email)) {
+    return c.redirect("/login", 303);
+  }
+
+  if (!await allowAnonymousSubscriptionRequest(c, email)) {
+    c.header("Retry-After", "60");
+    return c.text("Too many subscription requests. Try again shortly.", 429);
+  }
+
+  const result = await preparePendingSubscription(c.env.DB, email);
+  if (result.confirmationToken) {
+    try {
+      await sendSubscriberConfirmationEmail(c.env.EMAIL, {
+        accountUrl: toAbsoluteUrl("/signup"),
+        confirmationUrl: buildSubscriberConfirmationUrl(
+          c.req.url,
+          result.confirmationToken,
+          post.slug,
+        ),
+        to: result.subscriber.email,
+      });
+    } catch (error) {
+      await releasePendingSubscription(
+        c.env.DB,
+        result.subscriber.id,
+        result.confirmationToken,
+      );
+      throw error;
+    }
+  }
+
+  await captureAnonymousEvent(
+    c,
+    `email_subscriber_${result.subscriber.id}`,
+    "email subscription requested",
+    {
+      confirmation_sent: result.confirmationToken !== null,
+      form_label: captureLabel,
+      post_id: post.id,
+      post_slug: post.slug,
+    },
+  );
+
   return c.redirect(
-    `${postPath}?subscription=subscribed#email-capture`,
+    subscriptionRedirect(
+      postPath,
+      result.subscriber.confirmedAt
+        ? result.subscriber.unsubscribedAt
+          ? "unsubscribed"
+          : "subscribed"
+        : "pending",
+    ),
+    303,
+  );
+});
+
+blogRoute.get("/subscribe/confirm", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const token = c.req.query("token") ?? "";
+  const postSlug = c.req.query("post") ?? "";
+  const post = postSlug
+    ? await getPublishedPostRefBySlug(c.env.DB, postSlug)
+    : null;
+  const postPath = post ? `/blog/${post.slug}` : "/blog";
+
+  if (!/^[a-f0-9]{64}$/.test(token)) {
+    return c.redirect(postPath, 303);
+  }
+
+  const subscriber = await confirmSubscription(c.env.DB, token);
+  if (!subscriber) {
+    return c.redirect(postPath, 303);
+  }
+
+  await captureAnonymousEvent(
+    c,
+    `email_subscriber_${subscriber.id}`,
+    "email subscription confirmed",
+    post
+      ? {
+        post_id: post.id,
+        post_slug: post.slug,
+      }
+      : undefined,
+  );
+
+  return c.redirect(
+    post
+      ? subscriptionRedirect(postPath, "subscribed")
+      : "/blog?subscription=subscribed",
     303,
   );
 });

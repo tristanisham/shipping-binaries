@@ -18,6 +18,7 @@ export const adminNavItems: AdminNavItem[] = [
   { label: "Overview", link: "/admin" },
   { label: "Posts", link: "/admin/posts" },
   { label: "Users", link: "/admin/users" },
+  { label: "Subscribers", link: "/admin/subscribers" },
   { label: "Roles", link: "/admin/roles" },
   { label: "Write", link: "/admin/write" },
 ];
