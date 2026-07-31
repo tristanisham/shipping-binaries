@@ -51,6 +51,9 @@ test("published posts use the globe-off unpublish action", () => {
 
   assert.match(html, /aria-label="Unpublish Live post"/);
   assert.match(html, /title="Unpublish Live post"/);
+  assert.match(html, /data-variant="danger"/);
+  assert.match(html, /bg-burgundy-700 text-amber-50/);
+  assert.match(html, /dark:bg-burgundy-400 dark:text-amber-50/);
   assert.match(html, /M10\.114 4\.462A14\.5 14\.5/);
   assert.match(html, /<path d="m2 2 20 20"><\/path>/);
   assert.doesNotMatch(html, />Unpublish<\/button>/);

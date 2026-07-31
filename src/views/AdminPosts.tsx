@@ -173,7 +173,7 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts, viewerUsername }) => {
                                     ? `Publish ${post.title}`
                                     : `Unpublish ${post.title}`}
                                   type="submit"
-                                  variant="primary"
+                                  variant={post.draft ? "primary" : "danger"}
                                 >
                                   {post.draft
                                     ? (
