@@ -336,27 +336,79 @@ const editorJsScript = `
     return new TextDecoder().decode(bytes);
   };
 
+  const splitKeywords = (value) =>
+    String(value || "")
+      .split(",")
+      .map((keyword) => keyword.trim())
+      .filter(Boolean);
+
+  // Obsidian tags live in the "tags" property and cannot contain spaces;
+  // nesting is expressed with a slash.
+  const obsidianTag = (keyword) =>
+    keyword
+      .replace(/^#+/, "")
+      .trim()
+      .replace(/\\s+/g, "-")
+      .replace(/[^A-Za-z0-9_/-]/g, "")
+      .replace(/^-+|-+$/g, "");
+
+  // Bear tags are inline, and a multi-word tag has to be closed with a second
+  // hash or it stops at the first space.
+  const bearTag = (keyword) => {
+    const tag = keyword.replace(/#/g, "").trim();
+    if (!tag) return "";
+    return /\\s/.test(tag) ? "#" + tag + "#" : "#" + tag;
+  };
+
   const createShippingBinariesMarkdown = (snapshot, options) => {
     const post = snapshot?.post || {};
     const editor = snapshot?.editor || { blocks: [] };
     const includeEditorData = options?.includeEditorData !== false;
-    const frontmatter = [
+    const bear = options?.flavor === "bear";
+    const title = String(post.title || "");
+    const keywords = splitKeywords(post.keywords);
+    const frontmatterLines = [
       "---",
-      "title: " + JSON.stringify(String(post.title || "")),
+      "title: " + JSON.stringify(title),
       "description: " + JSON.stringify(String(post.description || "")),
       "slug: " + JSON.stringify(String(post.slug || "")),
       "slugMode: " + JSON.stringify(
         post.slugMode === "auto" ? "auto" : "custom",
       ),
-      "keywords: " + JSON.stringify(String(post.keywords || "")),
+    ];
+
+    if (!bear) {
+      const tags = keywords.map(obsidianTag).filter(Boolean);
+      frontmatterLines.push(tags.length > 0 ? "tags:" : "tags: []");
+      tags.forEach((tag) => frontmatterLines.push("  - " + tag));
+    }
+
+    frontmatterLines.push(
       "image: " + JSON.stringify(String(post.image || "")),
       "draft: " + (post.draft ? "true" : "false"),
       "shippingBinariesFormat: 1",
       "---",
-    ].join("\\n");
+    );
+
     const body = editorDataToMarkdown(editor).trim();
-    const sections = [frontmatter];
+    const sections = [];
+
+    if (bear) {
+      // Bear names a note from its first line, and only picks the heading up
+      // when it follows the frontmatter with no blank line between them.
+      sections.push(
+        frontmatterLines.join("\\n") + (title ? "\\n# " + title : ""),
+      );
+    } else {
+      sections.push(frontmatterLines.join("\\n"));
+    }
+
     if (body) sections.push(body);
+
+    if (bear) {
+      const tags = keywords.map(bearTag).filter(Boolean);
+      if (tags.length > 0) sections.push(tags.join(" "));
+    }
 
     if (includeEditorData) {
       const payload = {
@@ -762,9 +814,10 @@ const editorJsScript = `
       "[data-markdown-export-menu-root]",
     );
     const exportMenu = form?.querySelector("[data-markdown-export-menu]");
-    const exportPlainButton = form?.querySelector(
-      "[data-markdown-export-plain]",
+    const exportObsidianButton = form?.querySelector(
+      "[data-markdown-export-obsidian]",
     );
+    const exportBearButton = form?.querySelector("[data-markdown-export-bear]");
     const exportEditorDataButton = form?.querySelector(
       "[data-markdown-export-editor-data]",
     );
@@ -1017,7 +1070,7 @@ const editorJsScript = `
       if (event.key === "Escape") closeExportMenu(true);
     });
 
-    const downloadMarkdown = async (includeEditorData) => {
+    const downloadMarkdown = async (options) => {
       closeExportMenu();
       await editor.isReady;
       const editorData = await editor.save();
@@ -1026,9 +1079,7 @@ const editorJsScript = `
         editor: editorData,
         post: postSnapshot(),
       };
-      const markdown = createShippingBinariesMarkdown(snapshot, {
-        includeEditorData,
-      });
+      const markdown = createShippingBinariesMarkdown(snapshot, options);
       const filenameBase = (snapshot.post.slug || snapshot.post.title || "post")
         .trim()
         .toLowerCase()
@@ -1038,7 +1089,8 @@ const editorJsScript = `
         new Blob([markdown], { type: "text/markdown;charset=utf-8" }),
       );
       const link = document.createElement("a");
-      link.download = filenameBase + ".md";
+      link.download = filenameBase +
+        (options?.includeEditorData ? ".ejs.md" : ".md");
       link.href = url;
       document.body.append(link);
       link.click();
@@ -1046,12 +1098,16 @@ const editorJsScript = `
       setTimeout(() => URL.revokeObjectURL(url), 0);
     };
 
-    exportPlainButton?.addEventListener("click", () => {
-      void downloadMarkdown(false);
+    exportObsidianButton?.addEventListener("click", () => {
+      void downloadMarkdown({ flavor: "obsidian", includeEditorData: false });
+    });
+
+    exportBearButton?.addEventListener("click", () => {
+      void downloadMarkdown({ flavor: "bear", includeEditorData: false });
     });
 
     exportEditorDataButton?.addEventListener("click", () => {
-      void downloadMarkdown(true);
+      void downloadMarkdown({ flavor: "obsidian", includeEditorData: true });
     });
 
     cancelImport?.addEventListener("click", () => {

@@ -1169,6 +1169,9 @@
   .stroke-current {
     stroke: currentcolor;
   }
+  .stroke-none {
+    stroke: none;
+  }
   .object-cover {
     object-fit: cover;
   }

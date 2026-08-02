@@ -115,7 +115,7 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
           title: string;
         };
       },
-      options?: { includeEditorData?: boolean },
+      options?: { flavor?: "bear" | "obsidian"; includeEditorData?: boolean },
     ) => string;
     markdownToEditorBlocks?: (markdown: string) => {
       blocks: Array<{ type: string }>;
@@ -222,13 +222,33 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
     version: 1,
   });
 
-  const plain = browserWindow.createShippingBinariesMarkdown?.(snapshot, {
+  // Obsidian keeps tags in a frontmatter property, so keywords become a YAML
+  // list with the spaces Obsidian tags cannot contain replaced.
+  const obsidian = browserWindow.createShippingBinariesMarkdown?.(snapshot, {
+    flavor: "obsidian",
     includeEditorData: false,
   });
-  assert.match(plain ?? "", /^---\ntitle: "Exact export"/);
-  assert.match(plain ?? "", /Unicode café with \*\*exact\*\* data\.\n$/);
-  assert.doesNotMatch(plain ?? "", /shipping-binaries-export/);
-  assert.equal(browserWindow.parseShippingBinariesMarkdown?.(plain ?? ""), null);
+  assert.match(obsidian ?? "", /^---\ntitle: "Exact export"/);
+  assert.match(obsidian ?? "", /\ntags:\n  - markdown\n  - round-trip\n/);
+  assert.doesNotMatch(obsidian ?? "", /keywords:/);
+  assert.match(obsidian ?? "", /---\n\nUnicode café with \*\*exact\*\* data\.\n$/);
+  assert.doesNotMatch(obsidian ?? "", /shipping-binaries-export/);
+  assert.equal(
+    browserWindow.parseShippingBinariesMarkdown?.(obsidian ?? ""),
+    null,
+  );
+
+  // Bear names a note from its first line and only sees the heading when no
+  // blank line separates it from the frontmatter; its tags are inline, and a
+  // multi-word tag needs a closing hash.
+  const bear = browserWindow.createShippingBinariesMarkdown?.(snapshot, {
+    flavor: "bear",
+    includeEditorData: false,
+  });
+  assert.match(bear ?? "", /\n---\n# Exact export\n\nUnicode café/);
+  assert.doesNotMatch(bear ?? "", /\ntags:/);
+  assert.match(bear ?? "", /\n\n#markdown #round trip#\n$/);
+  assert.doesNotMatch(bear ?? "", /shipping-binaries-export/);
 });
 
 test("new post form generates and validates a customizable slug", () => {
@@ -247,8 +267,10 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /data-markdown-export-menu-root/);
   assert.match(html, /aria-controls="markdown-export-menu"/);
   assert.match(html, /hidden="" id="markdown-export-menu"/);
-  assert.match(html, /aria-label="Download Markdown"/);
-  assert.match(html, /data-markdown-export-plain/);
+  assert.match(html, /aria-label="Download Obsidian Markdown"/);
+  assert.match(html, /data-markdown-export-obsidian/);
+  assert.match(html, /aria-label="Download Bear Markdown"/);
+  assert.match(html, /data-markdown-export-bear/);
   assert.match(html, /aria-label="Download Markdown with editor data"/);
   assert.match(html, /data-markdown-export-editor-data/);
   assert.match(html, /<ellipse cx="12" cy="5" rx="9" ry="3"><\/ellipse>/);
