@@ -29,6 +29,7 @@ import {
   panelDivider,
   panelField,
   panelOutlineButton,
+  panelSurface,
 } from "./components/admin/panel.js";
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
@@ -312,29 +313,97 @@ export const Write: FC<WriteProps> = ({
                   <path d="m9 15 3-3 3 3" />
                 </svg>
               </Button>
-              <Button
-                aria-label="Export Markdown"
-                class={panelOutlineButton}
-                data-markdown-export
-                size="sm"
-                title="Export Markdown"
-                type="button"
-                variant="outline"
-              >
-                <svg
-                  aria-hidden="true"
-                  class="size-4 fill-none stroke-current"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  viewBox="0 0 24 24"
+              <div class="relative" data-markdown-export-menu-root>
+                <Button
+                  aria-controls="markdown-export-menu"
+                  aria-expanded="false"
+                  aria-haspopup="menu"
+                  aria-label="Export Markdown"
+                  class={panelOutlineButton}
+                  data-markdown-export
+                  size="sm"
+                  title="Export Markdown"
+                  type="button"
+                  variant="outline"
                 >
-                  <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
-                  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
-                  <path d="M12 18v-6" />
-                  <path d="m9 15 3 3 3-3" />
-                </svg>
-              </Button>
+                  <svg
+                    aria-hidden="true"
+                    class="size-4 fill-none stroke-current"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+                    <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+                    <path d="M12 18v-6" />
+                    <path d="m9 15 3 3 3-3" />
+                  </svg>
+                </Button>
+
+                <div
+                  aria-label="Export Markdown"
+                  class={cn(
+                    "absolute top-[calc(100%+0.5rem)] right-0 z-20 flex items-center gap-1 rounded-lg border p-2 shadow-xl",
+                    "border-amber-50/25 dark:border-mist-600/25",
+                    panelSurface,
+                  )}
+                  data-markdown-export-menu
+                  hidden
+                  id="markdown-export-menu"
+                  role="group"
+                >
+                  <Button
+                    aria-label="Download Markdown"
+                    class={panelOutlineButton}
+                    data-markdown-export-plain
+                    size="sm"
+                    title="Download Markdown"
+                    type="button"
+                    variant="outline"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      class="size-4 fill-none stroke-current"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12 2v8" />
+                      <path d="m16 6-4 4-4-4" />
+                      <rect height="8" rx="2" width="20" x="2" y="14" />
+                      <path d="M6 18h.01" />
+                      <path d="M10 18h.01" />
+                    </svg>
+                  </Button>
+                  <Button
+                    aria-label="Download Markdown with editor data"
+                    class={panelOutlineButton}
+                    data-markdown-export-editor-data
+                    size="sm"
+                    title="Download Markdown with editor data"
+                    type="button"
+                    variant="outline"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      class="size-4 fill-none stroke-current"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="m16 19 3 3 3-3" />
+                      <path d="M19 16v6" />
+                      <path d="M21 12.536V5" />
+                      <path d="M3 12A9 3 0 0 0 15.182 14.806" />
+                      <path d="M3 5V19A9 3 0 0 0 13.318 21.968" />
+                      <ellipse cx="12" cy="5" rx="9" ry="3" />
+                    </svg>
+                  </Button>
+                </div>
+              </div>
             </CardAction>
           </CardHeader>
           <CardContent

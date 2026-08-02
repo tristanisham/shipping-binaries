@@ -98,22 +98,25 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.doesNotMatch(inlineScript, /fetch\(form\.action/);
 
   const browserWindow = {} as {
-    createShippingBinariesMarkdown?: (snapshot: {
-      editor: {
-        blocks: Array<{ data: Record<string, unknown>; type: string }>;
-        time?: number;
-        version?: string;
-      };
-      post: {
-        description: string;
-        draft: boolean;
-        image: string;
-        keywords: string;
-        slug: string;
-        slugMode: "auto" | "custom";
-        title: string;
-      };
-    }) => string;
+    createShippingBinariesMarkdown?: (
+      snapshot: {
+        editor: {
+          blocks: Array<{ data: Record<string, unknown>; type: string }>;
+          time?: number;
+          version?: string;
+        };
+        post: {
+          description: string;
+          draft: boolean;
+          image: string;
+          keywords: string;
+          slug: string;
+          slugMode: "auto" | "custom";
+          title: string;
+        };
+      },
+      options?: { includeEditorData?: boolean },
+    ) => string;
     markdownToEditorBlocks?: (markdown: string) => {
       blocks: Array<{ type: string }>;
     };
@@ -218,6 +221,14 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
     post: snapshot.post,
     version: 1,
   });
+
+  const plain = browserWindow.createShippingBinariesMarkdown?.(snapshot, {
+    includeEditorData: false,
+  });
+  assert.match(plain ?? "", /^---\ntitle: "Exact export"/);
+  assert.match(plain ?? "", /Unicode café with \*\*exact\*\* data\.\n$/);
+  assert.doesNotMatch(plain ?? "", /shipping-binaries-export/);
+  assert.equal(browserWindow.parseShippingBinariesMarkdown?.(plain ?? ""), null);
 });
 
 test("new post form generates and validates a customizable slug", () => {
@@ -233,6 +244,14 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /aria-label="Import Markdown"/);
   assert.match(html, /aria-label="Export Markdown"/);
   assert.match(html, /data-markdown-export/);
+  assert.match(html, /data-markdown-export-menu-root/);
+  assert.match(html, /aria-controls="markdown-export-menu"/);
+  assert.match(html, /hidden="" id="markdown-export-menu"/);
+  assert.match(html, /aria-label="Download Markdown"/);
+  assert.match(html, /data-markdown-export-plain/);
+  assert.match(html, /aria-label="Download Markdown with editor data"/);
+  assert.match(html, /data-markdown-export-editor-data/);
+  assert.match(html, /<ellipse cx="12" cy="5" rx="9" ry="3"><\/ellipse>/);
   assert.match(html, /&quot;type&quot;:&quot;emailCapture&quot;/);
   assert.match(html, /<path d="M12 18v-6"><\/path>/);
   assert.match(html, /name="postAction"/);

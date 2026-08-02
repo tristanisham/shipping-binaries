@@ -336,9 +336,10 @@ const editorJsScript = `
     return new TextDecoder().decode(bytes);
   };
 
-  const createShippingBinariesMarkdown = (snapshot) => {
+  const createShippingBinariesMarkdown = (snapshot, options) => {
     const post = snapshot?.post || {};
     const editor = snapshot?.editor || { blocks: [] };
+    const includeEditorData = options?.includeEditorData !== false;
     const frontmatter = [
       "---",
       "title: " + JSON.stringify(String(post.title || "")),
@@ -353,25 +354,32 @@ const editorJsScript = `
       "shippingBinariesFormat: 1",
       "---",
     ].join("\\n");
-    const payload = {
-      editor,
-      format: "shipping-binaries-markdown",
-      post: {
-        description: String(post.description || ""),
-        draft: Boolean(post.draft),
-        image: String(post.image || ""),
-        keywords: String(post.keywords || ""),
-        slug: String(post.slug || ""),
-        slugMode: post.slugMode === "auto" ? "auto" : "custom",
-        title: String(post.title || ""),
-      },
-      version: 1,
-    };
     const body = editorDataToMarkdown(editor).trim();
-    const marker = "<!-- shipping-binaries-export:v1:" +
-      encodeUtf8Base64(JSON.stringify(payload)) + " -->";
-    return frontmatter + "\\n\\n" + (body ? body + "\\n\\n" : "") + marker +
-      "\\n";
+    const sections = [frontmatter];
+    if (body) sections.push(body);
+
+    if (includeEditorData) {
+      const payload = {
+        editor,
+        format: "shipping-binaries-markdown",
+        post: {
+          description: String(post.description || ""),
+          draft: Boolean(post.draft),
+          image: String(post.image || ""),
+          keywords: String(post.keywords || ""),
+          slug: String(post.slug || ""),
+          slugMode: post.slugMode === "auto" ? "auto" : "custom",
+          title: String(post.title || ""),
+        },
+        version: 1,
+      };
+      sections.push(
+        "<!-- shipping-binaries-export:v1:" +
+          encodeUtf8Base64(JSON.stringify(payload)) + " -->",
+      );
+    }
+
+    return sections.join("\\n\\n") + "\\n";
   };
 
   const parseShippingBinariesMarkdown = (markdown) => {
@@ -750,6 +758,16 @@ const editorJsScript = `
     const input = root.querySelector("[data-editorjs-input]");
     const importButton = form?.querySelector("[data-markdown-import]");
     const exportButton = form?.querySelector("[data-markdown-export]");
+    const exportMenuRoot = form?.querySelector(
+      "[data-markdown-export-menu-root]",
+    );
+    const exportMenu = form?.querySelector("[data-markdown-export-menu]");
+    const exportPlainButton = form?.querySelector(
+      "[data-markdown-export-plain]",
+    );
+    const exportEditorDataButton = form?.querySelector(
+      "[data-markdown-export-editor-data]",
+    );
     const importDialog = root.querySelector("[data-markdown-dialog]");
     const markdownInput = root.querySelector("[data-markdown-input]");
     const convertButton = root.querySelector("[data-markdown-convert]");
@@ -976,7 +994,31 @@ const editorJsScript = `
       markdownInput?.focus();
     });
 
-    exportButton?.addEventListener("click", async () => {
+    const closeExportMenu = (restoreFocus = false) => {
+      if (!exportMenu || exportMenu.hidden) return;
+      exportMenu.hidden = true;
+      exportButton?.setAttribute("aria-expanded", "false");
+      if (restoreFocus) exportButton?.focus();
+    };
+
+    exportButton?.addEventListener("click", () => {
+      if (!exportMenu) return;
+      const willOpen = exportMenu.hidden;
+      exportMenu.hidden = !willOpen;
+      exportButton.setAttribute("aria-expanded", String(willOpen));
+    });
+
+    document.addEventListener("click", (event) => {
+      if (exportMenuRoot?.contains(event.target)) return;
+      closeExportMenu();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeExportMenu(true);
+    });
+
+    const downloadMarkdown = async (includeEditorData) => {
+      closeExportMenu();
       await editor.isReady;
       const editorData = await editor.save();
       input.value = JSON.stringify(editorData);
@@ -984,7 +1026,9 @@ const editorJsScript = `
         editor: editorData,
         post: postSnapshot(),
       };
-      const markdown = createShippingBinariesMarkdown(snapshot);
+      const markdown = createShippingBinariesMarkdown(snapshot, {
+        includeEditorData,
+      });
       const filenameBase = (snapshot.post.slug || snapshot.post.title || "post")
         .trim()
         .toLowerCase()
@@ -1000,6 +1044,14 @@ const editorJsScript = `
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 0);
+    };
+
+    exportPlainButton?.addEventListener("click", () => {
+      void downloadMarkdown(false);
+    });
+
+    exportEditorDataButton?.addEventListener("click", () => {
+      void downloadMarkdown(true);
     });
 
     cancelImport?.addEventListener("click", () => {
