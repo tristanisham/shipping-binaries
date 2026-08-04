@@ -35,8 +35,10 @@ in the normal three-column view; you exit fullscreen to reach them.
   `dark:bg-mist-600 dark:text-amber-50`.
 - Fonts are self-hosted in `public/fonts/`: Noto Sans (`--font-sans`) and Black
   Ops One. There is no serif.
-- `tests/` covers models and SQL only (`node --test` over a `node:sqlite` D1
-  stand-in). No view or DOM tests exist.
+- `tests/` runs on `node --test` with `tsx`. Alongside model and route tests,
+  `tests/views/` renders components to HTML strings and asserts on them;
+  `tests/views/editor-js.test.ts` already covers this component, including
+  evaluating its inline script with `new Function("window", script)`.
 
 ## Design
 
@@ -229,9 +231,17 @@ must not fire when the event originated inside an open Editor.js popup.
 
 ## Testing and verification
 
-The repo has no view or DOM test infrastructure — `tests/` exercises model SQL
-against an in-memory D1 stand-in — and this change is entirely presentational, so
-it adds no automated tests.
+`tests/views/` renders components with `renderToString` from `hono/jsx/dom/server`
+and asserts against the HTML, and `tests/views/editor-js.test.ts` goes further —
+it extracts the inline `<script>`, evaluates it with `new Function("window",
+script)`, and calls the functions it hangs on `window`. This change follows both
+patterns:
+
+- **Markup assertions** for the tool definitions, the pill, and the enter button.
+- **Behavior assertions** by evaluating the fullscreen script and calling a pure
+  exported helper, `window.resolveEditorSurface(stored, isDark)`, which returns
+  the `{ surface, ink }` pairing for a stored preference. Keeping the pairing
+  table in a pure function is what makes §4 testable without a DOM.
 
 Automated checks:
 
