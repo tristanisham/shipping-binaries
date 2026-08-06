@@ -4,9 +4,14 @@ import type { FC } from "hono/jsx";
 // in client HTML, so it lives in source rather than a binding.
 const POSTHOG_TOKEN = "phc_yHwbvtaPMGzoVcRrDMGUZg8jEkbYhG9WAsvejPQRqQYB";
 
-// US Cloud ingestion host. The snippet derives the asset host from this by
-// swapping ".i.posthog.com" for "-assets.i.posthog.com".
-const POSTHOG_API_HOST = "https://us.i.posthog.com";
+// Capture is proxied through our own apex domain (see src/routes/ingest.ts) so
+// events don't hit `us.i.posthog.com` directly, a name ad blockers filter. The
+// loader derives the asset host by swapping ".i.posthog.com" for
+// "-assets.i.posthog.com"; that substring is absent here, so asset requests
+// stay on this path (e.g. `/ingest/static/array.js`) and the proxy routes them.
+// `ui_host` keeps in-app links (toolbar, recordings) pointing at PostHog Cloud.
+const POSTHOG_API_HOST = "https://shippingbinaries.com/ingest";
+const POSTHOG_UI_HOST = "https://us.posthog.com";
 
 // Dated snapshot of PostHog's recommended config. From 2025-05-24 onward
 // capture_pageview defaults to "history_change", which is what makes
@@ -29,6 +34,7 @@ if (!${localHostnames.toString()}.test(window.location.hostname) &&
     !${privatePathnames.toString()}.test(window.location.pathname)) {
   posthog.init("${POSTHOG_TOKEN}", {
     api_host: "${POSTHOG_API_HOST}",
+    ui_host: "${POSTHOG_UI_HOST}",
     defaults: "${POSTHOG_DEFAULTS}",
     // Pairs $pageview with a $pageleave on unload. Without it PostHog reports
     // bounce rate and session duration from pageviews alone, which is wrong.
