@@ -303,6 +303,9 @@
   .top-1\/2 {
     top: calc(1 / 2 * 100%);
   }
+  .top-\[calc\(100\%\+0\.5rem\)\] {
+    top: calc(100% + 0.5rem);
+  }
   .top-full {
     top: 100%;
   }
@@ -1231,6 +1234,9 @@
   }
   .stroke-current {
     stroke: currentcolor;
+  }
+  .stroke-none {
+    stroke: none;
   }
   .object-cover {
     object-fit: cover;

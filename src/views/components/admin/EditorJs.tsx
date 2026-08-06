@@ -77,7 +77,133 @@ const editorJsScript = `
       .replace(/(^|[^_])_([^_\\n]+)_/g, "$1<i>$2</i>")
       .replace(inlineCodePattern, "<code>$1</code>");
 
-  const markdownToBlocks = (markdown) => {
+  // Our exports open with YAML frontmatter, as do Obsidian and Bear notes
+  // generally. Without this the "---" fences import as delimiter blocks with a
+  // paragraph of raw keys between them.
+  const frontmatterPattern =
+    /^\\uFEFF?---[ \\t]*\\r?\\n([\\s\\S]*?)\\r?\\n---[ \\t]*(?:\\r?\\n|$)/;
+
+  const stripFrontmatter = (value) =>
+    String(value || "").replace(frontmatterPattern, "");
+
+  const parseYamlScalar = (value) => {
+    const text = value.trim();
+    if (text === "" || text === "~" || text === "null") return "";
+    if (text === "true") return true;
+    if (text === "false") return false;
+    if (/^-?\\d+$/.test(text)) return Number(text);
+    if (text.startsWith("[") && text.endsWith("]")) {
+      return text
+        .slice(1, -1)
+        .split(",")
+        .map(parseYamlScalar)
+        .filter((item) => item !== "");
+    }
+    if (text.startsWith('"')) {
+      try {
+        return JSON.parse(text);
+      } catch {
+        return text.replace(/^"|"$/g, "");
+      }
+    }
+    if (text.startsWith("'")) return text.replace(/^'|'$/g, "");
+    return text;
+  };
+
+  // A deliberately small YAML reader: the scalars and block sequences our own
+  // frontmatter uses, which is also all Obsidian properties need.
+  const parseFrontmatter = (source) => {
+    const text = String(source || "");
+    const match = text.match(frontmatterPattern);
+    if (!match) return null;
+
+    const fields = {};
+    let listKey = "";
+    match[1].split(/\\r?\\n/).forEach((line) => {
+      const item = line.match(/^[ \\t]+-[ \\t]+(.*)$/);
+      if (item && listKey) {
+        fields[listKey].push(parseYamlScalar(item[1]));
+        return;
+      }
+
+      const pair = line.match(/^([A-Za-z0-9_-]+):[ \\t]*(.*)$/);
+      if (!pair) return;
+
+      if (pair[2].trim() === "") {
+        listKey = pair[1];
+        fields[listKey] = [];
+        return;
+      }
+
+      listKey = "";
+      fields[pair[1]] = parseYamlScalar(pair[2]);
+    });
+
+    return { body: text.slice(match[0].length), fields };
+  };
+
+  const keywordsFromFields = (fields) => {
+    const tags = fields.tags !== undefined ? fields.tags : fields.keywords;
+    if (tags === undefined) return undefined;
+    if (!Array.isArray(tags)) return String(tags);
+    return tags
+      .map((tag) => String(tag).replace(/^#/, "").replace(/-/g, " ").trim())
+      .filter(Boolean)
+      .join(", ");
+  };
+
+  const postFromFrontmatter = (fields) => {
+    const post = {};
+    const text = (key) => {
+      if (fields[key] === undefined) return;
+      post[key] = String(fields[key]);
+    };
+
+    text("title");
+    text("description");
+    text("slug");
+    text("image");
+    if (fields.slugMode !== undefined) {
+      post.slugMode = fields.slugMode === "auto" ? "auto" : "custom";
+    }
+    if (fields.draft !== undefined) {
+      post.draft = fields.draft === true || fields.draft === "true";
+    }
+
+    const keywords = keywordsFromFields(fields);
+    if (keywords !== undefined) post.keywords = keywords;
+    return post;
+  };
+
+  // Bear keeps tags inline instead of in frontmatter, so its exports trail a
+  // line of them. A heading is safe: "# Title" has a space after the hash.
+  // A closing hash only closes at a word boundary, otherwise "#one #two#"
+  // reads the second tag's opening hash as the first tag's closer.
+  const bearTagToken = /#([^#\\n]+?)#(?=[ \\t]|$)|#([^#\\s]+)/g;
+  const bearTagPart = "(?:#[^#\\\\n]+?#(?=[ \\\\t]|$)|#[^#\\\\s]+)";
+  const bearTagLine = new RegExp(
+    "^[ \\\\t]*" + bearTagPart + "(?:[ \\\\t]+" + bearTagPart + ")*[ \\\\t]*$",
+  );
+
+  const splitBearTagLine = (source) => {
+    const lines = String(source || "").replace(/\\s+$/, "").split(/\\r?\\n/);
+    const last = lines[lines.length - 1];
+    if (lines.length < 2 || !last || !bearTagLine.test(last)) return null;
+
+    const tags = Array.from(
+      last.matchAll(bearTagToken),
+      (match) => (match[1] || match[2] || "").trim(),
+    ).filter(Boolean);
+    if (tags.length === 0) return null;
+
+    return {
+      body: lines.slice(0, -1).join("\\n").replace(/\\s+$/, ""),
+      keywords: tags.join(", "),
+    };
+  };
+
+  const markdownToBlocks = (source) => {
+    const markdown = stripFrontmatter(source);
     const usedFootnoteIds = new Set(
       Array.from(
         markdown.matchAll(/^\\[\\^([A-Za-z0-9_-]+)\\]:/gm),
@@ -217,7 +343,9 @@ const editorJsScript = `
         continue;
       }
 
-      if (line.trim() === "<!-- email-capture -->") {
+      // Exports before the sb:: namespace wrote a bare "email-capture", so
+      // keep reading those too.
+      if (/^<!--\\s*(?:sb::)?email-capture\\s*-->$/.test(line.trim())) {
         flushParagraph();
         blocks.push({ type: "emailCapture", data: {} });
         continue;
@@ -309,7 +437,7 @@ const editorJsScript = `
           return "[^" + String(blockData.id || "") + "]: " +
             inlineHtmlToMarkdown(blockData.text).replace(/\\n/g, "\\n  ");
         case "emailCapture":
-          return "<!-- email-capture -->";
+          return "<!-- sb::email-capture -->";
         default:
           return "<!-- Unsupported Editor.js block: " +
             String(block?.type || "unknown") + " -->";
@@ -336,42 +464,102 @@ const editorJsScript = `
     return new TextDecoder().decode(bytes);
   };
 
-  const createShippingBinariesMarkdown = (snapshot) => {
+  const splitKeywords = (value) =>
+    String(value || "")
+      .split(",")
+      .map((keyword) => keyword.trim())
+      .filter(Boolean);
+
+  // Obsidian tags live in the "tags" property and cannot contain spaces;
+  // nesting is expressed with a slash.
+  const obsidianTag = (keyword) =>
+    keyword
+      .replace(/^#+/, "")
+      .trim()
+      .replace(/\\s+/g, "-")
+      .replace(/[^A-Za-z0-9_/-]/g, "")
+      .replace(/^-+|-+$/g, "");
+
+  // Bear tags are inline, and a multi-word tag has to be closed with a second
+  // hash or it stops at the first space.
+  const bearTag = (keyword) => {
+    const tag = keyword.replace(/#/g, "").trim();
+    if (!tag) return "";
+    return /\\s/.test(tag) ? "#" + tag + "#" : "#" + tag;
+  };
+
+  const createShippingBinariesMarkdown = (snapshot, options) => {
     const post = snapshot?.post || {};
     const editor = snapshot?.editor || { blocks: [] };
-    const frontmatter = [
+    const includeEditorData = options?.includeEditorData !== false;
+    const bear = options?.flavor === "bear";
+    const title = String(post.title || "");
+    const keywords = splitKeywords(post.keywords);
+    const frontmatterLines = [
       "---",
-      "title: " + JSON.stringify(String(post.title || "")),
+      "title: " + JSON.stringify(title),
       "description: " + JSON.stringify(String(post.description || "")),
       "slug: " + JSON.stringify(String(post.slug || "")),
       "slugMode: " + JSON.stringify(
         post.slugMode === "auto" ? "auto" : "custom",
       ),
-      "keywords: " + JSON.stringify(String(post.keywords || "")),
+    ];
+
+    if (!bear) {
+      const tags = keywords.map(obsidianTag).filter(Boolean);
+      frontmatterLines.push(tags.length > 0 ? "tags:" : "tags: []");
+      tags.forEach((tag) => frontmatterLines.push("  - " + tag));
+    }
+
+    frontmatterLines.push(
       "image: " + JSON.stringify(String(post.image || "")),
       "draft: " + (post.draft ? "true" : "false"),
       "shippingBinariesFormat: 1",
       "---",
-    ].join("\\n");
-    const payload = {
-      editor,
-      format: "shipping-binaries-markdown",
-      post: {
-        description: String(post.description || ""),
-        draft: Boolean(post.draft),
-        image: String(post.image || ""),
-        keywords: String(post.keywords || ""),
-        slug: String(post.slug || ""),
-        slugMode: post.slugMode === "auto" ? "auto" : "custom",
-        title: String(post.title || ""),
-      },
-      version: 1,
-    };
+    );
+
     const body = editorDataToMarkdown(editor).trim();
-    const marker = "<!-- shipping-binaries-export:v1:" +
-      encodeUtf8Base64(JSON.stringify(payload)) + " -->";
-    return frontmatter + "\\n\\n" + (body ? body + "\\n\\n" : "") + marker +
-      "\\n";
+    const sections = [];
+
+    if (bear) {
+      // Bear names a note from its first line, and only picks the heading up
+      // when it follows the frontmatter with no blank line between them.
+      sections.push(
+        frontmatterLines.join("\\n") + (title ? "\\n# " + title : ""),
+      );
+    } else {
+      sections.push(frontmatterLines.join("\\n"));
+    }
+
+    if (body) sections.push(body);
+
+    if (bear) {
+      const tags = keywords.map(bearTag).filter(Boolean);
+      if (tags.length > 0) sections.push(tags.join(" "));
+    }
+
+    if (includeEditorData) {
+      const payload = {
+        editor,
+        format: "shipping-binaries-markdown",
+        post: {
+          description: String(post.description || ""),
+          draft: Boolean(post.draft),
+          image: String(post.image || ""),
+          keywords: String(post.keywords || ""),
+          slug: String(post.slug || ""),
+          slugMode: post.slugMode === "auto" ? "auto" : "custom",
+          title: String(post.title || ""),
+        },
+        version: 1,
+      };
+      sections.push(
+        "<!-- shipping-binaries-export:v1:" +
+          encodeUtf8Base64(JSON.stringify(payload)) + " -->",
+      );
+    }
+
+    return sections.join("\\n\\n") + "\\n";
   };
 
   const parseShippingBinariesMarkdown = (markdown) => {
@@ -397,7 +585,35 @@ const editorJsScript = `
     }
   };
 
+  // The whole non-packaged import path: frontmatter into post fields, Bear's
+  // trailing tag line into keywords, and the rest into blocks.
+  const parseMarkdownImport = (source) => {
+    const frontmatter = parseFrontmatter(source);
+    const post = frontmatter ? postFromFrontmatter(frontmatter.fields) : {};
+    let body = frontmatter ? frontmatter.body : String(source || "");
+
+    if (post.keywords === undefined) {
+      const bearTags = splitBearTagLine(body);
+      if (bearTags) {
+        body = bearTags.body;
+        post.keywords = bearTags.keywords;
+      }
+    }
+
+    // The Bear flavor repeats the title as a leading heading so Bear can name
+    // the note from it; don't import a second copy into the body.
+    if (post.title) {
+      body = body.replace(
+        /^[ \\t\\r\\n]*#[ \\t]+(.+?)[ \\t]*(?:\\r?\\n|$)/,
+        (match, heading) => heading.trim() === post.title.trim() ? "" : match,
+      );
+    }
+
+    return { blocks: markdownToBlocks(body).blocks, post };
+  };
+
   window.markdownToEditorBlocks = markdownToBlocks;
+  window.parseMarkdownImport = parseMarkdownImport;
   window.createShippingBinariesMarkdown = createShippingBinariesMarkdown;
   window.parseShippingBinariesMarkdown = parseShippingBinariesMarkdown;
 
@@ -750,6 +966,17 @@ const editorJsScript = `
     const input = root.querySelector("[data-editorjs-input]");
     const importButton = form?.querySelector("[data-markdown-import]");
     const exportButton = form?.querySelector("[data-markdown-export]");
+    const exportMenuRoot = form?.querySelector(
+      "[data-markdown-export-menu-root]",
+    );
+    const exportMenu = form?.querySelector("[data-markdown-export-menu]");
+    const exportObsidianButton = form?.querySelector(
+      "[data-markdown-export-obsidian]",
+    );
+    const exportBearButton = form?.querySelector("[data-markdown-export-bear]");
+    const exportEditorDataButton = form?.querySelector(
+      "[data-markdown-export-editor-data]",
+    );
     const importDialog = root.querySelector("[data-markdown-dialog]");
     const markdownInput = root.querySelector("[data-markdown-input]");
     const convertButton = root.querySelector("[data-markdown-convert]");
@@ -842,8 +1069,11 @@ const editorJsScript = `
       };
     };
 
+    // Only fields the source actually carried are applied, so importing a note
+    // that omits a key leaves the value already in the form alone.
     const applyPostSnapshot = (post) => {
       const assign = (name, value) => {
+        if (value === undefined) return;
         const field = form.querySelector('[name="' + name + '"]');
         if (!field || typeof field.value !== "string") return;
         field.value = String(value || "");
@@ -858,12 +1088,12 @@ const editorJsScript = `
       assign("slug", post.slug);
 
       const slugMode = form.querySelector('input[name="slugMode"]');
-      if (slugMode) {
+      if (slugMode && post.slugMode !== undefined) {
         slugMode.value = post.slugMode === "auto" ? "auto" : "custom";
       }
 
       const draft = form.querySelector('input[name="currentDraft"]');
-      if (draft) {
+      if (draft && post.draft !== undefined) {
         draft.checked = Boolean(post.draft);
         draft.dispatchEvent(new Event("change", { bubbles: true }));
       }
@@ -976,7 +1206,31 @@ const editorJsScript = `
       markdownInput?.focus();
     });
 
-    exportButton?.addEventListener("click", async () => {
+    const closeExportMenu = (restoreFocus = false) => {
+      if (!exportMenu || exportMenu.hidden) return;
+      exportMenu.hidden = true;
+      exportButton?.setAttribute("aria-expanded", "false");
+      if (restoreFocus) exportButton?.focus();
+    };
+
+    exportButton?.addEventListener("click", () => {
+      if (!exportMenu) return;
+      const willOpen = exportMenu.hidden;
+      exportMenu.hidden = !willOpen;
+      exportButton.setAttribute("aria-expanded", String(willOpen));
+    });
+
+    document.addEventListener("click", (event) => {
+      if (exportMenuRoot?.contains(event.target)) return;
+      closeExportMenu();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeExportMenu(true);
+    });
+
+    const downloadMarkdown = async (options) => {
+      closeExportMenu();
       await editor.isReady;
       const editorData = await editor.save();
       input.value = JSON.stringify(editorData);
@@ -984,7 +1238,7 @@ const editorJsScript = `
         editor: editorData,
         post: postSnapshot(),
       };
-      const markdown = createShippingBinariesMarkdown(snapshot);
+      const markdown = createShippingBinariesMarkdown(snapshot, options);
       const filenameBase = (snapshot.post.slug || snapshot.post.title || "post")
         .trim()
         .toLowerCase()
@@ -994,12 +1248,25 @@ const editorJsScript = `
         new Blob([markdown], { type: "text/markdown;charset=utf-8" }),
       );
       const link = document.createElement("a");
-      link.download = filenameBase + ".md";
+      link.download = filenameBase +
+        (options?.includeEditorData ? ".ejs.md" : ".md");
       link.href = url;
       document.body.append(link);
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 0);
+    };
+
+    exportObsidianButton?.addEventListener("click", () => {
+      void downloadMarkdown({ flavor: "obsidian", includeEditorData: false });
+    });
+
+    exportBearButton?.addEventListener("click", () => {
+      void downloadMarkdown({ flavor: "bear", includeEditorData: false });
+    });
+
+    exportEditorDataButton?.addEventListener("click", () => {
+      void downloadMarkdown({ flavor: "obsidian", includeEditorData: true });
     });
 
     cancelImport?.addEventListener("click", () => {
@@ -1008,12 +1275,15 @@ const editorJsScript = `
 
     convertButton?.addEventListener("click", async () => {
       await editor.isReady;
-      const packagedPost = parseShippingBinariesMarkdown(markdownInput.value);
+      const source = markdownInput.value;
+      const packagedPost = parseShippingBinariesMarkdown(source);
       if (packagedPost) {
         await editor.render(packagedPost.editor);
         applyPostSnapshot(packagedPost.post);
       } else {
-        await editor.render(markdownToBlocks(markdownInput.value));
+        const imported = parseMarkdownImport(source);
+        await editor.render({ blocks: imported.blocks });
+        applyPostSnapshot(imported.post);
       }
       markdownInput.value = "";
       importDialog?.close();

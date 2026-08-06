@@ -98,13 +98,31 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.doesNotMatch(inlineScript, /fetch\(form\.action/);
 
   const browserWindow = {} as {
-    createShippingBinariesMarkdown?: (snapshot: {
-      editor: {
-        blocks: Array<{ data: Record<string, unknown>; type: string }>;
-        time?: number;
-        version?: string;
-      };
-      post: {
+    createShippingBinariesMarkdown?: (
+      snapshot: {
+        editor: {
+          blocks: Array<{ data: Record<string, unknown>; type: string }>;
+          time?: number;
+          version?: string;
+        };
+        post: {
+          description: string;
+          draft: boolean;
+          image: string;
+          keywords: string;
+          slug: string;
+          slugMode: "auto" | "custom";
+          title: string;
+        };
+      },
+      options?: { flavor?: "bear" | "obsidian"; includeEditorData?: boolean },
+    ) => string;
+    markdownToEditorBlocks?: (markdown: string) => {
+      blocks: Array<{ type: string }>;
+    };
+    parseMarkdownImport?: (markdown: string) => {
+      blocks: Array<{ data: Record<string, unknown>; type: string }>;
+      post: Partial<{
         description: string;
         draft: boolean;
         image: string;
@@ -112,10 +130,7 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
         slug: string;
         slugMode: "auto" | "custom";
         title: string;
-      };
-    }) => string;
-    markdownToEditorBlocks?: (markdown: string) => {
-      blocks: Array<{ type: string }>;
+      }>;
     };
     parseShippingBinariesMarkdown?: (markdown: string) => {
       editor: {
@@ -170,9 +185,37 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   });
 
   const captureBlock = browserWindow.markdownToEditorBlocks?.(
-    "Before\n\n<!-- email-capture -->\n\nAfter",
+    "Before\n\n<!-- sb::email-capture -->\n\nAfter",
   );
   assert.deepEqual(captureBlock?.blocks.map((block) => block.type), [
+    "paragraph",
+    "emailCapture",
+    "paragraph",
+  ]);
+
+  // Frontmatter is metadata, not body: it must not import as delimiter blocks
+  // wrapped around a paragraph of raw keys.
+  const withFrontmatter = browserWindow.markdownToEditorBlocks?.(
+    '---\ntitle: "Kept out"\ntags:\n  - one\n---\n\nBody only.',
+  );
+  assert.deepEqual(withFrontmatter?.blocks.map((block) => block.type), [
+    "paragraph",
+  ]);
+  assert.doesNotMatch(JSON.stringify(withFrontmatter), /Kept out/);
+
+  // A lone rule in the body is still a delimiter.
+  const rule = browserWindow.markdownToEditorBlocks?.("Above\n\n---\n\nBelow");
+  assert.deepEqual(rule?.blocks.map((block) => block.type), [
+    "paragraph",
+    "delimiter",
+    "paragraph",
+  ]);
+
+  // Exports written before the sb:: namespace still import.
+  const legacyCaptureBlock = browserWindow.markdownToEditorBlocks?.(
+    "Before\n\n<!-- email-capture -->\n\nAfter",
+  );
+  assert.deepEqual(legacyCaptureBlock?.blocks.map((block) => block.type), [
     "paragraph",
     "emailCapture",
     "paragraph",
@@ -188,6 +231,7 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
             text: "Unicode café with <b>exact</b> data.",
           },
         },
+        { type: "emailCapture", data: {} },
       ],
       time: 1_753_370_400_000,
       version: "2.31.6",
@@ -218,6 +262,122 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
     post: snapshot.post,
     version: 1,
   });
+
+  // Obsidian keeps tags in a frontmatter property, so keywords become a YAML
+  // list with the spaces Obsidian tags cannot contain replaced.
+  const obsidian = browserWindow.createShippingBinariesMarkdown?.(snapshot, {
+    flavor: "obsidian",
+    includeEditorData: false,
+  });
+  assert.match(obsidian ?? "", /^---\ntitle: "Exact export"/);
+  assert.match(obsidian ?? "", /\ntags:\n  - markdown\n  - round-trip\n/);
+  assert.doesNotMatch(obsidian ?? "", /keywords:/);
+  assert.match(obsidian ?? "", /---\n\nUnicode café with \*\*exact\*\* data\./);
+  assert.match(obsidian ?? "", /\n\n<!-- sb::email-capture -->\n$/);
+  assert.doesNotMatch(obsidian ?? "", /shipping-binaries-export/);
+  assert.equal(
+    browserWindow.parseShippingBinariesMarkdown?.(obsidian ?? ""),
+    null,
+  );
+
+  // Bear names a note from its first line and only sees the heading when no
+  // blank line separates it from the frontmatter; its tags are inline, and a
+  // multi-word tag needs a closing hash.
+  const bear = browserWindow.createShippingBinariesMarkdown?.(snapshot, {
+    flavor: "bear",
+    includeEditorData: false,
+  });
+  assert.match(bear ?? "", /\n---\n# Exact export\n\nUnicode café/);
+  assert.doesNotMatch(bear ?? "", /\ntags:/);
+  assert.match(bear ?? "", /\n\n#markdown #round trip#\n$/);
+  assert.doesNotMatch(bear ?? "", /shipping-binaries-export/);
+
+  // Both flavors come back through the plain import path with their post
+  // fields intact.
+  const fromObsidian = browserWindow.parseMarkdownImport?.(obsidian ?? "");
+  assert.deepEqual(fromObsidian?.post, {
+    description: "A precise export",
+    draft: true,
+    image: "https://example.com/image.png",
+    keywords: "markdown, round trip",
+    slug: "exact-export",
+    slugMode: "custom",
+    title: "Exact export",
+  });
+  assert.deepEqual(fromObsidian?.blocks.map((block) => block.type), [
+    "paragraph",
+    "emailCapture",
+  ]);
+
+  const fromBear = browserWindow.parseMarkdownImport?.(bear ?? "");
+  assert.deepEqual(fromBear?.post, fromObsidian?.post);
+  // Bear's title heading and trailing tag line are metadata, not body.
+  assert.deepEqual(fromBear?.blocks.map((block) => block.type), [
+    "paragraph",
+    "emailCapture",
+  ]);
+});
+
+test("Markdown import reads frontmatter without clobbering absent fields", () => {
+  const html = renderToString(EditorJs({ name: "body" }));
+  const inlineScript = html.match(/<script>\n([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(inlineScript);
+
+  const browserWindow = {} as {
+    parseMarkdownImport?: (markdown: string) => {
+      blocks: Array<{ data: Record<string, unknown>; type: string }>;
+      post: Record<string, unknown>;
+    };
+  };
+  new Function("window", inlineScript)(browserWindow);
+
+  // A note that only names a title leaves every other field untouched.
+  const sparse = browserWindow.parseMarkdownImport?.(
+    '---\ntitle: "Only a title"\n---\n\nBody.',
+  );
+  assert.deepEqual(sparse?.post, { title: "Only a title" });
+
+  // Obsidian hyphenates multi-word tags; they come back as keywords.
+  const tagged = browserWindow.parseMarkdownImport?.(
+    "---\ntags:\n  - ai\n  - shipping-binaries\n---\n\nBody.",
+  );
+  assert.deepEqual(tagged?.post, { keywords: "ai, shipping binaries" });
+
+  const emptyTags = browserWindow.parseMarkdownImport?.(
+    "---\ntags: []\ndraft: false\n---\n\nBody.",
+  );
+  assert.deepEqual(emptyTags?.post, { draft: false, keywords: "" });
+
+  // Quoted scalars keep their escapes.
+  const quoted = browserWindow.parseMarkdownImport?.(
+    '---\ntitle: "She said \\"go\\""\n---\n\nBody.',
+  );
+  assert.equal(quoted?.post.title, 'She said "go"');
+
+  // A bare note is still importable, and a trailing Bear tag line is read even
+  // without frontmatter.
+  const bare = browserWindow.parseMarkdownImport?.("Just a body.");
+  assert.deepEqual(bare?.post, {});
+  assert.deepEqual(bare?.blocks.map((block) => block.type), ["paragraph"]);
+
+  const inlineTags = browserWindow.parseMarkdownImport?.(
+    "Body.\n\n#ai #star wars#",
+  );
+  assert.equal(inlineTags?.post.keywords, "ai, star wars");
+  assert.deepEqual(inlineTags?.blocks.map((block) => block.type), ["paragraph"]);
+
+  // A note that is nothing but tags keeps them as body rather than emptying.
+  const onlyTags = browserWindow.parseMarkdownImport?.("#ai");
+  assert.deepEqual(onlyTags?.post, {});
+  assert.deepEqual(onlyTags?.blocks.map((block) => block.type), ["paragraph"]);
+
+  // A heading is not a tag line: "# Title" has a space after the hash.
+  const heading = browserWindow.parseMarkdownImport?.("Body.\n\n# Not a tag");
+  assert.deepEqual(heading?.post, {});
+  assert.deepEqual(heading?.blocks.map((block) => block.type), [
+    "paragraph",
+    "header",
+  ]);
 });
 
 test("new post form generates and validates a customizable slug", () => {
@@ -233,6 +393,16 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /aria-label="Import Markdown"/);
   assert.match(html, /aria-label="Export Markdown"/);
   assert.match(html, /data-markdown-export/);
+  assert.match(html, /data-markdown-export-menu-root/);
+  assert.match(html, /aria-controls="markdown-export-menu"/);
+  assert.match(html, /hidden="" id="markdown-export-menu"/);
+  assert.match(html, /aria-label="Download Obsidian Markdown"/);
+  assert.match(html, /data-markdown-export-obsidian/);
+  assert.match(html, /aria-label="Download Bear Markdown"/);
+  assert.match(html, /data-markdown-export-bear/);
+  assert.match(html, /aria-label="Download Markdown with editor data"/);
+  assert.match(html, /data-markdown-export-editor-data/);
+  assert.match(html, /<ellipse cx="12" cy="5" rx="9" ry="3"><\/ellipse>/);
   assert.match(html, /&quot;type&quot;:&quot;emailCapture&quot;/);
   assert.match(html, /<path d="M12 18v-6"><\/path>/);
   assert.match(html, /name="postAction"/);
