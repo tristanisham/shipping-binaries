@@ -7,6 +7,7 @@ import { authRoute } from "./routes/auth.js";
 import { blogRoute } from "./routes/blog.js";
 import { parsePageParam } from "./routes/page.js";
 import { feedsRoute } from "./routes/feeds.js";
+import { ingestRoute } from "./routes/ingest.js";
 import { weatherRoute } from "./routes/weather.js";
 import { captureError, capturePageServed } from "./posthog.js";
 import { About } from "./views/About.js";
@@ -16,6 +17,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.route("/", authRoute);
 app.route("/", feedsRoute);
+app.route("/", ingestRoute);
 app.route("/", blogRoute);
 app.route("/", weatherRoute);
 

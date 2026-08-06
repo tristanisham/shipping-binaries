@@ -4,11 +4,14 @@ import { renderToString } from "hono/jsx/dom/server";
 import { PostHogSnippet } from "../../src/views/components/analytics/PostHog.js";
 import { Layout } from "../../src/views/layouts/MainLayout.js";
 
-test("PostHog snippet initializes against the US ingestion host", () => {
+test("PostHog snippet initializes against the first-party ingest proxy", () => {
   const html = renderToString(PostHogSnippet({}));
 
   assert.match(html, /posthog\.init\("phc_[A-Za-z0-9]+"/);
-  assert.match(html, /api_host: "https:\/\/us\.i\.posthog\.com"/);
+  // Capture goes through our own domain so ad blockers can't filter it by the
+  // `*.i.posthog.com` name; `ui_host` keeps in-app links on PostHog Cloud.
+  assert.match(html, /api_host: "https:\/\/shippingbinaries\.com\/ingest"/);
+  assert.match(html, /ui_host: "https:\/\/us\.posthog\.com"/);
   assert.match(html, /"-assets\.i\.posthog\.com"\)\+"\/static\/array\.js"/);
 });
 
