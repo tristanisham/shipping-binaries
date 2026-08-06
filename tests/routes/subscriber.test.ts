@@ -211,16 +211,6 @@ test("signed-in readers subscribe with their linked account email", async () => 
   const token = await createSession(db, userId);
   const headers = { Cookie: `${SESSION_COOKIE_NAME}=${token}` };
 
-  const page = await app.request(
-    "/blog/subscription-source",
-    { headers },
-    { DB: db } as Env,
-  );
-  const pageHtml = await page.text();
-  assert.equal(page.status, 200);
-  assert.match(pageHtml, /href="\/help">via Email<\/a>/);
-  assert.doesNotMatch(pageHtml, /name="email"/);
-
   const response = await app.request(
     "/blog/subscription-source/subscribe",
     {
@@ -239,13 +229,6 @@ test("signed-in readers subscribe with their linked account email", async () => 
   const subscriber = await getSubscriberByEmail(db, "member@example.com");
   assert.equal(subscriber?.userId, userId);
   assert.ok(subscriber?.confirmedAt);
-
-  const subscribedPage = await app.request(
-    "/blog/subscription-source",
-    { headers },
-    { DB: db } as Env,
-  );
-  assert.match(await subscribedPage.text(), /You&#39;re subscribed\./);
 });
 
 test("a failed send preserves pending state and permits a later retry", async () => {

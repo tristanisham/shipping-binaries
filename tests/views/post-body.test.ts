@@ -5,9 +5,6 @@ import {
   getPostHeadings,
   PostBody,
 } from "../../src/views/components/blog/PostBody.js";
-import {
-  EmailCaptureAlignment,
-} from "../../src/views/components/blog/EmailCapture.js";
 
 test("PostBody preserves safe inline formatting and escapes unsafe HTML", () => {
   const html = renderToString(PostBody({
@@ -46,53 +43,24 @@ test("PostBody keeps internal links in the current tab without an icon", () => {
   assert.doesNotMatch(html, /M15 3h6v6/);
 });
 
-test("PostBody renders an email capture block in its saved position", () => {
+test("PostBody renders nothing for an email capture block", () => {
   const html = renderToString(PostBody({
     body: JSON.stringify({
       blocks: [
         { type: "paragraph", data: { text: "Before capture" } },
-        { type: "emailCapture", data: {} },
+        {
+          type: "emailCapture",
+          data: { title: "Get new posts by email" },
+        },
         { type: "paragraph", data: { text: "After capture" } },
       ],
     }),
-    emailCapture: {
-      alignment: EmailCaptureAlignment.Left,
-      description: "Capture description",
-      label: "Capture label",
-      postSlug: "capture-post",
-    },
   }));
 
-  assert.match(html, /id="email-capture"/);
-  assert.match(html, />Capture label<\/h2>/);
-  assert.ok(html.indexOf("Before capture") < html.indexOf("email-capture"));
-  assert.ok(html.indexOf("email-capture") < html.indexOf("After capture"));
-});
-
-test("PostBody uses email capture copy edited inside the post", () => {
-  const html = renderToString(PostBody({
-    body: JSON.stringify({
-      blocks: [{
-        type: "emailCapture",
-        data: {
-          description: "A description saved with this block.",
-          title: "A custom capture title",
-        },
-      }],
-    }),
-    emailCapture: {
-      alignment: EmailCaptureAlignment.Left,
-      description: "Default description",
-      label: "Default title",
-      postSlug: "capture-post",
-    },
-  }));
-
-  assert.match(html, />A custom capture title<\/h2>/);
-  assert.match(html, /A description saved with this block\./);
-  assert.match(html, /data-form-label="A custom capture title"/);
-  assert.doesNotMatch(html, /Default title/);
-  assert.doesNotMatch(html, /Default description/);
+  assert.match(html, /Before capture/);
+  assert.match(html, /After capture/);
+  assert.doesNotMatch(html, /email-capture/);
+  assert.doesNotMatch(html, /Get new posts by email/);
 });
 
 test("PostBody links footnote references to safely rendered definitions", () => {

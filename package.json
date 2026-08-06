@@ -7,6 +7,7 @@
     "clsx": "^2.1.1",
     "feed": "^6.0.0",
     "hono": "^4.12.31",
+    "lucide": "^1.28.0",
     "posthog-node": "^5.46.1",
     "tailwind-merge": "^3.6.0"
   },

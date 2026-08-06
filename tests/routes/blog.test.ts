@@ -57,8 +57,7 @@ test("published posts render at their slug and drafts stay private", async () =>
     /<h2[^>]*id="a-heading"[^>]*><span>A heading<\/span><\/h2>/,
   );
   assert.match(html, /A <strong>public<\/strong> body/);
-  assert.equal(html.match(/id="email-capture"/g)?.length, 1);
-  assert.ok(html.indexOf("email-capture") < html.indexOf("A <strong>public"));
+  assert.doesNotMatch(html, /email-capture/);
   assert.match(html, /id="post-table-of-contents"/);
   assert.match(html, /aria-controls="post-contents-panel"/);
   assert.match(

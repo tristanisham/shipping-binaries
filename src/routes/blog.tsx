@@ -169,7 +169,6 @@ blogRoute.get("/blog/:slug", async (c) => {
   return c.html(
     <BlogPost
       canComment={canComment}
-      emailCaptureStatus={emailCaptureStatus}
       post={post}
       {...viewer}
     />,

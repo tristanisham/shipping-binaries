@@ -4,12 +4,6 @@ import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
 import { CommentEditor } from "./components/blog/CommentEditor.js";
 import { PostEngagement } from "./components/analytics/PostEngagement.js";
-import { parseEditorData } from "./components/editorData.js";
-import {
-  EmailCapture,
-  EmailCaptureAlignment,
-  type EmailCaptureStatus,
-} from "./components/blog/EmailCapture.js";
 import { getPostHeadings, PostBody } from "./components/blog/PostBody.js";
 import { PostMeta } from "./components/blog/posts/PostMeta.js";
 import { PostTableOfContents } from "./components/blog/PostTableOfContents.js";
@@ -22,13 +16,11 @@ import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type BlogPostProps = ViewerProps & {
   canComment?: boolean;
-  emailCaptureStatus?: EmailCaptureStatus;
   post: PostWithAuthor;
 };
 
 export const BlogPost: FC<BlogPostProps> = ({
   canComment = false,
-  emailCaptureStatus,
   isAdmin = false,
   isAuthenticated = false,
   post,
@@ -37,19 +29,6 @@ export const BlogPost: FC<BlogPostProps> = ({
 }) => {
   const postUrl = toAbsoluteUrl(`/blog/${post.slug}`);
   const headings = getPostHeadings(post.body);
-  const hasInlineEmailCapture = parseEditorData(post.body)?.blocks.some(
-    (block) =>
-      typeof block === "object" && block !== null && "type" in block &&
-      block.type === "emailCapture",
-  ) ?? false;
-  const emailCapture = {
-    alignment: EmailCaptureAlignment.Left,
-    description: "Be notified when a new post is published.",
-    isAuthenticated,
-    label: "Get new posts by email",
-    postSlug: post.slug,
-    status: emailCaptureStatus,
-  } as const;
   const meta: LayoutMeta = {
     title: `${post.title} | Shipping Binaries`,
     description: post.description,
@@ -112,13 +91,10 @@ export const BlogPost: FC<BlogPostProps> = ({
           <div data-post-content>
             <PostBody
               body={post.body}
-              emailCapture={emailCapture}
               headings={headings}
             />
           </div>
         </article>
-
-        {hasInlineEmailCapture ? null : <EmailCapture {...emailCapture} />}
 
         <section
           aria-labelledby="comments-heading"
