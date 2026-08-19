@@ -3,6 +3,7 @@ import type { ViewerProps } from "../auth/viewer.js";
 import type { PostWithAuthor } from "../models/post.js";
 import { Comment } from "./components/blog/Comment.js";
 import { CommentEditor } from "./components/blog/CommentEditor.js";
+import { FeedCard } from "./components/blog/FeedCard.js";
 import { PostEngagement } from "./components/analytics/PostEngagement.js";
 import { getPostHeadings, PostBody } from "./components/blog/PostBody.js";
 import { PostMeta } from "./components/blog/posts/PostMeta.js";
@@ -36,24 +37,28 @@ export const BlogPost: FC<BlogPostProps> = ({
     description: post.description,
     keywords: post.keywords,
     canonical: isPreview ? undefined : postUrl,
-    feeds: isPreview ? undefined : [
-      ...blogFeedLinks(),
-      ...authorFeedLinks(
-        post.authorUsername,
-        post.authorLabel ?? post.authorUsername,
-      ),
-    ],
+    feeds: isPreview
+      ? undefined
+      : [
+        ...blogFeedLinks(),
+        ...authorFeedLinks(
+          post.authorUsername,
+          post.authorLabel ?? post.authorUsername,
+        ),
+      ],
     robots: isPreview ? "noindex, nofollow" : undefined,
-    social: isPreview ? undefined : {
-      title: post.title,
-      type: "article",
-      url: postUrl,
-      image: post.image ? toAbsoluteUrl(post.image) : undefined,
-      imageAlt: post.image ? post.title : undefined,
-      author: post.authorLabel ?? post.authorUsername,
-      publishedTime: toIsoTimestamp(post.createdAt),
-      modifiedTime: toIsoTimestamp(post.updatedAt),
-    },
+    social: isPreview
+      ? undefined
+      : {
+        title: post.title,
+        type: "article",
+        url: postUrl,
+        image: post.image ? toAbsoluteUrl(post.image) : undefined,
+        imageAlt: post.image ? post.title : undefined,
+        author: post.authorLabel ?? post.authorUsername,
+        publishedTime: toIsoTimestamp(post.createdAt),
+        modifiedTime: toIsoTimestamp(post.updatedAt),
+      },
   };
 
   return (
@@ -82,9 +87,7 @@ export const BlogPost: FC<BlogPostProps> = ({
               </p>
               <a
                 class="font-semibold underline underline-offset-4"
-                href={post.id > 0
-                  ? `/admin/write?id=${post.id}`
-                  : "/admin/write"}
+                href={post.id > 0 ? `/admin/write?id=${post.id}` : "/admin/write"}
               >
                 Back to editor
               </a>
@@ -121,7 +124,12 @@ export const BlogPost: FC<BlogPostProps> = ({
           </div>
         </article>
 
-        {!isPreview
+        {
+          /* Signed-out readers get the feed card where the comment box would
+            be. An empty comment section has nothing to say to them, so it is
+            left out entirely until the post has a discussion to read. */
+        }
+        {!isPreview && (isAuthenticated || post.comments.length > 0)
           ? (
             <section
               aria-labelledby="comments-heading"
@@ -150,14 +158,19 @@ export const BlogPost: FC<BlogPostProps> = ({
           )
           : null}
 
-        {isPreview ? null : (
-          <PostEngagement
-            isAuthenticated={isAuthenticated}
-            postId={post.id}
-            postSlug={post.slug}
-            postTitle={post.title}
-          />
-        )}
+        {!isPreview && !isAuthenticated
+          ? <FeedCard postSlug={post.slug} />
+          : null}
+        {isPreview
+          ? null
+          : (
+            <PostEngagement
+              isAuthenticated={isAuthenticated}
+              postId={post.id}
+              postSlug={post.slug}
+              postTitle={post.title}
+            />
+          )}
       </main>
     </Layout>
   );

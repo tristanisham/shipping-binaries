@@ -118,6 +118,38 @@
     @apply pb-24;
   }
 
+  .editor-js .ce-header {
+    @apply relative my-2 border-l-4 border-chocolate-500 bg-chocolate-500/5 !py-2 !pr-3 !pl-12 font-bold;
+  }
+
+  .editor-js .ce-header::before {
+    @apply absolute top-1/2 left-3 -translate-y-1/2 font-mono text-[0.625rem] font-semibold tracking-wider text-chocolate-600 dark:text-chocolate-300;
+  }
+
+  .editor-js h2.ce-header {
+    @apply text-2xl;
+  }
+
+  .editor-js h2.ce-header::before {
+    content: "H2";
+  }
+
+  .editor-js h3.ce-header {
+    @apply text-xl;
+  }
+
+  .editor-js h3.ce-header::before {
+    content: "H3";
+  }
+
+  .editor-js h4.ce-header {
+    @apply text-lg;
+  }
+
+  .editor-js h4.ce-header::before {
+    content: "H4";
+  }
+
   .editor-js a {
     @apply text-burgundy-300 underline decoration-current underline-offset-2;
   }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import app from "../../src/index.js";
+import { createComment } from "../../src/models/comment.js";
 import { createPost } from "../../src/models/post.js";
 import { ADMIN_ROLE, assignRoleToUser } from "../../src/models/role.js";
 import {
@@ -509,4 +510,65 @@ test("comment creation requires a signed-in user with permission", async () => {
     { DB: db } as Env,
   );
   assert.equal(forbidden.status, 403);
+});
+
+test("the feed card stands in for the comment box until a reader signs in", async () => {
+  const db = createTestDb();
+  const userId = await seedUser(db, {
+    email: "owner@example.com",
+    username: "owner",
+  });
+  await createPost(db, {
+    userId,
+    slug: "quiet-post",
+    title: "Quiet post",
+    description: "",
+    keywords: [],
+    image: "",
+    body: "A post with no discussion yet.",
+    draft: false,
+  });
+
+  // Signed out, no comments: the feed card replaces an empty comment section.
+  const anonymous = await app.request(
+    "/blog/quiet-post",
+    {},
+    { DB: db } as Env,
+  );
+  const anonymousHtml = await anonymous.text();
+  assert.match(anonymousHtml, /id="feed-card"/);
+  assert.match(anonymousHtml, /https:\/\/shippingbinaries\.com\/rss/);
+  assert.doesNotMatch(anonymousHtml, /id="comments-heading"/);
+  assert.doesNotMatch(anonymousHtml, /No comments yet\./);
+
+  // Signed out, with comments: the discussion stays readable above the card.
+  await createComment(db, {
+    postId: 1,
+    userId,
+    content: "A published remark.",
+  });
+  const withComments = await app.request(
+    "/blog/quiet-post",
+    {},
+    { DB: db } as Env,
+  );
+  const withCommentsHtml = await withComments.text();
+  assert.match(withCommentsHtml, /id="comments-heading"/);
+  assert.match(withCommentsHtml, /A published remark\./);
+  assert.match(withCommentsHtml, /id="feed-card"/);
+  assert.ok(
+    withCommentsHtml.indexOf("comments-heading") <
+      withCommentsHtml.indexOf("feed-card"),
+  );
+
+  // Signed in: the comment section is the whole story, no feed card.
+  const token = await createSession(db, userId);
+  const member = await app.request(
+    "/blog/quiet-post",
+    { headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` } },
+    { DB: db } as Env,
+  );
+  const memberHtml = await member.text();
+  assert.match(memberHtml, /id="comments-heading"/);
+  assert.doesNotMatch(memberHtml, /id="feed-card"/);
 });
