@@ -100,7 +100,7 @@ test("anonymous capture sends verification once and activates only after confirm
   assert.equal(response.status, 303);
   assert.equal(
     response.headers.get("location"),
-    "/blog/subscription-source?subscription=pending#email-capture",
+    "/blog/subscription-source?subscription=pending",
   );
   assert.equal(
     (await getSubscriberByEmail(db, "reader@example.com"))?.confirmedAt,
@@ -128,7 +128,7 @@ test("anonymous capture sends verification once and activates only after confirm
   assert.equal(duplicate.status, 303);
   assert.equal(
     duplicate.headers.get("location"),
-    "/blog/subscription-source?subscription=pending#email-capture",
+    "/blog/subscription-source?subscription=pending",
   );
   assert.equal(sentEmails.length, 1);
 
@@ -141,7 +141,7 @@ test("anonymous capture sends verification once and activates only after confirm
   assert.equal(confirmed.status, 303);
   assert.equal(
     confirmed.headers.get("location"),
-    "/blog/subscription-source?subscription=subscribed#email-capture",
+    "/blog/subscription-source?subscription=subscribed",
   );
   assert.ok(
     (await getSubscriberByEmail(db, "reader@example.com"))?.confirmedAt,
@@ -303,7 +303,7 @@ test("a failed owner send does not delete a concurrently accepted request", asyn
     assert.equal(second.status, 303);
     assert.equal(
       second.headers.get("location"),
-      "/blog/subscription-source?subscription=pending#email-capture",
+      "/blog/subscription-source?subscription=pending",
     );
 
     rejectSend(new Error("email delivery failed"));

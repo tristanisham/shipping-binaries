@@ -20,7 +20,6 @@ import { getSessionUser, SESSION_COOKIE_NAME } from "../models/session.js";
 import {
   confirmSubscription,
   getSubscriberByEmail,
-  getSubscriberForUser,
   isValidSubscriberEmail,
   normalizeSubscriberEmail,
   preparePendingSubscription,
@@ -32,7 +31,6 @@ import { Author } from "../views/Author.js";
 import { BlogIndex } from "../views/BlogIndex.js";
 import { BlogPost } from "../views/BlogPost.js";
 import { Help } from "../views/Help.js";
-import type { EmailCaptureStatus } from "../views/components/blog/EmailCapture.js";
 import { toAbsoluteUrl } from "../views/components/SocialMeta.js";
 import { editorDataHasText } from "../views/components/editorData.js";
 import { parsePageParam } from "./page.js";
@@ -47,8 +45,8 @@ export const blogRoute = new Hono<{ Bindings: Env }>();
 
 const subscriptionRedirect = (
   postPath: string,
-  status: EmailCaptureStatus,
-): string => `${postPath}?subscription=${status}#email-capture`;
+  status: "invalid" | "pending" | "subscribed" | "unsubscribed",
+): string => `${postPath}?subscription=${status}`;
 
 const buildSubscriberConfirmationUrl = (
   requestUrl: string,
@@ -132,22 +130,7 @@ blogRoute.get("/blog/:slug", async (c) => {
     return c.notFound();
   }
 
-  const requestedStatus = c.req.query("subscription");
-  const requestEmailCaptureStatus: EmailCaptureStatus | undefined =
-    requestedStatus === "invalid" || requestedStatus === "pending" ||
-      requestedStatus === "subscribed" || requestedStatus === "unsubscribed"
-      ? requestedStatus
-      : undefined;
-  const currentSubscriber = currentUser
-    ? await getSubscriberForUser(c.env.DB, currentUser.id)
-    : null;
-  const emailCaptureStatus: EmailCaptureStatus | undefined = currentSubscriber
-    ? currentSubscriber.unsubscribedAt
-      ? "unsubscribed"
-      : "subscribed"
-    : requestEmailCaptureStatus;
-
-  if (currentUser || emailCaptureStatus) {
+  if (currentUser) {
     c.header("Cache-Control", "private, no-store");
   }
 

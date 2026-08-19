@@ -19,16 +19,16 @@ test("legacy Markdown is safely wrapped for Editor.js", () => {
   });
 });
 
-test("new editor data starts with an email capture after the writing block", () => {
-  assert.deepEqual(normalizeEditorData("", true), {
-    blocks: [
-      { type: "paragraph", data: { text: "" } },
-      { type: "emailCapture", data: {} },
-    ],
-  });
+test("new editor data starts empty and removes old email capture blocks", () => {
+  assert.deepEqual(normalizeEditorData(""), { blocks: [] });
   assert.deepEqual(
-    normalizeEditorData(JSON.stringify({ blocks: [] }), true),
-    { blocks: [] },
+    normalizeEditorData(JSON.stringify({
+      blocks: [
+        { type: "paragraph", data: { text: "Keep me" } },
+        { type: "emailCapture", data: {} },
+      ],
+    })),
+    { blocks: [{ type: "paragraph", data: { text: "Keep me" } }] },
   );
 });
 
@@ -45,7 +45,7 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(html, /data-editorjs-tool="code"/);
   assert.match(html, /data-editorjs-tool="delimiter"/);
   assert.match(html, /data-editorjs-tool="footnote"/);
-  assert.match(html, /data-editorjs-tool="emailCapture"/);
+  assert.doesNotMatch(html, /data-editorjs-tool="emailCapture"/);
   assert.match(html, /data-editorjs-link/);
   assert.match(html, /bg-chocolate-500/);
   assert.match(
@@ -68,14 +68,7 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(inlineScript, /insertAt,\s+false/);
   assert.match(inlineScript, /dispatchChange\(\)/);
   assert.match(inlineScript, /class FootnoteTool/);
-  assert.match(inlineScript, /class EmailCaptureTool/);
-  assert.match(inlineScript, /emailCapture: EmailCaptureTool/);
-  assert.match(inlineScript, /Email capture title/);
-  assert.match(inlineScript, /Email capture description/);
-  assert.match(inlineScript, /contentEditable = String\(!this\.readOnly\)/);
-  assert.match(inlineScript, /Edit the title and description in place/);
-  assert.match(inlineScript, /description: this\.description\?\.textContent/);
-  assert.match(inlineScript, /title: this\.title\?\.textContent/);
+  assert.doesNotMatch(inlineScript, /class EmailCaptureTool/);
   assert.match(inlineScript, /footnote: FootnoteTool/);
   assert.match(inlineScript, /class InlineFootnoteTool/);
   assert.match(inlineScript, /footnoteInline: InlineFootnoteTool/);
@@ -189,7 +182,6 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   );
   assert.deepEqual(captureBlock?.blocks.map((block) => block.type), [
     "paragraph",
-    "emailCapture",
     "paragraph",
   ]);
 
@@ -217,7 +209,6 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   );
   assert.deepEqual(legacyCaptureBlock?.blocks.map((block) => block.type), [
     "paragraph",
-    "emailCapture",
     "paragraph",
   ]);
 
@@ -273,7 +264,7 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(obsidian ?? "", /\ntags:\n  - markdown\n  - round-trip\n/);
   assert.doesNotMatch(obsidian ?? "", /keywords:/);
   assert.match(obsidian ?? "", /---\n\nUnicode café with \*\*exact\*\* data\./);
-  assert.match(obsidian ?? "", /\n\n<!-- sb::email-capture -->\n$/);
+  assert.doesNotMatch(obsidian ?? "", /email-capture/);
   assert.doesNotMatch(obsidian ?? "", /shipping-binaries-export/);
   assert.equal(
     browserWindow.parseShippingBinariesMarkdown?.(obsidian ?? ""),
@@ -306,7 +297,6 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   });
   assert.deepEqual(fromObsidian?.blocks.map((block) => block.type), [
     "paragraph",
-    "emailCapture",
   ]);
 
   const fromBear = browserWindow.parseMarkdownImport?.(bear ?? "");
@@ -314,7 +304,6 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   // Bear's title heading and trailing tag line are metadata, not body.
   assert.deepEqual(fromBear?.blocks.map((block) => block.type), [
     "paragraph",
-    "emailCapture",
   ]);
 });
 
@@ -403,7 +392,7 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /aria-label="Download Markdown with editor data"/);
   assert.match(html, /data-markdown-export-editor-data/);
   assert.match(html, /<ellipse cx="12" cy="5" rx="9" ry="3"><\/ellipse>/);
-  assert.match(html, /&quot;type&quot;:&quot;emailCapture&quot;/);
+  assert.doesNotMatch(html, /&quot;type&quot;:&quot;emailCapture&quot;/);
   assert.match(html, /<path d="M12 18v-6"><\/path>/);
   assert.match(html, /name="postAction"/);
   assert.match(html, />Controls<span/);
