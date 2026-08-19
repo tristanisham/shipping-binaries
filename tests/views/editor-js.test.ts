@@ -46,7 +46,12 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(html, /data-editorjs-tool="delimiter"/);
   assert.match(html, /data-editorjs-tool="footnote"/);
   assert.doesNotMatch(html, /data-editorjs-tool="emailCapture"/);
+  assert.match(html, /data-editorjs-inline-command="bold"/);
+  assert.match(html, /title="Toggle bold \(Ctrl\+B\)"/);
+  assert.match(html, /data-editorjs-inline-command="italic"/);
+  assert.match(html, /title="Toggle italic \(Ctrl\+I\)"/);
   assert.match(html, /data-editorjs-link/);
+  assert.match(html, /title="Add link to selected text \(Ctrl\+K\)"/);
   assert.match(html, /bg-chocolate-500/);
   assert.match(
     html,
@@ -87,6 +92,17 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(inlineScript, /actions\.className = "w-full space-y-2 p-2"/);
   assert.doesNotMatch(inlineScript, /actions\.style\.minWidth/);
   assert.match(inlineScript, /inlineToolbar: true/);
+  assert.match(
+    inlineScript,
+    /holder\.addEventListener\("keydown", \(event\) =>/,
+  );
+  assert.match(inlineScript, /!event\.ctrlKey/);
+  assert.match(inlineScript, /event\.stopPropagation\(\)/);
+  assert.match(inlineScript, /document\.execCommand\(command\)/);
+  assert.match(inlineScript, /key === "b" \? "bold"/);
+  assert.match(inlineScript, /key === "i" \? "italic"/);
+  assert.match(inlineScript, /key === "k" && editorSelectionRange\(true\)/);
+  assert.match(inlineScript, /openLinkMenu\(\)/);
   assert.match(inlineScript, /form\.getAttribute\("action"\)/);
   assert.doesNotMatch(inlineScript, /fetch\(form\.action/);
 

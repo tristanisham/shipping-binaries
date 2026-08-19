@@ -901,6 +901,9 @@ const editorJsScript = `
     const convertButton = root.querySelector("[data-markdown-convert]");
     const cancelImport = root.querySelector("[data-markdown-cancel]");
     const toolButtons = root.querySelectorAll("[data-editorjs-tool]");
+    const inlineCommandButtons = root.querySelectorAll(
+      "[data-editorjs-inline-command]",
+    );
     const linkButton = root.querySelector("[data-editorjs-link]");
     if (!form || !holder || !input || !window.EditorJS) return;
 
@@ -1022,6 +1025,9 @@ const editorJsScript = `
       toolButtons.forEach((button) => {
         button.disabled = false;
       });
+      inlineCommandButtons.forEach((button) => {
+        button.disabled = false;
+      });
       if (linkButton) linkButton.disabled = false;
     });
 
@@ -1067,29 +1073,56 @@ const editorJsScript = `
       });
     });
 
-    linkButton?.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-    });
-    linkButton?.addEventListener("click", async () => {
-      await editor.isReady;
+    const editorSelectionRange = (requireText = false) => {
       const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-        window.alert("Select text in the editor before adding a link.");
-        return;
+      if (
+        !selection || selection.rangeCount === 0 ||
+        (requireText && selection.isCollapsed)
+      ) {
+        return null;
       }
 
-      const range = selection.getRangeAt(0).cloneRange();
-      if (!holder.contains(range.commonAncestorContainer)) {
-        window.alert("Select text in the editor before adding a link.");
-        return;
-      }
+      const range = selection.getRangeAt(0);
+      return holder.contains(range.commonAncestorContainer) ? range : null;
+    };
 
+    const dispatchInlineChange = () => {
       const blockIndex = editor.blocks.getCurrentBlockIndex();
+      if (blockIndex >= 0) {
+        editor.blocks.getBlockByIndex(blockIndex)?.dispatchChange();
+      } else {
+        markChanged();
+      }
+    };
+
+    const toggleInlineCommand = (command, showAlert = false) => {
+      if (!editorSelectionRange()) {
+        if (showAlert) {
+          window.alert("Place the cursor in the editor before formatting text.");
+        }
+        return false;
+      }
+
+      document.execCommand(command);
+      dispatchInlineChange();
+      return true;
+    };
+
+    const openLinkMenu = (showAlert = false) => {
+      const range = editorSelectionRange(true)?.cloneRange();
+      if (!range) {
+        if (showAlert) {
+          window.alert("Select text in the editor before adding a link.");
+        }
+        return false;
+      }
+
+      const selection = window.getSelection();
       const enteredHref = window.prompt(
         "Link URL (https://example.com or /internal-page)",
         "https://",
       );
-      if (enteredHref === null) return;
+      if (enteredHref === null) return false;
 
       const href = enteredHref.trim();
       const lowerHref = href.toLowerCase();
@@ -1098,22 +1131,58 @@ const editorJsScript = `
       const isInternal = href.startsWith("/") && !href.startsWith("//");
       if (!isExternal && !isInternal) {
         window.alert("Use an http(s) URL or a root-relative path beginning with /.");
-        return;
+        return false;
       }
 
       const anchor = document.createElement("a");
       anchor.setAttribute("href", href);
       anchor.appendChild(range.extractContents());
       range.insertNode(anchor);
-      selection.removeAllRanges();
+      selection?.removeAllRanges();
       const linkedRange = document.createRange();
       linkedRange.selectNodeContents(anchor);
-      selection.addRange(linkedRange);
+      selection?.addRange(linkedRange);
+      dispatchInlineChange();
+      return true;
+    };
 
-      if (blockIndex >= 0) {
-        editor.blocks.getBlockByIndex(blockIndex)?.dispatchChange();
-      } else {
-        markChanged();
+    inlineCommandButtons.forEach((button) => {
+      button.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+      });
+      button.addEventListener("click", () => {
+        const command = button.dataset.editorjsInlineCommand;
+        if (command) toggleInlineCommand(command, true);
+      });
+    });
+
+    linkButton?.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+    });
+    linkButton?.addEventListener("click", () => {
+      openLinkMenu(true);
+    });
+
+    holder.addEventListener("keydown", (event) => {
+      if (
+        !event.ctrlKey || event.altKey || event.metaKey || event.shiftKey
+      ) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      const command = key === "b" ? "bold" : key === "i" ? "italic" : null;
+      if (command && editorSelectionRange()) {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleInlineCommand(command);
+        return;
+      }
+
+      if (key === "k" && editorSelectionRange(true)) {
+        event.preventDefault();
+        event.stopPropagation();
+        openLinkMenu();
       }
     });
 
@@ -1420,11 +1489,37 @@ export const EditorJs: FC<EditorJsProps> = ({
           </svg>
         </button>
         <button
+          aria-label="Toggle bold"
+          class={editorToolButtonClass}
+          data-editorjs-inline-command="bold"
+          disabled
+          title="Toggle bold (Ctrl+B)"
+          type="button"
+        >
+          <svg class={iconClass} {...commonSvgProps}>
+            <path d="M6 12h9a4 4 0 0 0 0-8H6v16h9a4 4 0 0 0 0-8Z" />
+          </svg>
+        </button>
+        <button
+          aria-label="Toggle italic"
+          class={editorToolButtonClass}
+          data-editorjs-inline-command="italic"
+          disabled
+          title="Toggle italic (Ctrl+I)"
+          type="button"
+        >
+          <svg class={iconClass} {...commonSvgProps}>
+            <path d="M19 4h-9" />
+            <path d="M14 20H5" />
+            <path d="M15 4 9 20" />
+          </svg>
+        </button>
+        <button
           aria-label="Add link to selected text"
           class={editorToolButtonClass}
           data-editorjs-link
           disabled
-          title="Add link to selected text"
+          title="Add link to selected text (Ctrl+K)"
           type="button"
         >
           <svg class={iconClass} {...commonSvgProps}>
