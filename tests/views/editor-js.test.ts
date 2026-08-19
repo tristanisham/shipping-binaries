@@ -6,6 +6,22 @@ import {
   normalizeEditorData,
 } from "../../src/views/components/admin/EditorJs.js";
 import { Write } from "../../src/views/Write.js";
+import {
+  markdownToBlocks,
+  parseMarkdownImport,
+  parseShippingBinariesMarkdown,
+  postToMarkdown,
+} from "../../src/markdown/post-markdown.js";
+
+// The serializer and importer moved to src/markdown/post-markdown.ts, which
+// public/js/post-markdown.js publishes on window for this script. These tests
+// keep exercising them through the same names the editor calls.
+const markdownGlobals = {
+  createShippingBinariesMarkdown: postToMarkdown,
+  markdownToEditorBlocks: markdownToBlocks,
+  parseMarkdownImport,
+  parseShippingBinariesMarkdown,
+};
 
 test("legacy Markdown is safely wrapped for Editor.js", () => {
   const data = normalizeEditorData("# Title\n<script>alert(1)</script>");
@@ -104,6 +120,15 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
   assert.match(inlineScript, /key === "k" && editorSelectionRange\(true\)/);
   assert.match(inlineScript, /openLinkMenu\(\)/);
   assert.match(inlineScript, /form\.getAttribute\("action"\)/);
+
+  // The serializer is no longer duplicated into this blob; it calls the
+  // globals published by /js/post-markdown.js.
+  assert.match(inlineScript, /window\.createShippingBinariesMarkdown\(/);
+  assert.match(inlineScript, /window\.parseShippingBinariesMarkdown\(/);
+  assert.match(inlineScript, /window\.parseMarkdownImport\(/);
+  assert.match(inlineScript, /window\.markdownInline\(/);
+  assert.doesNotMatch(inlineScript, /const createShippingBinariesMarkdown/);
+  assert.doesNotMatch(inlineScript, /const markdownToBlocks/);
   assert.doesNotMatch(inlineScript, /fetch\(form\.action/);
 
   const browserWindow = {} as {
@@ -160,7 +185,7 @@ test("Editor.js renders a JSON body field and Markdown converter", () => {
       version: number;
     } | null;
   };
-  new Function("window", inlineScript)(browserWindow);
+  Object.assign(browserWindow, markdownGlobals);
   const converted = browserWindow.markdownToEditorBlocks?.(
     "## Heading[^source]\n\nObsidian inline note ^[Inline *citation*.]\n\n- one\n- two\n\n```ts\nconst ok = true;\n```\n\n[^source]: Google Drive citation\n  continued line",
   );
@@ -334,7 +359,7 @@ test("Markdown import reads frontmatter without clobbering absent fields", () =>
       post: Record<string, unknown>;
     };
   };
-  new Function("window", inlineScript)(browserWindow);
+  Object.assign(browserWindow, markdownGlobals);
 
   // A note that only names a title leaves every other field untouched.
   const sparse = browserWindow.parseMarkdownImport?.(
@@ -369,7 +394,9 @@ test("Markdown import reads frontmatter without clobbering absent fields", () =>
     "Body.\n\n#ai #star wars#",
   );
   assert.equal(inlineTags?.post.keywords, "ai, star wars");
-  assert.deepEqual(inlineTags?.blocks.map((block) => block.type), ["paragraph"]);
+  assert.deepEqual(inlineTags?.blocks.map((block) => block.type), [
+    "paragraph",
+  ]);
 
   // A note that is nothing but tags keeps them as body rather than emptying.
   const onlyTags = browserWindow.parseMarkdownImport?.("#ai");
@@ -394,6 +421,11 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /maxlength="100"/);
   assert.match(html, />Use title</);
   assert.match(html, /initPostSlugField\(\$el\)/);
+  // The shared module has to be in place before the editor script reads it.
+  assert.ok(
+    html.indexOf('<script src="/js/post-markdown.js">') <
+      html.indexOf("data-editorjs-holder"),
+  );
   assert.match(html, /data-slot="card-action"/);
   assert.match(html, /aria-label="Import Markdown"/);
   assert.match(html, /aria-label="Export Markdown"/);
@@ -413,10 +445,10 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /name="postAction"/);
   assert.match(html, />Controls<span/);
   assert.match(html, />Save Draft<\/button>/);
-  assert.match(
-    html,
-    /name="postAction"[^>]*value="preview"[^>]*>Preview<\/button>/,
-  );
+  // Preview saves first and opens the saved post, so it is a scripted button
+  // rather than a postAction submit.
+  assert.match(html, /data-preview[^>]*>Preview<\/button>/);
+  assert.doesNotMatch(html, /value="preview"/);
   assert.ok(html.indexOf(">Controls<span") > html.indexOf(">Image<span"));
   assert.match(
     html,

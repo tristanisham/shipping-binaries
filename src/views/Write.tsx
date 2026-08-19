@@ -7,6 +7,7 @@ import {
 import { AdminNav } from "./components/admin/AdminNav.js";
 import { AdminTools, AdminToolSection } from "./components/admin/AdminTools.js";
 import { EditorJs } from "./components/admin/EditorJs.js";
+import { FileDownIcon } from "./components/icons/FileDownIcon.js";
 import { KeywordTagCloud } from "./components/admin/KeywordTagCloud.js";
 import {
   defaultHeaderNav,
@@ -326,19 +327,7 @@ export const Write: FC<WriteProps> = ({
                   type="button"
                   variant="outline"
                 >
-                  <svg
-                    aria-hidden="true"
-                    class="size-4 fill-none stroke-current"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
-                    <path d="M14 2v5a1 1 0 0 0 1 1h5" />
-                    <path d="M12 18v-6" />
-                    <path d="m9 15 3 3 3-3" />
-                  </svg>
+                  <FileDownIcon />
                 </Button>
 
                 <div
@@ -362,9 +351,11 @@ export const Write: FC<WriteProps> = ({
                     type="button"
                     variant="outline"
                   >
-                    {/* Obsidian's four-facet mark, recolored to the panel via
+                    {
+                      /* Obsidian's four-facet mark, recolored to the panel via
                         currentColor; the two back facets are dimmed so the
-                        faceting still reads at 16px. */}
+                        faceting still reads at 16px. */
+                    }
                     <svg
                       aria-hidden="true"
                       class="size-4 fill-current stroke-none"
@@ -460,6 +451,8 @@ export const Write: FC<WriteProps> = ({
             </label>
             <div class="flex grow flex-col gap-2 text-sm font-medium">
               <span>Body</span>
+              {/* Loaded before the editor script, which reads it off window. */}
+              <script src="/js/post-markdown.js" />
               <EditorJs
                 name="body"
                 placeholder="Start writing..."
@@ -564,9 +557,8 @@ export const Write: FC<WriteProps> = ({
               </Button>
               <Button
                 class={`w-full ${panelOutlineButton}`}
-                name="postAction"
-                type="submit"
-                value="preview"
+                data-preview
+                type="button"
                 variant="outline"
               >
                 Preview

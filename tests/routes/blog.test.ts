@@ -572,3 +572,119 @@ test("the feed card stands in for the comment box until a reader signs in", asyn
   assert.match(memberHtml, /id="comments-heading"/);
   assert.doesNotMatch(memberHtml, /id="feed-card"/);
 });
+
+const seedPreviewPost = async (
+  db: D1Database,
+  draft: boolean,
+): Promise<number> => {
+  const userId = await seedUser(db, {
+    email: "author@example.com",
+    username: "author",
+    label: "The Author",
+  });
+  await createPost(db, {
+    userId,
+    slug: "preview-me",
+    title: "Preview me",
+    description: "A description",
+    keywords: ["Drafting"],
+    image: "",
+    body: JSON.stringify({
+      blocks: [
+        { type: "header", data: { level: 2, text: "Preview heading" } },
+        { type: "paragraph", data: { text: "Unpublished body." } },
+      ],
+    }),
+    draft,
+  });
+  return userId;
+};
+
+const requestPreview = (db: D1Database, token: string | null) =>
+  app.request(
+    "/preview/preview-me",
+    token ? { headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` } } : {},
+    { DB: db } as Env,
+  );
+
+test("the author previews their own draft, stripped of a live post's identity", async () => {
+  const db = createTestDb();
+  const userId = await seedPreviewPost(db, true);
+  const response = await requestPreview(db, await createSession(db, userId));
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Cache-Control"), "private, no-store");
+  assert.equal(response.headers.get("X-Robots-Tag"), "noindex, nofollow");
+
+  const html = await response.text();
+  assert.match(html, /<meta name="robots" content="noindex, nofollow"\/>/);
+  assert.match(html, /data-post-preview/);
+  assert.match(html, /Private preview\./);
+  assert.match(html, /<h1[^>]*>Preview me<\/h1>/);
+  assert.match(html, /<h2[^>]*><span>Preview heading<\/span><\/h2>/);
+  assert.match(html, /Unpublished body\./);
+
+  // A preview must not advertise itself the way a published post does.
+  assert.doesNotMatch(html, /data-post-analytics/);
+  assert.doesNotMatch(html, /id="comments-heading"/);
+  assert.doesNotMatch(html, /rel="canonical"/);
+  assert.doesNotMatch(html, /property="og:/);
+  assert.doesNotMatch(html, /rel="alternate"/);
+});
+
+test("preview renders a published post so an edit can be checked before it ships", async () => {
+  const db = createTestDb();
+  const userId = await seedPreviewPost(db, false);
+  const response = await requestPreview(db, await createSession(db, userId));
+
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /data-post-preview/);
+  assert.match(html, /<h1[^>]*>Preview me<\/h1>/);
+});
+
+test("an admin can preview another author's draft", async () => {
+  const db = createTestDb();
+  await seedPreviewPost(db, true);
+  const adminId = await seedUser(db, {
+    email: "admin@example.com",
+    username: "admin",
+  });
+  await assignRoleToUser(db, adminId, ADMIN_ROLE);
+
+  const response = await requestPreview(db, await createSession(db, adminId));
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /data-post-preview/);
+});
+
+test("preview 404s for a signed-out reader and for a signed-in non-author", async () => {
+  const db = createTestDb();
+  await seedPreviewPost(db, true);
+
+  // 404 rather than a redirect: a login bounce would confirm the slug exists.
+  const anonymous = await requestPreview(db, null);
+  assert.equal(anonymous.status, 404);
+
+  const strangerId = await seedUser(db, {
+    email: "stranger@example.com",
+    username: "stranger",
+  });
+  const stranger = await requestPreview(
+    db,
+    await createSession(db, strangerId),
+  );
+  assert.equal(stranger.status, 404);
+});
+
+test("preview 404s for a slug that does not exist", async () => {
+  const db = createTestDb();
+  const userId = await seedPreviewPost(db, true);
+  const token = await createSession(db, userId);
+  const response = await app.request(
+    "/preview/no-such-post",
+    { headers: { Cookie: `${SESSION_COOKIE_NAME}=${token}` } },
+    { DB: db } as Env,
+  );
+
+  assert.equal(response.status, 404);
+});

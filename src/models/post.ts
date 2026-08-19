@@ -244,6 +244,51 @@ export const getAllPosts = async (
   }));
 };
 
+export type PostExportScope = "all" | "private" | "public";
+
+export const parsePostExportScope = (value: unknown): PostExportScope =>
+  value === "private" || value === "public" ? value : "all";
+
+// Whole posts, bodies included, for the bulk export. `userIds` narrows the
+// selection to those authors; omit it for every author. An empty array is not
+// a shorthand for "everyone" — it selects nothing, so a caller that means the
+// whole site has to pass `undefined`.
+export const getPostsForExport = async (
+  db: D1Database,
+  scope: PostExportScope,
+  userIds?: readonly number[],
+): Promise<readonly Post[]> => {
+  if (userIds && userIds.length === 0) return [];
+
+  const conditions: string[] = [];
+  const bindings: number[] = [];
+
+  if (scope === "private") conditions.push("draft = 1");
+  if (scope === "public") conditions.push("draft = 0");
+  if (userIds) {
+    const placeholders = userIds.map((id) => {
+      bindings.push(id);
+      return `?${bindings.length}`;
+    });
+    conditions.push(`user_id IN (${placeholders.join(", ")})`);
+  }
+
+  const where = conditions.length > 0
+    ? `WHERE ${conditions.join(" AND ")}`
+    : "";
+  const result = await db
+    .prepare(
+      `SELECT ${POST_COLUMNS}
+       FROM posts
+       ${where}
+       ORDER BY created_at DESC, id DESC`,
+    )
+    .bind(...bindings)
+    .all<PostRow>();
+
+  return result.results.map((row) => postFromRow(row));
+};
+
 export interface CreatePostInput {
   userId: number;
   slug: string;
@@ -386,6 +431,33 @@ export const getPublishedPostBySlug = async (
        FROM posts
        JOIN users ON users.id = posts.user_id
        WHERE posts.slug = ?1 AND posts.draft = 0
+       LIMIT 1`,
+    )
+    .bind(slug)
+    .first<PostWithAuthorRow>();
+
+  if (!row) {
+    return null;
+  }
+
+  const comments = await getCommentsForPost(db, row.id);
+  return postWithAuthorFromRow(row, comments);
+};
+
+// Resolves a post by slug regardless of its draft flag, for the author-only
+// preview route. Callers MUST authorize the viewer against the returned
+// userId; this is the one by-slug read that can surface an unpublished post.
+export const getPostBySlug = async (
+  db: D1Database,
+  slug: string,
+): Promise<PostWithAuthor | null> => {
+  const row = await db
+    .prepare(
+      `SELECT ${QUALIFIED_POST_COLUMNS},
+              users.username AS author_username, users.label AS author_label
+       FROM posts
+       JOIN users ON users.id = posts.user_id
+       WHERE posts.slug = ?1
        LIMIT 1`,
     )
     .bind(slug)

@@ -2,6 +2,11 @@ import type { FC } from "hono/jsx";
 import type { PostListItem } from "../models/post.js";
 import { AdminNav } from "./components/admin/AdminNav.js";
 import {
+  postExportAuthorOptions,
+  PostExportButton,
+  PostExportDialog,
+} from "./components/admin/PostExport.js";
+import {
   PostUtmLinks,
   PostUtmLinksScript,
 } from "./components/admin/PostUtmLinks.js";
@@ -32,7 +37,9 @@ import {
 import { Layout, type LayoutMeta } from "./layouts/MainLayout.js";
 
 type AdminPostsProps = {
+  isAdmin?: boolean;
   posts: readonly PostListItem[];
+  viewerId?: number;
   viewerUsername?: string;
 };
 
@@ -56,7 +63,12 @@ const formatUpdatedAt = (timestamp: string): string => {
   return `${estDateTimeFormatter.format(date).replace(" at ", " ")} EST`;
 };
 
-export const AdminPosts: FC<AdminPostsProps> = ({ posts, viewerUsername }) => {
+export const AdminPosts: FC<AdminPostsProps> = ({
+  isAdmin = false,
+  posts,
+  viewerId,
+  viewerUsername,
+}) => {
   const meta: LayoutMeta = {
     title: "Posts | Shipping Binaries",
     robots: "noindex",
@@ -65,7 +77,7 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts, viewerUsername }) => {
   return (
     <Layout meta={meta}>
       <HeaderSlim
-        isAdmin
+        isAdmin={isAdmin}
         isAuthenticated
         nav={setCurrentNavItem(defaultHeaderNav, "/admin")}
         viewerUsername={viewerUsername}
@@ -79,7 +91,8 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts, viewerUsername }) => {
             <CardDescription>
               {posts.length} {posts.length === 1 ? "post" : "posts"}
             </CardDescription>
-            <CardAction>
+            <CardAction class="flex items-center gap-2">
+              <PostExportButton />
               <a
                 class={buttonVariants({ size: "sm", variant: "tertiary" })}
                 href="/admin/write"
@@ -242,6 +255,11 @@ export const AdminPosts: FC<AdminPostsProps> = ({ posts, viewerUsername }) => {
           </CardContent>
         </Card>
       </main>
+      <PostExportDialog
+        authors={postExportAuthorOptions(posts)}
+        isAdmin={isAdmin}
+        viewerId={viewerId}
+      />
       <PostUtmLinksScript />
     </Layout>
   );

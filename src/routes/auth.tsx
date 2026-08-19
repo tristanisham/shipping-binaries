@@ -34,14 +34,23 @@ import {
   formatSlug,
   getAllPosts,
   getPostById,
+  getPostsForExport,
   getUniquePostSlug,
   parseKeywords,
+  parsePostExportScope,
   type Post,
-  type PostWithAuthor,
   setPostDraft,
   updatePost,
   validatePostSlug,
 } from "../models/post.js";
+import {
+  createPostArchive,
+  parsePostExportAuthors,
+  parsePostExportFormat,
+  postExportContentType,
+  postExportEntries,
+  postExportFilename,
+} from "../export/posts.js";
 import {
   INDEFINITE_DENIAL_EXPIRES_AT,
   Permission,
@@ -97,7 +106,6 @@ import { AdminSubscribers } from "../views/AdminSubscribers.js";
 import { AdminUserAccess } from "../views/AdminUserAccess.js";
 import { AdminUserEdit } from "../views/AdminUserEdit.js";
 import { AdminUsers } from "../views/AdminUsers.js";
-import { BlogPost } from "../views/BlogPost.js";
 import { ForgotPassword } from "../views/ForgotPassword.js";
 import { Login } from "../views/Login.js";
 import { Logout } from "../views/Logout.js";
@@ -236,9 +244,7 @@ const setSessionCookie = (
 ): void => {
   setCookie(c, SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    ...(maxAgeMs === undefined
-      ? {}
-      : { maxAge: Math.floor(maxAgeMs / 1000) }),
+    ...(maxAgeMs === undefined ? {} : { maxAge: Math.floor(maxAgeMs / 1000) }),
     path: "/",
     sameSite: "Strict",
     // Production is served over https, so this is what marks the cookie Secure
@@ -713,7 +719,6 @@ authRoute.post("/admin/write", async (c) => {
     ? body.action
     : "draft";
   const isAutosave = action === "autosave";
-  const isPreview = action === "preview";
   const idRaw = typeof body.id === "string" ? body.id : "";
   const id = idRaw ? Number.parseInt(idRaw, 10) : Number.NaN;
   const title = typeof body.title === "string" ? body.title : "";
@@ -725,9 +730,7 @@ authRoute.post("/admin/write", async (c) => {
   const keywords = typeof body.keywords === "string" ? body.keywords : "";
   const image = typeof body.image === "string" ? body.image : "";
   const postBody = typeof body.body === "string" ? body.body : "";
-  const draft = isAutosave || isPreview
-    ? body.currentDraft === "1"
-    : action !== "publish";
+  const draft = isAutosave ? body.currentDraft === "1" : action !== "publish";
   const currentPostId = Number.isInteger(id) ? id : undefined;
   const currentPost = currentPostId === undefined
     ? undefined
@@ -792,33 +795,6 @@ authRoute.post("/admin/write", async (c) => {
     draft,
   };
 
-  if (isPreview) {
-    const now = new Date().toISOString();
-    const previewPost: PostWithAuthor = {
-      ...input,
-      authorLabel: c.var.currentUser.label,
-      authorUsername: c.var.currentUser.username,
-      comments: [],
-      createdAt: currentPost?.createdAt ?? now,
-      id: currentPostId ?? 0,
-      updatedAt: now,
-      userId: c.var.currentUser.id,
-    };
-
-    c.header("Cache-Control", "private, no-store");
-    c.header("X-Robots-Tag", "noindex, nofollow");
-    return c.html(
-      <BlogPost
-        isAdmin={hasAdminRole(c.var.currentUser.roles)}
-        isAuthenticated
-        isPreview
-        post={previewPost}
-        viewerUserId={c.var.currentUser.id}
-        viewerUsername={c.var.currentUser.username}
-      />,
-    );
-  }
-
   if (currentPostId !== undefined) {
     await updatePost(c.env.DB, currentPostId, input);
 
@@ -872,10 +848,42 @@ authRoute.get(
 
     return c.html(
       <AdminPosts
+        isAdmin={hasAdminRole(c.var.currentUser.roles)}
         posts={posts}
+        viewerId={c.var.currentUser.id}
         viewerUsername={c.var.currentUser.username}
       />,
     );
+  },
+);
+
+// Bulk Markdown export. The scope picks drafts, published posts, or both.
+// You may only export your own posts; the admin role may additionally export
+// a chosen set of authors, or every author. A non-admin's `authors` parameter
+// is parsed and then discarded here rather than trusted — the UI withholding
+// the control is not the guard.
+authRoute.get(
+  "/admin/posts/export",
+  Permission.require(POSTS_READ_PERMISSION),
+  async (c) => {
+    c.header("Cache-Control", "no-store");
+    const scope = parsePostExportScope(c.req.query("scope"));
+    const format = parsePostExportFormat(c.req.query("format"));
+    const authors = parsePostExportAuthors(c.req.query("authors"));
+    const isAdmin = hasAdminRole(c.var.currentUser.roles);
+
+    // undefined means every author, which only an admin can ask for.
+    let userIds: readonly number[] | undefined = [c.var.currentUser.id];
+    if (isAdmin && authors === "all") userIds = undefined;
+    else if (isAdmin && Array.isArray(authors)) userIds = authors;
+    const posts = await getPostsForExport(c.env.DB, scope, userIds);
+    const archive = await createPostArchive(postExportEntries(posts), format);
+    const filename = postExportFilename(scope, format);
+
+    return c.body(new Uint8Array(archive), 200, {
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Type": postExportContentType(format),
+    });
   },
 );
 

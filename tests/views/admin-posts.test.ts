@@ -54,7 +54,12 @@ test("post edit actions use an accessible pencil icon", () => {
   assert.match(html, /class="flex items-center justify-end gap-2"/);
   assert.match(
     html,
-    /data-slot="card-action"[^>]*><a class="[^"]*bg-chocolate-500 text-amber-50[^"]*" href="\/admin\/write">New Post<\/a>/,
+    /data-slot="card-action"[\s\S]*?<a class="[^"]*bg-chocolate-500 text-amber-50[^"]*" href="\/admin\/write">New Post<\/a>/,
+  );
+  // The export control sits to the left of New Post.
+  assert.ok(
+    html.indexOf("data-post-export-open") <
+      html.indexOf('href="/admin/write">New Post'),
   );
   assert.doesNotMatch(html, /Open UTM links for Draft post/);
 });
@@ -111,4 +116,116 @@ test("published posts use the globe-off unpublish action", () => {
   assert.match(menuScript, /window\.copyWithToast\(url, message\)/);
   assert.match(menuScript, /!root\.contains\(event\.target\)/);
   assert.match(menuScript, /event\.key !== "Escape"/);
+});
+
+const post = (
+  overrides: Partial<Parameters<typeof AdminPosts>[0]["posts"][number]> = {},
+) => ({
+  authorUsername: "owner",
+  createdAt: "2026-07-22 12:00:00",
+  description: "",
+  draft: false,
+  id: 3,
+  slug: "live-post",
+  title: "Live post",
+  updatedAt: "2026-07-22 12:00:00",
+  userId: 1,
+  ...overrides,
+});
+
+test("the posts page offers a bulk export dialog", () => {
+  const html = renderToString(AdminPosts({ posts: [post()] }));
+
+  // The same export glyph the editor uses.
+  assert.match(
+    html,
+    /aria-label="Export posts"[\s\S]*?<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2\.4 2\.4 0 0 1 1\.704\.706/,
+  );
+  assert.match(html, /aria-haspopup="dialog"/);
+  assert.match(html, /onclick="window\.openPostExport\(\)"/);
+
+  assert.match(html, /<dialog[^>]*aria-labelledby="post-export-title"/);
+  assert.match(html, /data-post-export-dialog/);
+  assert.match(html, /<h2[^>]*id="post-export-title">Export posts<\/h2>/);
+  for (const value of ["all", "private", "public"]) {
+    assert.match(
+      html,
+      new RegExp(`name="post-export-scope"[^>]*value="${value}"`),
+    );
+  }
+  for (const value of ["zip", "targz"]) {
+    assert.match(
+      html,
+      new RegExp(`name="post-export-format"[^>]*value="${value}"`),
+    );
+  }
+  assert.match(html, /aria-live="polite"[\s\S]*?data-post-export-status/);
+  assert.match(html, /data-post-export-download/);
+  assert.match(html, /data-post-export-cancel/);
+  // Inverse admin panel palette, like the rest of the section.
+  assert.match(html, /bg-mist-600 text-amber-50 dark:bg-amber-50/);
+
+  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)]
+    .map((match) => match[1])
+    .find((source) => source?.includes("window.openPostExport"));
+  assert.ok(script);
+  assert.doesNotThrow(() => new Function(script));
+  assert.match(script, /showSaveFilePicker/);
+  assert.match(script, /dialog\.showModal\(\)/);
+  assert.match(script, /\/admin\/posts\/export\?scope=/);
+});
+
+test("only an admin gets the author selection", () => {
+  const posts = [
+    post({ authorUsername: "owner", id: 1, slug: "a", userId: 1 }),
+    post({ authorUsername: "author", id: 2, slug: "b", userId: 2 }),
+    // A second post by the same author must not duplicate the option.
+    post({ authorUsername: "author", id: 3, slug: "c", userId: 2 }),
+  ];
+
+  const admin = renderToString(
+    AdminPosts({ isAdmin: true, posts, viewerId: 1 }),
+  );
+  assert.match(admin, /<legend[^>]*>Whose posts<\/legend>/);
+  for (const value of ["mine", "all", "list"]) {
+    assert.match(
+      admin,
+      new RegExp(`name="post-export-authors"[^>]*value="${value}"`),
+    );
+  }
+  // The list is labelled, hidden and disabled until "Specific authors".
+  assert.match(admin, /for="post-export-author-list"/);
+  assert.match(admin, /<select[^>]*multiple[^>]*>/);
+  assert.match(admin, /id="post-export-author-list"/);
+  assert.match(admin, /data-post-export-author-field="true" hidden=""/);
+  assert.match(admin, /<select[^>]*disabled=""/);
+  // Sorted, deduplicated, and the viewer is named as such.
+  assert.deepEqual(
+    [...admin.matchAll(/<option value="(\d+)">([^<]*)<\/option>/g)]
+      .map((match) => [match[1], match[2]]),
+    [["2", "author"], ["1", "owner (you)"]],
+  );
+
+  const author = renderToString(AdminPosts({ posts, viewerId: 2 }));
+  assert.doesNotMatch(author, /Whose posts/);
+  // The shared script still mentions the control; the markup must not.
+  assert.doesNotMatch(author, /<input[^>]*name="post-export-authors"/);
+  assert.doesNotMatch(author, /<select/);
+  assert.doesNotMatch(author, /id="post-export-author-list"/);
+  // Scope and compression stay.
+  assert.match(author, /name="post-export-scope"/);
+  assert.match(author, /name="post-export-format"/);
+});
+
+test("posts without an author of their own add no option", () => {
+  const html = renderToString(AdminPosts({
+    isAdmin: true,
+    posts: [post({ authorUsername: "solo", userId: 9 })],
+    viewerId: 9,
+  }));
+
+  assert.deepEqual(
+    [...html.matchAll(/<option value="(\d+)">/g)].map((match) => match[1]),
+    ["9"],
+  );
 });

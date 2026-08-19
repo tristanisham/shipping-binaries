@@ -17,7 +17,8 @@ npm install
 npm run dev            # build CSS once, then run Vite (http://localhost:3000) + Tailwind watcher
 npm run dev:worker     # wrangler dev — use when testing Cloudflare bindings (DB, assets) locally
 npm run typecheck      # tsc --noEmit
-npm run build          # builds/minifies public/styles.css
+npm run build          # builds/minifies public/styles.css, then bundles
+                       # public/js/post-markdown.js with esbuild
 npm run deploy         # wrangler deploy (app, static assets, D1 binding, custom domain)
 
 npm run db:migrate:local    # apply migrations/ to the local D1 database
@@ -87,6 +88,20 @@ Layout of `src/`:
   in the file; `capture_pageleave` is set explicitly (bounce rate and session
   duration depend on it) and init is skipped on localhost. `@posthog/types`
   types `window.posthog` via `src/posthog.d.ts`.
+- `markdown/post-markdown.ts` — the one implementation of the post Markdown
+  format (serializer, frontmatter/Bear importer). The Worker imports it; the
+  editor gets it from `public/js/post-markdown.js`, which `npm run build:js`
+  bundles from `markdown/browser.ts` (esbuild, IIFE) and which `Write.tsx`
+  loads before the Editor.js inline script. It stays dependency- and
+  builtin-free so the Worker builds without `nodejs_compat`.
+- `export/` — the bulk post export behind `/admin/posts/export`:
+  `archive.ts` hand-writes zip (deflate-raw) and tar.gz (ustar + gzip) with
+  `CompressionStream`, so it adds no runtime dependency; `posts.ts` turns
+  posts into plain frontmatter Markdown files (no base64 editor trailer).
+  You may only export your own posts; the admin role may additionally export
+  a chosen set of authors, or every author. The route enforces that: a
+  non-admin's `authors` parameter is parsed and then discarded, so hiding the
+  control in the UI is never the guard.
 - `auth/password.ts` — bcryptjs hashing (cost 10, rejects >72-byte passwords).
 - `cli/create-owner.ts` — owner bootstrap script that shells out to
   `wrangler d1 execute`.

@@ -50,570 +50,10 @@ const editorToolButtonClass =
 
 const editorJsScript = `
 (() => {
-  const escapeHtml = (value) =>
-    value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-
-  const backtick = String.fromCharCode(96);
-  const inlineCodePattern = new RegExp(
-    backtick + "([^" + backtick + "]+)" + backtick,
-    "g",
-  );
-  const codeFence = backtick.repeat(3);
-
-  const markdownInline = (value) =>
-    escapeHtml(value)
-      .replace(/\\[([^\\]]+)\\]\\((https?:[^)\\s]+)\\)/g, '<a href="$2">$1</a>')
-      .replace(/\\*\\*([^*]+)\\*\\*/g, "<b>$1</b>")
-      .replace(/__([^_]+)__/g, "<b>$1</b>")
-      .replace(/~~([^~]+)~~/g, "<del>$1</del>")
-      .replace(/(^|[^*])\\*([^*\\n]+)\\*/g, "$1<i>$2</i>")
-      .replace(/(^|[^_])_([^_\\n]+)_/g, "$1<i>$2</i>")
-      .replace(inlineCodePattern, "<code>$1</code>");
-
-  // Our exports open with YAML frontmatter, as do Obsidian and Bear notes
-  // generally. Without this the "---" fences import as delimiter blocks with a
-  // paragraph of raw keys between them.
-  const frontmatterPattern =
-    /^\\uFEFF?---[ \\t]*\\r?\\n([\\s\\S]*?)\\r?\\n---[ \\t]*(?:\\r?\\n|$)/;
-
-  const stripFrontmatter = (value) =>
-    String(value || "").replace(frontmatterPattern, "");
-
-  const parseYamlScalar = (value) => {
-    const text = value.trim();
-    if (text === "" || text === "~" || text === "null") return "";
-    if (text === "true") return true;
-    if (text === "false") return false;
-    if (/^-?\\d+$/.test(text)) return Number(text);
-    if (text.startsWith("[") && text.endsWith("]")) {
-      return text
-        .slice(1, -1)
-        .split(",")
-        .map(parseYamlScalar)
-        .filter((item) => item !== "");
-    }
-    if (text.startsWith('"')) {
-      try {
-        return JSON.parse(text);
-      } catch {
-        return text.replace(/^"|"$/g, "");
-      }
-    }
-    if (text.startsWith("'")) return text.replace(/^'|'$/g, "");
-    return text;
-  };
-
-  // A deliberately small YAML reader: the scalars and block sequences our own
-  // frontmatter uses, which is also all Obsidian properties need.
-  const parseFrontmatter = (source) => {
-    const text = String(source || "");
-    const match = text.match(frontmatterPattern);
-    if (!match) return null;
-
-    const fields = {};
-    let listKey = "";
-    match[1].split(/\\r?\\n/).forEach((line) => {
-      const item = line.match(/^[ \\t]+-[ \\t]+(.*)$/);
-      if (item && listKey) {
-        fields[listKey].push(parseYamlScalar(item[1]));
-        return;
-      }
-
-      const pair = line.match(/^([A-Za-z0-9_-]+):[ \\t]*(.*)$/);
-      if (!pair) return;
-
-      if (pair[2].trim() === "") {
-        listKey = pair[1];
-        fields[listKey] = [];
-        return;
-      }
-
-      listKey = "";
-      fields[pair[1]] = parseYamlScalar(pair[2]);
-    });
-
-    return { body: text.slice(match[0].length), fields };
-  };
-
-  const keywordsFromFields = (fields) => {
-    const tags = fields.tags !== undefined ? fields.tags : fields.keywords;
-    if (tags === undefined) return undefined;
-    if (!Array.isArray(tags)) return String(tags);
-    return tags
-      .map((tag) => String(tag).replace(/^#/, "").replace(/-/g, " ").trim())
-      .filter(Boolean)
-      .join(", ");
-  };
-
-  const postFromFrontmatter = (fields) => {
-    const post = {};
-    const text = (key) => {
-      if (fields[key] === undefined) return;
-      post[key] = String(fields[key]);
-    };
-
-    text("title");
-    text("description");
-    text("slug");
-    text("image");
-    if (fields.slugMode !== undefined) {
-      post.slugMode = fields.slugMode === "auto" ? "auto" : "custom";
-    }
-    if (fields.draft !== undefined) {
-      post.draft = fields.draft === true || fields.draft === "true";
-    }
-
-    const keywords = keywordsFromFields(fields);
-    if (keywords !== undefined) post.keywords = keywords;
-    return post;
-  };
-
-  // Bear keeps tags inline instead of in frontmatter, so its exports trail a
-  // line of them. A heading is safe: "# Title" has a space after the hash.
-  // A closing hash only closes at a word boundary, otherwise "#one #two#"
-  // reads the second tag's opening hash as the first tag's closer.
-  const bearTagToken = /#([^#\\n]+?)#(?=[ \\t]|$)|#([^#\\s]+)/g;
-  const bearTagPart = "(?:#[^#\\\\n]+?#(?=[ \\\\t]|$)|#[^#\\\\s]+)";
-  const bearTagLine = new RegExp(
-    "^[ \\\\t]*" + bearTagPart + "(?:[ \\\\t]+" + bearTagPart + ")*[ \\\\t]*$",
-  );
-
-  const splitBearTagLine = (source) => {
-    const lines = String(source || "").replace(/\\s+$/, "").split(/\\r?\\n/);
-    const last = lines[lines.length - 1];
-    if (lines.length < 2 || !last || !bearTagLine.test(last)) return null;
-
-    const tags = Array.from(
-      last.matchAll(bearTagToken),
-      (match) => (match[1] || match[2] || "").trim(),
-    ).filter(Boolean);
-    if (tags.length === 0) return null;
-
-    return {
-      body: lines.slice(0, -1).join("\\n").replace(/\\s+$/, ""),
-      keywords: tags.join(", "),
-    };
-  };
-
-  const markdownToBlocks = (source) => {
-    const markdown = stripFrontmatter(source);
-    const usedFootnoteIds = new Set(
-      Array.from(
-        markdown.matchAll(/^\\[\\^([A-Za-z0-9_-]+)\\]:/gm),
-        (match) => match[1],
-      ),
-    );
-    const inlineFootnotes = [];
-    let inlineFootnoteNumber = 1;
-    const normalizedMarkdown = markdown.replace(
-      /\\^\\[([^\\]\\n]+)\\]/g,
-      (_match, text) => {
-        let id = "obsidian-inline-" + inlineFootnoteNumber;
-        while (usedFootnoteIds.has(id)) {
-          inlineFootnoteNumber += 1;
-          id = "obsidian-inline-" + inlineFootnoteNumber;
-        }
-        inlineFootnoteNumber += 1;
-        usedFootnoteIds.add(id);
-        inlineFootnotes.push({ id, text });
-        return "[^" + id + "]";
-      },
-    );
-    const lines = normalizedMarkdown
-      .replace(/\\r\\n/g, "\\n")
-      .split("\\n");
-    const blocks = [];
-    const footnotes = inlineFootnotes.map((footnote) => ({
-      type: "footnote",
-      data: {
-        id: footnote.id,
-        text: markdownInline(footnote.text),
-      },
-    }));
-    let paragraph = [];
-    let code = [];
-    let inCode = false;
-
-    const flushParagraph = () => {
-      if (paragraph.length === 0) return;
-      blocks.push({
-        type: "paragraph",
-        data: { text: paragraph.map(markdownInline).join("<br>") },
-      });
-      paragraph = [];
-    };
-
-    const flushCode = () => {
-      blocks.push({ type: "code", data: { code: code.join("\\n") } });
-      code = [];
-    };
-
-    for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index];
-
-      const footnote = line.match(/^\\[\\^([A-Za-z0-9_-]+)\\]:\\s*(.*)$/);
-      if (footnote && !inCode) {
-        flushParagraph();
-        const definition = [footnote[2]];
-        while (
-          index + 1 < lines.length &&
-          /^(?: {2,}|\\t)\\S/.test(lines[index + 1])
-        ) {
-          index += 1;
-          definition.push(lines[index].trim());
-        }
-        footnotes.push({
-          type: "footnote",
-          data: {
-            id: footnote[1],
-            text: definition.map(markdownInline).join("<br>"),
-          },
-        });
-        continue;
-      }
-
-      if (line.trimStart().startsWith(codeFence)) {
-        if (inCode) flushCode();
-        else flushParagraph();
-        inCode = !inCode;
-        continue;
-      }
-
-      if (inCode) {
-        code.push(line);
-        continue;
-      }
-
-      const heading = line.match(/^(#{1,6})\\s+(.+)$/);
-      if (heading) {
-        flushParagraph();
-        blocks.push({
-          type: "header",
-          data: {
-            level: Math.min(4, Math.max(2, heading[1].length)),
-            text: markdownInline(heading[2]),
-          },
-        });
-        continue;
-      }
-
-      if (/^\\s*>\\s?/.test(line)) {
-        flushParagraph();
-        const quote = [];
-        while (index < lines.length && /^\\s*>\\s?/.test(lines[index])) {
-          quote.push(lines[index].replace(/^\\s*>\\s?/, ""));
-          index += 1;
-        }
-        index -= 1;
-        blocks.push({
-          type: "quote",
-          data: { alignment: "left", caption: "", text: quote.map(markdownInline).join("<br>") },
-        });
-        continue;
-      }
-
-      const unordered = line.match(/^\\s*[-+*]\\s+(.+)$/);
-      const ordered = line.match(/^\\s*\\d+\\.\\s+(.+)$/);
-      if (unordered || ordered) {
-        flushParagraph();
-        const style = ordered ? "ordered" : "unordered";
-        const items = [];
-        const pattern = ordered ? /^\\s*\\d+\\.\\s+(.+)$/ : /^\\s*[-+*]\\s+(.+)$/;
-        while (index < lines.length) {
-          const item = lines[index].match(pattern);
-          if (!item) break;
-          items.push({ content: markdownInline(item[1]), items: [], meta: {} });
-          index += 1;
-        }
-        index -= 1;
-        blocks.push({ type: "list", data: { items, meta: {}, style } });
-        continue;
-      }
-
-      if (/^\\s*(?:-{3,}|\\*{3,}|_{3,})\\s*$/.test(line)) {
-        flushParagraph();
-        blocks.push({ type: "delimiter", data: {} });
-        continue;
-      }
-
-      // Ignore email-capture markers left in older exports.
-      if (/^<!--\\s*(?:sb::)?email-capture\\s*-->$/.test(line.trim())) {
-        flushParagraph();
-        continue;
-      }
-
-      if (line.trim() === "") {
-        flushParagraph();
-        continue;
-      }
-
-      paragraph.push(line);
-    }
-
-    if (inCode) flushCode();
-    flushParagraph();
-    return { blocks: blocks.concat(footnotes) };
-  };
-
-  const inlineHtmlToMarkdown = (value) => {
-    const render = (source) =>
-      String(source || "")
-        .replace(
-          /<a\\b[^>]*href=(["'])(.*?)\\1[^>]*>([\\s\\S]*?)<\\/a>/gi,
-          (_match, _quote, href, text) =>
-            "[" + render(text) + "](" + href + ")",
-        )
-        .replace(/<(?:strong|b)>([\\s\\S]*?)<\\/(?:strong|b)>/gi, "**$1**")
-        .replace(/<(?:em|i)>([\\s\\S]*?)<\\/(?:em|i)>/gi, "*$1*")
-        .replace(/<(?:del|s)>([\\s\\S]*?)<\\/(?:del|s)>/gi, "~~$1~~")
-        .replace(/<code>([\\s\\S]*?)<\\/code>/gi, backtick + "$1" + backtick)
-        .replace(/<br\\s*\\/?>/gi, "\\n")
-        .replace(/<[^>]*>/g, "")
-        .replace(/&nbsp;/gi, " ")
-        .replace(/&quot;/gi, '"')
-        .replace(/&#39;|&apos;/gi, "'")
-        .replace(/&lt;/gi, "<")
-        .replace(/&gt;/gi, ">")
-        .replace(/&amp;/gi, "&");
-
-    return render(value);
-  };
-
-  const listItemsToMarkdown = (items, style, depth = 0) =>
-    (Array.isArray(items) ? items : []).flatMap((item, index) => {
-      const prefix = style === "ordered" ? String(index + 1) + "." : "-";
-      const indentation = "  ".repeat(depth);
-      const lines = [
-        indentation + prefix + " " + inlineHtmlToMarkdown(item?.content),
-      ];
-      if (Array.isArray(item?.items) && item.items.length > 0) {
-        lines.push(
-          ...listItemsToMarkdown(item.items, style, depth + 1),
-        );
-      }
-      return lines;
-    }).join("\\n");
-
-  const editorDataToMarkdown = (data) =>
-    (Array.isArray(data?.blocks) ? data.blocks : [])
-      .filter((block) => block?.type !== "emailCapture")
-      .map((block) => {
-        const blockData = block?.data || {};
-        switch (block?.type) {
-          case "paragraph":
-            return inlineHtmlToMarkdown(blockData.text);
-          case "header": {
-            const level = Math.min(6, Math.max(1, Number(blockData.level) || 2));
-            return "#".repeat(level) + " " + inlineHtmlToMarkdown(blockData.text);
-          }
-          case "list":
-            return listItemsToMarkdown(
-              blockData.items,
-              blockData.style === "ordered" ? "ordered" : "unordered",
-            );
-          case "quote": {
-            const quote = inlineHtmlToMarkdown(blockData.text)
-              .split("\\n")
-              .map((line) => "> " + line)
-              .join("\\n");
-            const caption = inlineHtmlToMarkdown(blockData.caption);
-            return caption ? quote + "\\n>\\n> — " + caption : quote;
-          }
-          case "code": {
-            const code = String(blockData.code || "");
-            const fence = code.includes(codeFence)
-              ? backtick.repeat(4)
-              : codeFence;
-            return fence + "\\n" + code + "\\n" + fence;
-          }
-          case "delimiter":
-            return "---";
-          case "footnote":
-            return "[^" + String(blockData.id || "") + "]: " +
-              inlineHtmlToMarkdown(blockData.text).replace(/\\n/g, "\\n  ");
-          default:
-            return "<!-- Unsupported Editor.js block: " +
-              String(block?.type || "unknown") + " -->";
-        }
-      }).join("\\n\\n");
-
-  const encodeUtf8Base64 = (value) => {
-    const bytes = new TextEncoder().encode(value);
-    let binary = "";
-    for (let index = 0; index < bytes.length; index += 0x8000) {
-      binary += String.fromCharCode.apply(
-        null,
-        bytes.subarray(index, index + 0x8000),
-      );
-    }
-    return btoa(binary);
-  };
-
-  const decodeUtf8Base64 = (value) => {
-    const binary = atob(value);
-    const bytes = Uint8Array.from(binary, (character) =>
-      character.charCodeAt(0)
-    );
-    return new TextDecoder().decode(bytes);
-  };
-
-  const splitKeywords = (value) =>
-    String(value || "")
-      .split(",")
-      .map((keyword) => keyword.trim())
-      .filter(Boolean);
-
-  // Obsidian tags live in the "tags" property and cannot contain spaces;
-  // nesting is expressed with a slash.
-  const obsidianTag = (keyword) =>
-    keyword
-      .replace(/^#+/, "")
-      .trim()
-      .replace(/\\s+/g, "-")
-      .replace(/[^A-Za-z0-9_/-]/g, "")
-      .replace(/^-+|-+$/g, "");
-
-  // Bear tags are inline, and a multi-word tag has to be closed with a second
-  // hash or it stops at the first space.
-  const bearTag = (keyword) => {
-    const tag = keyword.replace(/#/g, "").trim();
-    if (!tag) return "";
-    return /\\s/.test(tag) ? "#" + tag + "#" : "#" + tag;
-  };
-
-  const createShippingBinariesMarkdown = (snapshot, options) => {
-    const post = snapshot?.post || {};
-    const editor = snapshot?.editor || { blocks: [] };
-    const includeEditorData = options?.includeEditorData !== false;
-    const bear = options?.flavor === "bear";
-    const title = String(post.title || "");
-    const keywords = splitKeywords(post.keywords);
-    const frontmatterLines = [
-      "---",
-      "title: " + JSON.stringify(title),
-      "description: " + JSON.stringify(String(post.description || "")),
-      "slug: " + JSON.stringify(String(post.slug || "")),
-      "slugMode: " + JSON.stringify(
-        post.slugMode === "auto" ? "auto" : "custom",
-      ),
-    ];
-
-    if (!bear) {
-      const tags = keywords.map(obsidianTag).filter(Boolean);
-      frontmatterLines.push(tags.length > 0 ? "tags:" : "tags: []");
-      tags.forEach((tag) => frontmatterLines.push("  - " + tag));
-    }
-
-    frontmatterLines.push(
-      "image: " + JSON.stringify(String(post.image || "")),
-      "draft: " + (post.draft ? "true" : "false"),
-      "shippingBinariesFormat: 1",
-      "---",
-    );
-
-    const body = editorDataToMarkdown(editor).trim();
-    const sections = [];
-
-    if (bear) {
-      // Bear names a note from its first line, and only picks the heading up
-      // when it follows the frontmatter with no blank line between them.
-      sections.push(
-        frontmatterLines.join("\\n") + (title ? "\\n# " + title : ""),
-      );
-    } else {
-      sections.push(frontmatterLines.join("\\n"));
-    }
-
-    if (body) sections.push(body);
-
-    if (bear) {
-      const tags = keywords.map(bearTag).filter(Boolean);
-      if (tags.length > 0) sections.push(tags.join(" "));
-    }
-
-    if (includeEditorData) {
-      const payload = {
-        editor,
-        format: "shipping-binaries-markdown",
-        post: {
-          description: String(post.description || ""),
-          draft: Boolean(post.draft),
-          image: String(post.image || ""),
-          keywords: String(post.keywords || ""),
-          slug: String(post.slug || ""),
-          slugMode: post.slugMode === "auto" ? "auto" : "custom",
-          title: String(post.title || ""),
-        },
-        version: 1,
-      };
-      sections.push(
-        "<!-- shipping-binaries-export:v1:" +
-          encodeUtf8Base64(JSON.stringify(payload)) + " -->",
-      );
-    }
-
-    return sections.join("\\n\\n") + "\\n";
-  };
-
-  const parseShippingBinariesMarkdown = (markdown) => {
-    const marker = String(markdown || "").match(
-      /<!--\\s*shipping-binaries-export:v1:([A-Za-z0-9+/=]+)\\s*-->\\s*$/,
-    );
-    if (!marker) return null;
-
-    try {
-      const payload = JSON.parse(decodeUtf8Base64(marker[1]));
-      if (
-        payload?.format !== "shipping-binaries-markdown" ||
-        payload?.version !== 1 ||
-        !Array.isArray(payload?.editor?.blocks) ||
-        typeof payload?.post !== "object" ||
-        payload.post === null
-      ) {
-        return null;
-      }
-      return payload;
-    } catch {
-      return null;
-    }
-  };
-
-  // The whole non-packaged import path: frontmatter into post fields, Bear's
-  // trailing tag line into keywords, and the rest into blocks.
-  const parseMarkdownImport = (source) => {
-    const frontmatter = parseFrontmatter(source);
-    const post = frontmatter ? postFromFrontmatter(frontmatter.fields) : {};
-    let body = frontmatter ? frontmatter.body : String(source || "");
-
-    if (post.keywords === undefined) {
-      const bearTags = splitBearTagLine(body);
-      if (bearTags) {
-        body = bearTags.body;
-        post.keywords = bearTags.keywords;
-      }
-    }
-
-    // The Bear flavor repeats the title as a leading heading so Bear can name
-    // the note from it; don't import a second copy into the body.
-    if (post.title) {
-      body = body.replace(
-        /^[ \\t\\r\\n]*#[ \\t]+(.+?)[ \\t]*(?:\\r?\\n|$)/,
-        (match, heading) => heading.trim() === post.title.trim() ? "" : match,
-      );
-    }
-
-    return { blocks: markdownToBlocks(body).blocks, post };
-  };
-
-  window.markdownToEditorBlocks = markdownToBlocks;
-  window.parseMarkdownImport = parseMarkdownImport;
-  window.createShippingBinariesMarkdown = createShippingBinariesMarkdown;
-  window.parseShippingBinariesMarkdown = parseShippingBinariesMarkdown;
+  // The Markdown serializer and importer live in src/markdown/post-markdown.ts
+  // and reach this script as globals from /js/post-markdown.js, which the
+  // write page loads first. The Worker imports the same module for the bulk
+  // post export, so there is one implementation of the format.
 
   class FootnoteTool {
     static get toolbox() {
@@ -851,7 +291,7 @@ const editorJsScript = `
       }
       this.api.blocks.insert(
         "footnote",
-        { id, text: markdownInline(footnoteText) },
+        { id, text: window.markdownInline(footnoteText) },
         undefined,
         this.api.blocks.getBlocksCount(),
         false,
@@ -884,6 +324,7 @@ const editorJsScript = `
     const holder = root.querySelector("[data-editorjs-holder]");
     const input = root.querySelector("[data-editorjs-input]");
     const importButton = form?.querySelector("[data-markdown-import]");
+    const previewButton = form?.querySelector("[data-preview]");
     const exportButton = form?.querySelector("[data-markdown-export]");
     const exportMenuRoot = form?.querySelector(
       "[data-markdown-export-menu-root]",
@@ -1223,7 +664,7 @@ const editorJsScript = `
         editor: editorData,
         post: postSnapshot(),
       };
-      const markdown = createShippingBinariesMarkdown(snapshot, options);
+      const markdown = window.createShippingBinariesMarkdown(snapshot, options);
       const filenameBase = (snapshot.post.slug || snapshot.post.title || "post")
         .trim()
         .toLowerCase()
@@ -1261,18 +702,97 @@ const editorJsScript = `
     convertButton?.addEventListener("click", async () => {
       await editor.isReady;
       const source = markdownInput.value;
-      const packagedPost = parseShippingBinariesMarkdown(source);
+      const packagedPost = window.parseShippingBinariesMarkdown(source);
       if (packagedPost) {
         await editor.render(packagedPost.editor);
         applyPostSnapshot(packagedPost.post);
       } else {
-        const imported = parseMarkdownImport(source);
+        const imported = window.parseMarkdownImport(source);
         await editor.render({ blocks: imported.blocks });
         applyPostSnapshot(imported.post);
       }
       markdownInput.value = "";
       importDialog?.close();
       markChanged();
+    });
+
+    // Shared by autosave and preview: a save can mint the post id and settle
+    // the slug, and both have to land in the form or the next save creates a
+    // second post.
+    const applySaveResult = (result) => {
+      const idInput = form.querySelector('input[name="id"]');
+      if (idInput && result.id) {
+        idInput.value = String(result.id);
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("id") !== String(result.id)) {
+          url.searchParams.set("id", String(result.id));
+          history.replaceState(null, "", url);
+        }
+      }
+      const slugInput = form.querySelector('input[name="slug"]');
+      if (slugInput && result.slug) {
+        const slugField = form.querySelector("[data-post-slug]");
+        if (slugField) {
+          slugField.dispatchEvent(
+            new CustomEvent("post-slug:resolved", { detail: result.slug }),
+          );
+        } else {
+          slugInput.value = result.slug;
+        }
+      }
+    };
+
+    const saveForPreview = async () => {
+      await syncEditor();
+      const formData = new FormData(form);
+      formData.delete("action");
+      formData.set("postAction", "autosave");
+      const saveUrl = new URL(
+        form.getAttribute("action") || window.location.href,
+        window.location.href,
+      );
+      const response = await fetch(saveUrl, {
+        body: formData,
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+        method: "POST",
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result?.slug) {
+        const slugError = result?.error?.slug;
+        const slugField = form.querySelector("[data-post-slug]");
+        if (slugField && typeof slugError === "string") {
+          slugField.dispatchEvent(
+            new CustomEvent("post-slug:error", { detail: slugError }),
+          );
+        }
+        throw new Error("Preview save failed with status " + response.status);
+      }
+
+      applySaveResult(result);
+      return result.slug;
+    };
+
+    previewButton?.addEventListener("click", async () => {
+      // Opened before the await: a tab opened after one has lost the click's
+      // transient activation and is treated as a popup.
+      const tab = window.open("", "_blank");
+
+      try {
+        const slug = await saveForPreview();
+        const href = "/preview/" + encodeURIComponent(slug);
+        if (tab) {
+          tab.location = href;
+        } else {
+          window.open(href, "_blank");
+        }
+      } catch (error) {
+        tab?.close();
+        window.alert(
+          "The post could not be saved, so there is nothing to preview yet.",
+        );
+      }
     });
 
     const save = async () => {
@@ -1310,26 +830,7 @@ const editorJsScript = `
           throw new Error("Autosave failed with status " + response.status);
         }
 
-        const idInput = form.querySelector('input[name="id"]');
-        if (idInput && result.id) {
-          idInput.value = String(result.id);
-          const url = new URL(window.location.href);
-          if (url.searchParams.get("id") !== String(result.id)) {
-            url.searchParams.set("id", String(result.id));
-            history.replaceState(null, "", url);
-          }
-        }
-        const slugInput = form.querySelector('input[name="slug"]');
-        if (slugInput && result.slug) {
-          const slugField = form.querySelector("[data-post-slug]");
-          if (slugField) {
-            slugField.dispatchEvent(
-              new CustomEvent("post-slug:resolved", { detail: result.slug }),
-            );
-          } else {
-            slugInput.value = result.slug;
-          }
-        }
+        applySaveResult(result);
 
         savedVersion = versionToSave;
         state.saveState = changedVersion === savedVersion ? "saved" : "changed";

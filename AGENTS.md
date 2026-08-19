@@ -22,6 +22,19 @@
   a namespace prefix needs its prefix declared on the root element.
 - Page views live in `src/views/`, shared page chrome in `src/views/layouts/`,
   and reusable UI in `src/views/components/`.
+- The post Markdown format has exactly one implementation,
+  `src/markdown/post-markdown.ts`. The Worker imports it directly; the editor
+  reads it off `window` from `public/js/post-markdown.js`, bundled from
+  `src/markdown/browser.ts` by `npm run build:js`. Never re-inline a copy into
+  the Editor.js script blob, and keep the module free of dependencies and node
+  builtins.
+- The bulk post export lives in `src/export/`: `archive.ts` writes zip and
+  tar.gz by hand on `CompressionStream`, `posts.ts` renders the Markdown
+  files. You may only export your own posts; the admin role may additionally
+  export a chosen set of authors, or every author. `/admin/posts/export`
+  enforces this itself — a non-admin's `authors` parameter is parsed and then
+  discarded rather than trusted, and the UI hiding the control is not the
+  guard.
 - `src/dev.ts` is the plain Node server entrypoint. `src/app.ts` re-exports the
   Hono app for deployment.
 - Database access belongs in `src/models/`. Schema changes are ordered SQL files

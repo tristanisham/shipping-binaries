@@ -37,28 +37,24 @@ export const BlogPost: FC<BlogPostProps> = ({
     description: post.description,
     keywords: post.keywords,
     canonical: isPreview ? undefined : postUrl,
-    feeds: isPreview
-      ? undefined
-      : [
-        ...blogFeedLinks(),
-        ...authorFeedLinks(
-          post.authorUsername,
-          post.authorLabel ?? post.authorUsername,
-        ),
-      ],
+    feeds: isPreview ? undefined : [
+      ...blogFeedLinks(),
+      ...authorFeedLinks(
+        post.authorUsername,
+        post.authorLabel ?? post.authorUsername,
+      ),
+    ],
     robots: isPreview ? "noindex, nofollow" : undefined,
-    social: isPreview
-      ? undefined
-      : {
-        title: post.title,
-        type: "article",
-        url: postUrl,
-        image: post.image ? toAbsoluteUrl(post.image) : undefined,
-        imageAlt: post.image ? post.title : undefined,
-        author: post.authorLabel ?? post.authorUsername,
-        publishedTime: toIsoTimestamp(post.createdAt),
-        modifiedTime: toIsoTimestamp(post.updatedAt),
-      },
+    social: isPreview ? undefined : {
+      title: post.title,
+      type: "article",
+      url: postUrl,
+      image: post.image ? toAbsoluteUrl(post.image) : undefined,
+      imageAlt: post.image ? post.title : undefined,
+      author: post.authorLabel ?? post.authorUsername,
+      publishedTime: toIsoTimestamp(post.createdAt),
+      modifiedTime: toIsoTimestamp(post.updatedAt),
+    },
   };
 
   return (
@@ -87,7 +83,7 @@ export const BlogPost: FC<BlogPostProps> = ({
               </p>
               <a
                 class="font-semibold underline underline-offset-4"
-                href={post.id > 0 ? `/admin/write?id=${post.id}` : "/admin/write"}
+                href={`/admin/write?id=${post.id}`}
               >
                 Back to editor
               </a>
@@ -161,16 +157,14 @@ export const BlogPost: FC<BlogPostProps> = ({
         {!isPreview && !isAuthenticated
           ? <FeedCard postSlug={post.slug} />
           : null}
-        {isPreview
-          ? null
-          : (
-            <PostEngagement
-              isAuthenticated={isAuthenticated}
-              postId={post.id}
-              postSlug={post.slug}
-              postTitle={post.title}
-            />
-          )}
+        {isPreview ? null : (
+          <PostEngagement
+            isAuthenticated={isAuthenticated}
+            postId={post.id}
+            postSlug={post.slug}
+            postTitle={post.title}
+          />
+        )}
       </main>
     </Layout>
   );

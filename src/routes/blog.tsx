@@ -9,6 +9,7 @@ import {
   Permission,
 } from "../models/permission.js";
 import {
+  getPostBySlug,
   getPublishedPostBySlug,
   getPublishedPostRefBySlug,
   getPublishedPosts,
@@ -158,6 +159,30 @@ blogRoute.get("/blog/:slug", async (c) => {
   );
 });
 
+// Author-only preview of a saved post, draft or not. Unauthorized viewers get
+// a 404 rather than a login redirect, so the status code cannot be used to
+// confirm that a draft slug exists.
+blogRoute.get("/preview/:slug", async (c) => {
+  const viewer = await getViewerState(
+    c.env.DB,
+    getCookie(c, SESSION_COOKIE_NAME),
+  );
+  const post = await getPostBySlug(c.env.DB, c.req.param("slug"));
+
+  if (
+    !post ||
+    !viewer.isAuthenticated ||
+    !(viewer.isAdmin || viewer.viewerUserId === post.userId)
+  ) {
+    return c.notFound();
+  }
+
+  c.header("Cache-Control", "private, no-store");
+  c.header("X-Robots-Tag", "noindex, nofollow");
+
+  return c.html(<BlogPost isPreview post={post} {...viewer} />);
+});
+
 blogRoute.post("/blog/:slug/subscribe", async (c) => {
   const [body, post] = await Promise.all([
     c.req.parseBody(),
@@ -291,9 +316,7 @@ blogRoute.post("/blog/:slug/subscribe", async (c) => {
     subscriptionRedirect(
       postPath,
       result.subscriber.confirmedAt
-        ? result.subscriber.unsubscribedAt
-          ? "unsubscribed"
-          : "subscribed"
+        ? result.subscriber.unsubscribedAt ? "unsubscribed" : "subscribed"
         : "pending",
     ),
     303,
