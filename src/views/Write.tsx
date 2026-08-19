@@ -563,6 +563,15 @@ export const Write: FC<WriteProps> = ({
                 Save Draft
               </Button>
               <Button
+                class={`w-full ${panelOutlineButton}`}
+                name="postAction"
+                type="submit"
+                value="preview"
+                variant="outline"
+              >
+                Preview
+              </Button>
+              <Button
                 class="w-full capitalize !text-amber-50"
                 name="postAction"
                 type="submit"

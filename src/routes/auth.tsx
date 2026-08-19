@@ -37,6 +37,7 @@ import {
   getUniquePostSlug,
   parseKeywords,
   type Post,
+  type PostWithAuthor,
   setPostDraft,
   updatePost,
   validatePostSlug,
@@ -96,6 +97,7 @@ import { AdminSubscribers } from "../views/AdminSubscribers.js";
 import { AdminUserAccess } from "../views/AdminUserAccess.js";
 import { AdminUserEdit } from "../views/AdminUserEdit.js";
 import { AdminUsers } from "../views/AdminUsers.js";
+import { BlogPost } from "../views/BlogPost.js";
 import { ForgotPassword } from "../views/ForgotPassword.js";
 import { Login } from "../views/Login.js";
 import { Logout } from "../views/Logout.js";
@@ -711,6 +713,7 @@ authRoute.post("/admin/write", async (c) => {
     ? body.action
     : "draft";
   const isAutosave = action === "autosave";
+  const isPreview = action === "preview";
   const idRaw = typeof body.id === "string" ? body.id : "";
   const id = idRaw ? Number.parseInt(idRaw, 10) : Number.NaN;
   const title = typeof body.title === "string" ? body.title : "";
@@ -722,7 +725,9 @@ authRoute.post("/admin/write", async (c) => {
   const keywords = typeof body.keywords === "string" ? body.keywords : "";
   const image = typeof body.image === "string" ? body.image : "";
   const postBody = typeof body.body === "string" ? body.body : "";
-  const draft = isAutosave ? body.currentDraft === "1" : action !== "publish";
+  const draft = isAutosave || isPreview
+    ? body.currentDraft === "1"
+    : action !== "publish";
   const currentPostId = Number.isInteger(id) ? id : undefined;
   const currentPost = currentPostId === undefined
     ? undefined
@@ -786,6 +791,33 @@ authRoute.post("/admin/write", async (c) => {
     body: postBody,
     draft,
   };
+
+  if (isPreview) {
+    const now = new Date().toISOString();
+    const previewPost: PostWithAuthor = {
+      ...input,
+      authorLabel: c.var.currentUser.label,
+      authorUsername: c.var.currentUser.username,
+      comments: [],
+      createdAt: currentPost?.createdAt ?? now,
+      id: currentPostId ?? 0,
+      updatedAt: now,
+      userId: c.var.currentUser.id,
+    };
+
+    c.header("Cache-Control", "private, no-store");
+    c.header("X-Robots-Tag", "noindex, nofollow");
+    return c.html(
+      <BlogPost
+        isAdmin={hasAdminRole(c.var.currentUser.roles)}
+        isAuthenticated
+        isPreview
+        post={previewPost}
+        viewerUserId={c.var.currentUser.id}
+        viewerUsername={c.var.currentUser.username}
+      />,
+    );
+  }
 
   if (currentPostId !== undefined) {
     await updatePost(c.env.DB, currentPostId, input);

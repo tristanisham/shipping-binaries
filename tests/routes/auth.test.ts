@@ -97,6 +97,103 @@ const autosave = (
     { DB: db } as Env,
   );
 
+const preview = (
+  db: D1Database,
+  token: string | null,
+  values: Record<string, string> = {},
+) =>
+  app.request(
+    "/admin/write",
+    {
+      body: new URLSearchParams({
+        postAction: "preview",
+        body: JSON.stringify({
+          blocks: [
+            { type: "header", data: { level: 2, text: "Preview heading" } },
+            { type: "paragraph", data: { text: "Unsaved preview body." } },
+          ],
+        }),
+        currentDraft: "1",
+        description: "Private description",
+        image: "",
+        keywords: "Preview, Private",
+        slug: "private-preview",
+        slugMode: "custom",
+        title: "Unsaved preview title",
+        ...values,
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        ...(token ? { Cookie: `${SESSION_COOKIE_NAME}=${token}` } : {}),
+      },
+      method: "POST",
+    },
+    { DB: db } as Env,
+  );
+
+test("post preview renders unsaved content privately without creating a post", async () => {
+  const db = createTestDb();
+  const token = await createAdminSession(db);
+  const response = await preview(db, token);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Cache-Control"), "private, no-store");
+  assert.equal(response.headers.get("X-Robots-Tag"), "noindex, nofollow");
+
+  const html = await response.text();
+  assert.match(html, /<meta name="robots" content="noindex, nofollow"\/>/);
+  assert.match(html, /data-post-preview/);
+  assert.match(html, /Private preview\./);
+  assert.match(html, /Only your signed-in account can see this rendering\./);
+  assert.match(html, /<h1[^>]*>Unsaved preview title<\/h1>/);
+  assert.match(html, /<h2[^>]*><span>Preview heading<\/span><\/h2>/);
+  assert.match(html, /Unsaved preview body\./);
+  assert.doesNotMatch(html, /data-post-analytics/);
+  assert.doesNotMatch(html, /id="comments-heading"/);
+
+  const count = await db
+    .prepare("SELECT COUNT(*) AS count FROM posts")
+    .first<{ count: number }>();
+  assert.equal(count?.count, 0);
+});
+
+test("post preview requires a signed-in account", async () => {
+  const db = createTestDb();
+  const response = await preview(db, null);
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get("Location"), "/login");
+});
+
+test("post preview does not overwrite an existing live post", async () => {
+  const db = createTestDb();
+  const token = await createAdminSession(db);
+  const user = await getSessionUser(db, token);
+  assert.ok(user);
+  const postId = await createPost(db, {
+    userId: user.id,
+    slug: "live-post",
+    title: "Live title",
+    description: "Live description",
+    keywords: [],
+    image: "",
+    body: "Live body",
+    draft: false,
+  });
+
+  const response = await preview(db, token, {
+    currentDraft: "0",
+    id: String(postId),
+    slug: "live-post",
+  });
+  assert.equal(response.status, 200);
+
+  const post = await getPostById(db, postId);
+  assert.equal(post?.title, "Live title");
+  assert.equal(post?.body, "Live body");
+  assert.equal(post?.draft, false);
+});
+
 test("autosave creates a draft and returns its id as JSON", async () => {
   const db = createTestDb();
   const token = await createAdminSession(db);

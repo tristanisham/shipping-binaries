@@ -413,6 +413,10 @@ test("new post form generates and validates a customizable slug", () => {
   assert.match(html, /name="postAction"/);
   assert.match(html, />Controls<span/);
   assert.match(html, />Save Draft<\/button>/);
+  assert.match(
+    html,
+    /name="postAction"[^>]*value="preview"[^>]*>Preview<\/button>/,
+  );
   assert.ok(html.indexOf(">Controls<span") > html.indexOf(">Image<span"));
   assert.match(
     html,
