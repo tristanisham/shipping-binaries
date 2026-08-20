@@ -1,4 +1,5 @@
 import { type BlogComment, getCommentsForPost } from "./comment.js";
+import { withD1Retry } from "./d1.js";
 
 const POST_COLUMNS =
   "id, user_id, slug, draft, title, description, keywords, image, body, created_at, updated_at";
@@ -90,15 +91,17 @@ export const getPostById = async (
   db: D1Database,
   postId: number,
 ): Promise<Post | null> => {
-  const row = await db
-    .prepare(
-      `SELECT ${POST_COLUMNS}
+  const row = await withD1Retry(() =>
+    db
+      .prepare(
+        `SELECT ${POST_COLUMNS}
        FROM posts
        WHERE id = ?1
        LIMIT 1`,
-    )
-    .bind(postId)
-    .first<PostRow>();
+      )
+      .bind(postId)
+      .first<PostRow>()
+  );
 
   if (!row) {
     return null;
@@ -112,15 +115,17 @@ export const getPostsForUser = async (
   db: D1Database,
   userId: number,
 ): Promise<readonly Post[]> => {
-  const result = await db
-    .prepare(
-      `SELECT ${POST_COLUMNS}
+  const result = await withD1Retry(() =>
+    db
+      .prepare(
+        `SELECT ${POST_COLUMNS}
        FROM posts
        WHERE user_id = ?1
        ORDER BY created_at DESC, id DESC`,
-    )
-    .bind(userId)
-    .all<PostRow>();
+      )
+      .bind(userId)
+      .all<PostRow>()
+  );
 
   return result.results.map((row) => postFromRow(row));
 };
@@ -221,15 +226,17 @@ interface PostListRow {
 export const getAllPosts = async (
   db: D1Database,
 ): Promise<readonly PostListItem[]> => {
-  const result = await db
-    .prepare(
-      `SELECT p.id, p.user_id, p.slug, u.username AS author_username, p.draft,
+  const result = await withD1Retry(() =>
+    db
+      .prepare(
+        `SELECT p.id, p.user_id, p.slug, u.username AS author_username, p.draft,
               p.title, p.description, p.created_at, p.updated_at
        FROM posts p
        JOIN users u ON u.id = p.user_id
        ORDER BY p.created_at DESC, p.id DESC`,
-    )
-    .all<PostListRow>();
+      )
+      .all<PostListRow>()
+  );
 
   return result.results.map((row) => ({
     id: row.id,
@@ -276,15 +283,17 @@ export const getPostsForExport = async (
   const where = conditions.length > 0
     ? `WHERE ${conditions.join(" AND ")}`
     : "";
-  const result = await db
-    .prepare(
-      `SELECT ${POST_COLUMNS}
+  const result = await withD1Retry(() =>
+    db
+      .prepare(
+        `SELECT ${POST_COLUMNS}
        FROM posts
        ${where}
        ORDER BY created_at DESC, id DESC`,
-    )
-    .bind(...bindings)
-    .all<PostRow>();
+      )
+      .bind(...bindings)
+      .all<PostRow>()
+  );
 
   return result.results.map((row) => postFromRow(row));
 };
@@ -363,16 +372,18 @@ export const updatePost = async (
 export const getPublishedPosts = async (
   db: D1Database,
 ): Promise<readonly PostWithAuthor[]> => {
-  const result = await db
-    .prepare(
-      `SELECT ${QUALIFIED_POST_COLUMNS},
+  const result = await withD1Retry(() =>
+    db
+      .prepare(
+        `SELECT ${QUALIFIED_POST_COLUMNS},
               users.username AS author_username, users.label AS author_label
        FROM posts
        JOIN users ON users.id = posts.user_id
        WHERE posts.draft = 0
        ORDER BY posts.created_at DESC, posts.id DESC`,
-    )
-    .all<PostWithAuthorRow>();
+      )
+      .all<PostWithAuthorRow>()
+  );
 
   return result.results.map((row) => postWithAuthorFromRow(row));
 };
@@ -381,17 +392,19 @@ export const getPublishedPostsForUser = async (
   db: D1Database,
   userId: number,
 ): Promise<readonly PostWithAuthor[]> => {
-  const result = await db
-    .prepare(
-      `SELECT ${QUALIFIED_POST_COLUMNS},
+  const result = await withD1Retry(() =>
+    db
+      .prepare(
+        `SELECT ${QUALIFIED_POST_COLUMNS},
               users.username AS author_username, users.label AS author_label
        FROM posts
        JOIN users ON users.id = posts.user_id
        WHERE posts.draft = 0 AND posts.user_id = ?1
        ORDER BY posts.created_at DESC, posts.id DESC`,
-    )
-    .bind(userId)
-    .all<PostWithAuthorRow>();
+      )
+      .bind(userId)
+      .all<PostWithAuthorRow>()
+  );
 
   return result.results.map((row) => postWithAuthorFromRow(row));
 };
@@ -400,9 +413,10 @@ export const getPublishedPostsByKeyword = async (
   db: D1Database,
   keyword: string,
 ): Promise<readonly PostWithAuthor[]> => {
-  const result = await db
-    .prepare(
-      `SELECT ${QUALIFIED_POST_COLUMNS},
+  const result = await withD1Retry(() =>
+    db
+      .prepare(
+        `SELECT ${QUALIFIED_POST_COLUMNS},
               users.username AS author_username, users.label AS author_label
        FROM posts
        JOIN users ON users.id = posts.user_id
@@ -413,9 +427,10 @@ export const getPublishedPostsByKeyword = async (
            WHERE LOWER(TRIM(json_each.value)) = LOWER(?1)
          )
        ORDER BY posts.created_at DESC, posts.id DESC`,
-    )
-    .bind(keyword)
-    .all<PostWithAuthorRow>();
+      )
+      .bind(keyword)
+      .all<PostWithAuthorRow>()
+  );
 
   return result.results.map((row) => postWithAuthorFromRow(row));
 };
@@ -424,17 +439,19 @@ export const getPublishedPostBySlug = async (
   db: D1Database,
   slug: string,
 ): Promise<PostWithAuthor | null> => {
-  const row = await db
-    .prepare(
-      `SELECT ${QUALIFIED_POST_COLUMNS},
+  const row = await withD1Retry(() =>
+    db
+      .prepare(
+        `SELECT ${QUALIFIED_POST_COLUMNS},
               users.username AS author_username, users.label AS author_label
        FROM posts
        JOIN users ON users.id = posts.user_id
        WHERE posts.slug = ?1 AND posts.draft = 0
        LIMIT 1`,
-    )
-    .bind(slug)
-    .first<PostWithAuthorRow>();
+      )
+      .bind(slug)
+      .first<PostWithAuthorRow>()
+  );
 
   if (!row) {
     return null;
@@ -451,17 +468,19 @@ export const getPostBySlug = async (
   db: D1Database,
   slug: string,
 ): Promise<PostWithAuthor | null> => {
-  const row = await db
-    .prepare(
-      `SELECT ${QUALIFIED_POST_COLUMNS},
+  const row = await withD1Retry(() =>
+    db
+      .prepare(
+        `SELECT ${QUALIFIED_POST_COLUMNS},
               users.username AS author_username, users.label AS author_label
        FROM posts
        JOIN users ON users.id = posts.user_id
        WHERE posts.slug = ?1
        LIMIT 1`,
-    )
-    .bind(slug)
-    .first<PostWithAuthorRow>();
+      )
+      .bind(slug)
+      .first<PostWithAuthorRow>()
+  );
 
   if (!row) {
     return null;
@@ -477,10 +496,14 @@ export const getPublishedPostRefBySlug = async (
   db: D1Database,
   slug: string,
 ): Promise<{ id: number; slug: string } | null> => {
-  const row = await db
-    .prepare("SELECT id, slug FROM posts WHERE slug = ?1 AND draft = 0 LIMIT 1")
-    .bind(slug)
-    .first<{ id: number; slug: string }>();
+  const row = await withD1Retry(() =>
+    db
+      .prepare(
+        "SELECT id, slug FROM posts WHERE slug = ?1 AND draft = 0 LIMIT 1",
+      )
+      .bind(slug)
+      .first<{ id: number; slug: string }>()
+  );
 
   return row ?? null;
 };
