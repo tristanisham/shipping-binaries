@@ -1,3 +1,5 @@
+import { withD1Retry } from "./d1.js";
+
 export interface BlogComment {
   id: number;
   postId: number;
@@ -78,9 +80,10 @@ export const getCommentsForPost = async (
   db: D1Database,
   postId: number,
 ): Promise<readonly BlogComment[]> => {
-  const result = await db
-    .prepare(
-      `SELECT comments.id, comments.post_id, comments.parent_id,
+  const result = await withD1Retry(() =>
+    db
+      .prepare(
+        `SELECT comments.id, comments.post_id, comments.parent_id,
               comments.user_id, comments.author, comments.content,
               comments.created_at, comments.updated_at,
               users.username AS author_username,
@@ -89,9 +92,10 @@ export const getCommentsForPost = async (
        LEFT JOIN users ON users.id = comments.user_id
        WHERE comments.post_id = ?1
        ORDER BY comments.created_at ASC, comments.id ASC`,
-    )
-    .bind(postId)
-    .all<CommentRow>();
+      )
+      .bind(postId)
+      .all<CommentRow>()
+  );
 
   return commentsFromRows(result.results);
 };
