@@ -8,7 +8,7 @@
     "feed": "^6.0.0",
     "hono": "^4.12.31",
     "lucide": "^1.28.0",
-    "posthog-node": "^5.46.1",
+    "posthog-node": "^5.51.7",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
